@@ -1,0 +1,7 @@
+package(USEPKG Core)
+
+#############################################################
+
+Global sanity checks of platform, libraries, etc.
+
+primary author: thomas.kittelmann@ess.eu

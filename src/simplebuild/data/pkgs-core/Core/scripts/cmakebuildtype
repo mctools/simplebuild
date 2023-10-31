@@ -1,0 +1,8 @@
+#!/usr/bin/env python3
+from simplebuild.cfg import cmakeargs
+bt=None
+s='-DCMAKE_BUILD_TYPE='
+for e in cmakeargs:
+    if e.startswith(s):
+        bt=e[len(s):]
+print(bt or 'RELEASE')

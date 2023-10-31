@@ -1,0 +1,40 @@
+
+[build-system]
+requires = ["setuptools>=61.0","setuptools-git-versioning"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools-git-versioning]
+enabled = true
+
+[project]
+name = "simplebuild"
+dynamic = ["version"] # Version based on git tag...
+#... not static: version = "0.0.1"
+authors = [
+  { name="Thomas Kittelmann", email="thomas.kittelmann@ess.eu" },
+]
+description = "Simple build system multi-user and multi-project development focused on C++/Python projects."
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: Unix",
+]
+dependencies = [
+    #Very light-weight, not a big deal if we happen to install with both conda and pip:
+    'tomli; python_version < "3.11"',
+    'pybind11 >= 2.10.4',
+    'cmake >= 3.24.2'
+]
+
+[project.urls]
+"Homepage" = "https://github.com/mctools/simplebuild"
+"Bug Tracker" = "https://github.com/mctools/simplebuild/issues"
+
+[project.scripts]
+sb = "simplebuild._cli:main"
+simplebuild = "simplebuild._cli:main"
+unwrapped_simplebuild = "simplebuild._cli:unwrapped_main"
+sbenv = "simplebuild._cli:sbenv_main"
+sbrun = "simplebuild._cli:sbrun_main"

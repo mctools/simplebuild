@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+
+if [ ! -f /proc/cpuinfo ]; then
+    echo "This test only works on linux. Ending gracefully."
+    exit 0
+fi
+
+if [ "x$SBLD_LIB_DIR" == "x" -o ! -d $SBLD_LIB_DIR ]; then
+    echo "SBLD_LIB_DIR not set properly"
+    exit 1
+fi
+
+#LIBS=`echo $SBLD_LIB_DIR/*.so`
+#if [ "x$LIBS" == "x$SBLD_LIB_DIR/*.so" ]; then
+#    LIBS=`echo $SBLD_LIB_DIR/*.dylib`
+#fi
+#if [ "x$LIBS" == "x$SBLD_LIB_DIR/*.dylib" ]; then
+#    echo "Error: Found no libraries."
+#    #in principle this would give a false positive if all packages stopped
+#    #providing libraries, but we assume this is unlikely and thus an error"
+#    exit 1
+#fi
+#add python libs:
+LIBS=""
+PYLIBS=`echo $SBLD_INSTALL_PREFIX/python/*/*.so`
+if [ "x$PYLIBS" != "x$SBLD_INSTALL_PREFIX/python/*/*.so" ]; then
+    LIBS="$LIBS $PYLIBS"
+fi
+ERR=0
+for lib in $LIBS; do
+    echo "Checking "`basename $lib`" for missing symbols"
+    #tmpfile_libchecker workaround to get stdout blocked and stderr to stdout
+    ldd -r $lib > /dev/null 2>tmpfile_libchecker
+    if [ -s tmpfile_libchecker ]; then
+        ERR=1
+    fi
+    cat tmpfile_libchecker
+    rm -f tmpfile_libchecker
+done
+if [ $ERR != 0 ]; then
+    echo "Error: libraries with missing symbols found"
+    exit $ERR
+else
+    echo "No problems found in any checked libraries"
+    exit 0
+fi

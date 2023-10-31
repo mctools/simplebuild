@@ -1,0 +1,12 @@
+package()
+######################################################################
+
+This package is supposed to provide commonly used functionality which a high
+number of packages might need. For now we provide a Python.hh file which should
+be used for all compiled python modules and we provide light-weight C++ and
+python access to Geant4/CLHEP units so these will also be available to anyone
+doing work which does not depend on Geant4.
+
+This package will never have any external dependencies.
+
+Primary author: thomas.kittelmann@ess.eu

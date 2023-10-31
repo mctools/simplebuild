@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+
+CMD_ISDBG=sb_coretests_build_is_debug
+CMD_FORCEFPE=sb_coretests_forcefpe
+
+which ${CMD_ISDBG} &> /dev/null
+if [ $? != 0 ]; then
+    echo "ERROR: needs ${CMD_ISDBG}"
+    exit 1
+fi
+${CMD_ISDBG} && EXPECTED_EC=134 || EXPECTED_EC=0
+if [ ! -f /proc/cpuinfo ]; then
+    #FPE detection disabled on mac
+    EXPECTED_EC=0
+fi
+${CMD_FORCEFPE} 2>stderr 1>stdout
+EC=$?
+cat stdout
+cat stderr
+if [ $EC != $EXPECTED_EC ]; then
+    echo "Unexpected exit code"
+    exit 1
+fi
+echo "Test ran as expected for all intents and purposes"
+exit 0
+
+#for now this is a very weak test since our testing system needs similar log
+#files in DEBUG and RELEASE mode, but at least the exit code is tested.

@@ -1,0 +1,32 @@
+#!/usr/bin/env python3
+#
+# Test that installed text files are without DOS line-endings (CR+LF rather than just LF).
+#
+# Not tested by this script is any non-installed source file such as C++/C/Fortran source files, package pkg.info's, etc.
+#
+import os,sys
+
+#installation directory:
+instdir=os.getenv('SBLD_INSTALL_PREFIX')
+
+#patterns of possible text files:
+patterns=['data/*/*',#might include binary files
+          'include/*/*',
+          'python/*/*.py',#.py to ignore .so and .pyc
+          'scripts/*',
+          #'tests/testref/*', #No need to waste CPU testing these, as they will be tested when used
+         ]
+
+#Use "file" command to carry out the tests:
+finalec=0
+for p in patterns:
+    basecmd='cd %s && file -Lz %s|grep "CRLF line terminators"'%(instdir,p)
+    ec=os.system(basecmd+'|grep -q "CRLF line terminators"')#0 means "found something"
+    if ec==0:
+        sys.stdout.flush(),sys.stderr.flush()
+        print ("\nDOS line-endings detected (please fix files with dos2unix):\n")
+        sys.stdout.flush(),sys.stderr.flush()
+        os.system(basecmd)
+        sys.stdout.flush(),sys.stderr.flush()
+        finalec=1
+sys.exit(finalec)

@@ -1,0 +1,156 @@
+#!/usr/bin/env python3
+import os,sys,random,string,time,shutil,glob,filecmp
+import Core.System as Sys
+import simplebuild.cfg as cfg
+
+def find_reflog(command):
+    rl = os.path.join(cfg.dirs.testrefdir,'%s.log'%command)
+    if not os.path.exists(rl):
+        print("ERROR: No reference log found for command: %s"%command)
+        print("Are you sure the command actually has a reference log?")
+        sys.exit(1)
+    return rl
+
+def find_testdir(command,testbasedir):
+    td=os.path.join(testbasedir,command)
+    ecfile=os.path.join(td,'ec.txt')
+    if not os.path.exists(ecfile):
+        print("ERROR: No test seems to have been run for command: %s"%command)
+        print("Did you just run \"dgbuild -t\" as required?")
+        sys.exit(1)
+    with open(ecfile) as fh:
+        if fh.read().strip()!='0':
+            print("ERROR: Test did not seem to run with exitcode=0 for command: %s"%command)
+            print("Make sure it runs ok before you even consider updating the reference log!")
+            sys.exit(1)
+    return td
+
+def find_testoutput(command,testbasedir=None):
+    td=find_testdir(command,testbasedir)
+    output,refdiff = os.path.join(td,'output.log'),os.path.join(td,'refdiff.log')
+    assert os.path.exists(output)
+    if not os.path.exists(refdiff):
+        print("ERROR: Reference log for command %s does not seem to need any updating"%command)
+        print("Did you just run \"dgbuild -t\" as required?")
+        sys.exit(1)
+    return output
+
+#prepare (also checks all commands):
+assert len(set(sys.argv[1:]))==len(sys.argv[1:]),"same argument specified more than once"
+
+args = sys.argv[1:]
+
+if '-h' in args or '--help' in args:
+    print('Usage: ')
+    print()
+    print('%s [-h|--help] [TESTDIR] '%os.path.basename(sys.argv[0])+
+          '[sb_some_testcommand1] [sb_some_testcommand2] [..]')
+    print()
+    sys.exit(0)
+
+
+if args and os.path.exists(os.path.join(os.path.expanduser(args[0]),'Makefile')):
+    testbasedir = os.path.abspath(os.path.expanduser(args[0]))
+    args=args[1:]
+else:
+    testbasedir = cfg.dirs.testdir
+
+if not args:
+    args = [ p.split(os.sep)[-2] for p in
+             glob.glob(os.path.join(testbasedir,'sb_*/refdiff.log'))
+             if os.path.getsize(p) ]
+
+commands=[]
+for c in args:
+    if not Sys.which(c):
+        print('ERROR: unknown command: %s'%c)
+        sys.exit(1)
+    commands += [(c,find_testoutput(c,testbasedir),find_reflog(c))]
+
+try:
+    import readline
+except ImportError:
+    print("WARNING: could not load readline module - typing input will be slightly more annoying")
+    readline=None
+
+def show_diff(reflog,log,side_by_side=True,sbs_column_width=130):
+    prompt = 'difference with respect to reference output of command %s (type Q when done viewing)'%cmd
+    coldiff = '|colordiff' if Sys.which('colordiff') else ''
+    Sys.system_throw('diff -a%s %s %s %s| less -R -c -f -K -L -n -S -P%s'%( f' -y -W{sbs_column_width}' if side_by_side else '',
+                                                                            reflog,
+                                                                            log,
+                                                                            coldiff,
+                                                                            Sys.quote(prompt) ) )
+updated_files=[]
+def update_file(log,reflog):
+    global updated_files
+    assert os.path.islink(reflog)
+    target=os.path.abspath(os.path.realpath(reflog))
+    assert any([target.startswith(str(d)) for d in cfg.dirs.pkgsearchpath])
+    i=0
+    while True:
+        i += 1
+        assert i<1e4
+        backup='%s.reflogupdate%s.orig'%(target,'.%i'%i if i>1 else '')
+        if not os.path.exists(backup):
+            break
+    shutil.copy2(target,backup)
+    Sys.rm_f(target)
+    shutil.copy2(log,target)
+    updated_files+=[os.path.relpath(target)]
+    return os.path.relpath(target)
+
+def final_summary():
+    global updated_files
+    print("Updated %i files%s"%(len(updated_files),':' if updated_files else ''))
+    print('    %s'%(' '.join(updated_files)))
+
+import atexit
+atexit.register(final_summary)
+
+for cmd,log,reflog in commands:
+    if filecmp.cmp(log,reflog,False):
+        print("Ignoring command %s since the log seems to have been already updated (time to run dgbuild -t again?)."%cmd)
+        time.sleep(0.5)
+        continue
+    show_diff(reflog,log)
+    randstr = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(5))
+    print('Do you want to update the reference log for %s?'%cmd)
+    print('     - Press ENTER to ignore')
+    print('     - Type "log"/"l"+ENTER to see file comparison again (column width 130)')
+    print('     - Type "log<value>"+ENTER to see file comparison again with custom colum-width')
+    print('     - Type "changes"/"c"+ENTER to see just the changed lines')
+    print('     - Type "%s" in reverse order (+ENTER) to actually perform the update IF YOU ARE SURE!'%randstr)
+    while True:
+        try:
+            choice=input('  >> ').strip().lower()
+        except (EOFError,KeyboardInterrupt):
+            print("Aborted by user")
+            sys.exit(0)
+        if choice=='ignore' or not choice:
+            break
+        if choice.startswith('log') or choice=='l':
+            _colwidth=None
+            if len(choice)>3:
+                try:
+                    _colwidth=int(choice[3:])
+                except ValueError:
+                    _colwidth=None
+                if _colwidth is None or _colwidth<=50 or _colwidth>=10000:
+                    print('invalid column width (supply integer >50 and <10000)')
+                    continue
+            show_diff(reflog,log,sbs_column_width=(_colwidth or 130))
+            continue
+        elif choice in ('changes','c'):
+            show_diff(reflog,log,side_by_side=False)
+            continue
+        elif choice==randstr[::-1]:
+            if readline:
+                readline.remove_history_item(readline.get_current_history_length()-1)
+            updatedfile = update_file(log,reflog)
+            print("Updated: %s"%updatedfile)
+            time.sleep(0.5)
+            break
+        else:
+            print("unknown choice!")
+            continue

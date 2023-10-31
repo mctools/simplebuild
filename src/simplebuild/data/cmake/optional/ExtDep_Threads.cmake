@@ -1,0 +1,13 @@
+set(HAS_Threads 0)
+if (NOT SBLD_VERBOSE)
+  set(Threads_FIND_QUIETLY ON)
+endif()
+set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
+FIND_PACKAGE(Threads)
+set(ExtDep_Threads_LINK_FLAGS "${CMAKE_THREAD_LIBS_INIT}")
+if (CMAKE_USE_PTHREADS_INIT)
+  set(ExtDep_Threads_VERSION "pthreads")
+else()
+  set(ExtDep_Threads_VERSION "${CMAKE_THREAD_LIBS_INIT}")
+endif()
+set(HAS_Threads 1)#apparently the FindThreads can't fail?

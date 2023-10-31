@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+if [ "x$SBLD_DATA_DIR" == "x" ]; then
+    echo "ERROR: SBLD_DATA_DIR variable not set."
+    exit 2
+fi
+if [ ! -d "$SBLD_DATA_DIR" ]; then
+    echo "ERROR: SBLD_DATA_DIR=$SBLD_DATA_DIR does not exists"
+    exit 2
+fi
+if [ $# != 2 ]; then
+    echo "Usage:"
+    echo `basename $0|sed 's#^_##'`' <PackageName> <DataFileName>'
+    exit 2
+fi
+PKG="$1"
+FN="$2"
+FILE=$SBLD_DATA_DIR/$PKG/$FN
+if [ ! -f $FILE ]; then
+    echo "ERROR: File $FILE not found."
+    echo ""
+    echo "Either there is no package $PKG providing a data file named $FN or you need to rebuild."
+    exit 1
+fi
+echo $FILE
