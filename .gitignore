@@ -1,3 +1,51 @@
+#build artifacts:
+/build/
+/dist/
+*.egg
+*.egg-info/
+eggs/
+.eggs/
+.idea/
+.vscode/*
+__pycache__/
+_build/
+develop-eggs/
+eggs/
+pip-wheel-metadata/
+sdist/
+share/python-wheels/
+venv/
+wheels/
+
+#ignore emacs backup and lock files:
+*~
+\#*\#
+.\#*
+
+#Additional files for vi:
+.*.sw?
+
+#ignore any build output and user files:
+*.orig
+
+#Extra protection against adding in build output created by custom user commands:
+__pycache__/
+simplebuild_cache/
+
+#latex build leftovers:
+*.aux
+*.blg
+*.bbl
+*.dvi
+# Has other usage in simplebuild: *.log
+*.spl
+*.bak
+*.toc
+
+#Miscellaneous:
+.DS_Store
+vgcore.*
+
 # Prerequisites
 *.d
 
