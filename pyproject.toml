@@ -8,8 +8,7 @@ enabled = true
 
 [project]
 name = "simple-build-system"
-dynamic = ["version"] # Version based on git tag...
-#... not static: version = "0.0.1"
+dynamic = ["version"] # Version based on git tag
 authors = [
   { name="Thomas Kittelmann", email="thomas.kittelmann@ess.eu" },
 ]
@@ -22,7 +21,6 @@ classifiers = [
     "Operating System :: Unix",
 ]
 dependencies = [
-    #Very light-weight, not a big deal if we happen to install with both conda and pip:
     'tomli; python_version < "3.11"',
     'pybind11 >= 2.10.4',
     'cmake >= 3.24.2'
@@ -33,8 +31,8 @@ dependencies = [
 "Bug Tracker" = "https://github.com/mctools/simplebuild/issues"
 
 [project.scripts]
-sb = "simplebuild._cli:main"
-simplebuild = "simplebuild._cli:main"
-unwrapped_simplebuild = "simplebuild._cli:unwrapped_main"
-sbenv = "simplebuild._cli:sbenv_main"
-sbrun = "simplebuild._cli:sbrun_main"
+sb = "_simple_build_system._cli:main"
+simplebuild = "_simple_build_system._cli:main"
+unwrapped_simplebuild = "_simple_build_system._cli:unwrapped_main"
+sbenv = "_simple_build_system._cli:sbenv_main"
+sbrun = "_simple_build_system._cli:sbrun_main"
