@@ -7,13 +7,13 @@ build-backend = "setuptools.build_meta"
 enabled = true
 
 [project]
-name = "simplebuild"
+name = "simple-build-system"
 dynamic = ["version"] # Version based on git tag...
 #... not static: version = "0.0.1"
 authors = [
   { name="Thomas Kittelmann", email="thomas.kittelmann@ess.eu" },
 ]
-description = "Simple build system multi-user and multi-project development focused on C++/Python projects."
+description = "A very simple to use build system for projects with primarily C++/Python code, intended for usage by scientific developers without a strong SW-engineering background."
 readme = "README.md"
 requires-python = ">=3.8"
 classifiers = [
