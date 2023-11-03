@@ -7,9 +7,9 @@ function(
     detect_system_ncrystal
     resvar_found
     resvar_version
-    resvar_cxx_cflags_list
-    resvar_c_cflags_list
-    resvar_linkflags_list
+    resvar_cxx_cflags
+    resvar_c_cflags
+    resvar_linkflags
     )
 
   set( ${resvar_found} 0 PARENT_SCOPE )
@@ -57,7 +57,7 @@ function(
     C "${findpkgargs}" "NCrystal::NCrystal" "-DNCrystal_DIR=${NCrystal_DIR}"
     ncrystal_c_cflags ncrystal_c_linkflags
     )
-  if ( NOT "x${resvar_c_linkflags_list}" STREQUAL "x${resvar_cxx_linkflags_list}" )
+  if ( NOT "x${ncrystal_c_linkflags}" STREQUAL "x${ncrystal_cxx_linkflags}" )
     message( FATAL_ERROR "Found different NCrystal link flags for c++ and c!!")
     return()
   endif()
@@ -65,18 +65,24 @@ function(
   #Adding -I${NCrystal_INCDIR} directly to the flags for added robustness, since
   #extract_extdep_flags might miss it if it was already in a default include
   #path for the secondary cmake process:
-  set( ncrystal_cxx_cflags "${ncrystal_cxx_cflags} -I${NCrystal_INCDIR}" )
-  set( ncrystal_c_cflags "${ncrystal_c_cflags} -I${NCrystal_INCDIR}" )
+  list( APPEND ncrystal_cxx_cflags "-I${NCrystal_INCDIR}" )
+  list( APPEND ncrystal_c_cflags "-I${NCrystal_INCDIR}" )
 
-  #Adding flags, to help with redirection resolution in NCrystalRel headers:
-  set( ncrystal_cxx_cflags "${ncrystal_cxx_cflags} -DDGCODE_USE_SYSTEM_NCRYSTAL" )
-  set( ncrystal_c_cflags "${ncrystal_c_cflags} -DDGCODE_USE_SYSTEM_NCRYSTAL" )
+  #Adding flags, to help with redirection resolution in NCrystalRel headers (FIXME: temporary workaround!):
+  list( APPEND ncrystal_cxx_cflags "-DDGCODE_USE_SYSTEM_NCRYSTAL" )
+  list( APPEND ncrystal_c_cflags "-DDGCODE_USE_SYSTEM_NCRYSTAL" )
+
+  #Convert from list to single string:
+  string( REPLACE ";" " " ncrystal_cxx_cflags "${ncrystal_cxx_cflags}" )
+  string( REPLACE ";" " " ncrystal_c_cflags "${ncrystal_c_cflags}" )
+  string( REPLACE ";" " " ncrystal_cxx_linkflags "${ncrystal_cxx_linkflags}" )
+  string( REPLACE ";" " " ncrystal_c_linkflags "${ncrystal_c_linkflags}" )
 
   set( ${resvar_found} 1 PARENT_SCOPE )
   set( ${resvar_version} "${NCrystal_VERSION}" PARENT_SCOPE )
-  set( ${resvar_cxx_cflags_list} "${ncrystal_cxx_cflags}" PARENT_SCOPE )
-  set( ${resvar_c_cflags_list} "${ncrystal_c_cflags}" PARENT_SCOPE )
-  set( ${resvar_linkflags_list} "${ncrystal_c_linkflags}" PARENT_SCOPE )
+  set( ${resvar_cxx_cflags} "${ncrystal_cxx_cflags}" PARENT_SCOPE )
+  set( ${resvar_c_cflags} "${ncrystal_c_cflags}" PARENT_SCOPE )
+  set( ${resvar_linkflags} "${ncrystal_c_linkflags}" PARENT_SCOPE )
 endfunction()
 
 detect_system_ncrystal( HAS_NCrystal
