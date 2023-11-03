@@ -31,8 +31,8 @@ dependencies = [
 "Bug Tracker" = "https://github.com/mctools/simplebuild/issues"
 
 [project.scripts]
-sb = "_simple_build_system._cli:main"
 simplebuild = "_simple_build_system._cli:main"
+sb = "_simple_build_system._cli:main"
 unwrapped_simplebuild = "_simple_build_system._cli:unwrapped_main"
 sbenv = "_simple_build_system._cli:sbenv_main"
 sbrun = "_simple_build_system._cli:sbrun_main"

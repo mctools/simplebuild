@@ -10,16 +10,16 @@ namespace Core {
 }
 
 
-PYTHON_MODULE
+PYTHON_MODULE( mod )
 {
-  PYDEF("catch_fpe",&Core::catch_fpe);
+  mod.def("catch_fpe",&Core::catch_fpe);
 
-  py::class_<Core::pyDisableFPEContextManager>(PYMOD "DisableFPEContextManager")//,py::init<>())
+  py::class_<Core::pyDisableFPEContextManager>(mod,"DisableFPEContextManager")
     .def(py::init<>())
     .def("__enter__",&Core::pyDisableFPEContextManager::on_enter)
     .def("__exit__",&Core::pyDisableFPEContextManager::on_exit)
     ;
 
-  PYDEF("disable_catch_fpe",&Core::disable_catch_fpe);
-  PYDEF("reenable_catch_fpe",&Core::reenable_catch_fpe);
+  mod.def("disable_catch_fpe",&Core::disable_catch_fpe);
+  mod.def("reenable_catch_fpe",&Core::reenable_catch_fpe);
 }

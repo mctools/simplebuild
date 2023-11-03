@@ -1,17 +1,19 @@
 #include "Core/Python.hh"
 
-namespace Core {
-  bool is_debug_build()
-  {
+namespace {
+  namespace Core {
+    bool is_debug_build()
+    {
 #ifndef NDEBUG
-    return true;
+      return true;
 #else
-    return false;
+      return false;
 #endif
+    }
   }
 }
 
-PYTHON_MODULE
+PYTHON_MODULE( mod )
 {
-  PYDEF("is_debug_build",&Core::is_debug_build);
+  mod.def("is_debug_build",&Core::is_debug_build);
 }
