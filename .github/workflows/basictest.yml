@@ -1,0 +1,54 @@
+name: basictest
+on: push
+
+# Workflow which pip installs the source code and checks that both bundles build
+# and runs tests in both release and debug mode.
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - { os: ubuntu-20.04,  CC: gcc-10,   CXX: g++-10,     python: '3.8'  }
+          - { os: ubuntu-22.04,  CC: gcc,      CXX: g++,        python: '3.9'  }
+          - { os: ubuntu-latest, CC: gcc,      CXX: g++,        python: '3.10' }
+          - { os: ubuntu-latest, CC: clang,    CXX: clang++,    python: '3.11' }
+          - { os: ubuntu-latest, CC: gcc-12,   CXX: g++-12,     python: '3.11' }
+          - { os: macos-11,      CC: clang,    CXX: clang++,    python: "3.10" }
+          - { os: macos-12,      CC: clang,    CXX: clang++,    python: "3.11" }
+          #- { os: macos-13,      CC: clang,    CXX: clang++,    python: "3.11" }
+    name: ${{ matrix.os }}.${{ matrix.CC }}.python-${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    env:
+      CC: ${{ matrix.CC }}
+      CXX: ${{ matrix.CXX }}
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        path: src
+
+    - name: Setup python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python }}
+
+    - name: Check versions
+      run: |
+           which python3
+           python3 --version
+           which cmake
+           cmake --version
+
+    - name: Install package
+      run: |
+           python3 -m pip install ./src
+
+    - name: Build-and-test-release-mode
+      run: |
+        cd ./src/resources/example_project_release_mode && simplebuild -t
+
+    - name: Build-and-test-debug-mode
+      run: |
+        cd ./src/resources/example_project_debug_mode && simplebuild -t
