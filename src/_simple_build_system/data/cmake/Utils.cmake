@@ -140,3 +140,30 @@ function( fake_usage_cmake_args )
     endif()
   endforeach()
 endfunction()
+
+function( strip_cpp_version_flags varname )
+  set( tmp "${${varname}}" )
+  set( blocklist
+    "-std=c++98"
+    "-std=c++0x" "-std=c++11" "-std=gnu++11"
+    "-std=c++1y" "-std=c++14" "-std=gnu++14"
+    "-std=c++1z" "-std=c++17" "-std=gnu++17"
+    "-std=c++2a" "-std=c++20" "-std=gnu++20"
+    "-std=c++2b" "-std=c++23" "-std=gnu++23"
+    )
+  if( tmp MATCHES ";" )
+    #we are dealing with a list
+    set( res "" )
+    foreach( entry ${tmp} )
+      if ( NOT "${entry}" IN_LIST blocklist )
+        list( APPEND res "${entry}" )
+      endif()
+    endforeach()
+    set( "${varname}" "${res}" PARENT_SCOPE )
+  else()
+    foreach( entry ${blocklist} )
+      string(REPLACE "${entry}" "" tmp "${tmp}")
+    endforeach()
+    set( "${varname}" "${tmp}" PARENT_SCOPE )
+  endif()
+endfunction()

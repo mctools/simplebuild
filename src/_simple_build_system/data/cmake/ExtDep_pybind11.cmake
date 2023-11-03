@@ -47,6 +47,10 @@ function( detect_system_pybind11
   extract_extdep_flags( CXX "${findpkg_args}" "pybind11::module" "${cmake_args}" module_cflags module_linkflags )
   extract_extdep_flags( CXX "${findpkg_args}" "pybind11::embed" "${cmake_args}" embed_cflags embed_linkflags )
 
+  #Make sure pybind11 does not overrule the c++ standard:
+  strip_cpp_version_flags( module_cflags )
+  strip_cpp_version_flags( embed_cflags )
+
   #For some reason the -DUSING_pybind11 define does not get added with the
   #above. Try to add it manually and hope it works:
   set( ${resvar_version} "${pybind11_version}" PARENT_SCOPE )

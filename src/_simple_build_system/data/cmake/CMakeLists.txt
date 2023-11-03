@@ -42,8 +42,7 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   endif()
 endif()
 
-#NB: Using -std=c++1z rather than -std=c++17 for now, due to clang++ from XCode 9.2 not recognising it yet.
-set(SBLD_GLOBAL_COMPILE_FLAGS_CXX "${FLAG_PEDANTIC}-std=c++1z -Wextra ${FLAG_WERROR}-Wall -Woverloaded-virtual -Wno-non-virtual-dtor -Wno-long-long -Wwrite-strings -Wpointer-arith -Wno-variadic-macros -Wshadow${FLAGS_PLATFORM_CXX} ${SBLD_EXTRA_CFLAGS}")
+set(SBLD_GLOBAL_COMPILE_FLAGS_CXX "${FLAG_PEDANTIC}-std=c++17 -Wextra ${FLAG_WERROR}-Wall -Woverloaded-virtual -Wno-non-virtual-dtor -Wno-long-long -Wwrite-strings -Wpointer-arith -Wno-variadic-macros -Wshadow${FLAGS_PLATFORM_CXX} ${SBLD_EXTRA_CFLAGS}")
 set(SBLD_GLOBAL_COMPILE_FLAGS_C "${FLAG_PEDANTIC}-std=c99 -Wextra${FLAGS_PLATFORM_C} ${FLAG_WERROR}-Wall ${SBLD_EXTRA_CFLAGS}")
 
 
