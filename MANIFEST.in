@@ -1,10 +1,11 @@
-recursive-include src/simplebuild/data/cmake *.cmake *.txt *.py
-recursive-include src/simplebuild/data/pkgs-core LICENSE pkg.info *.cc *.hh *.icc *.c *.h *.f *.py
-recursive-include src/simplebuild/data/pkgs-core/**/data *
-recursive-include src/simplebuild/data/pkgs-core/**/scripts *
-recursive-include src/simplebuild/data/pkgs-core_val LICENSE pkg.info *.cc *.hh *.icc *.c *.h *.f *.py
-recursive-include src/simplebuild/data/pkgs-core_val/**/data *
-recursive-include src/simplebuild/data/pkgs-core_val/**/scripts *
+
+recursive-include src/_simple_build_system/data/cmake *.cmake *.txt *.py
+recursive-include src/_simple_build_system/data/pkgs-core LICENSE pkg.info *.cc *.hh *.icc *.c *.h *.f *.py
+recursive-include src/_simple_build_system/data/pkgs-core/**/data *
+recursive-include src/_simple_build_system/data/pkgs-core/**/scripts *
+recursive-include src/_simple_build_system/data/pkgs-core_val LICENSE pkg.info *.cc *.hh *.icc *.c *.h *.f *.py
+recursive-include src/_simple_build_system/data/pkgs-core_val/**/data *
+recursive-include src/_simple_build_system/data/pkgs-core_val/**/scripts *
 recursive-include src simplebuild.cfg
 
 global-exclude *~* *\#* .*
