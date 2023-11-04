@@ -3,7 +3,7 @@ include_guard()
 get_filename_component( EXTRACT_DEPINFO_PYSCRIPT "${CMAKE_CURRENT_LIST_DIR}/extract_flags_helper.py" REALPATH )
 
 function( extract_extdep_flags language find_package_arg_list deptargets_list cmake_args_list resvar_cflags resvar_linkflags )
-  set( cmd python3 "${EXTRACT_DEPINFO_PYSCRIPT}"
+  set( cmd "${Python_EXECUTABLE}" "${EXTRACT_DEPINFO_PYSCRIPT}"
     --cmakecommand "${CMAKE_COMMAND}" --respectcmakeargs
     -l "${language}"
     -f -o stdout_json )

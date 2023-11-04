@@ -3,11 +3,12 @@
 ###   => all code can implicitly depend on these   ###
 ######################################################
 
-include( "ExtractFlags.cmake")
-
 cmake_policy(PUSH)
 include("ExtDep_Python.cmake")
 cmake_policy(POP)
+
+include( "ExtractFlags.cmake")
+
 cmake_policy(PUSH)
 include("ExtDep_pybind11.cmake")
 cmake_policy(POP)

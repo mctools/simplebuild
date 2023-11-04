@@ -33,7 +33,7 @@ if (NOT "x${HAS_ROOT}" STREQUAL "xpending" AND NOT "x${HAS_Fortran}" STREQUAL "x
             set(ExtDep_Garfield_LINK_FLAGS "${ExtDep_ROOT_LINK_FLAGS} ${ExtDep_Fortran_LINK_FLAGS}")
             set(ExtDep_Garfield_LINK_FLAGS "${ExtDep_Garfield_LINK_FLAGS} -L$ENV{GARFIELD_HOME}/lib -lGarfield")
             #hackish way to extract Garfield version:
-            execute_process(COMMAND "python3" "-c" "import os;import pathlib as p;l=[e for e in (p.Path(os.environ['GARFIELD_HOME'])/'lib/cmake/Garfield/GarfieldConfig.cmake').read_text().splitlines() if 'set(GARFIELD_VERSION' in e];print(l[0].split('\"')[1])" OUTPUT_VARIABLE tmp RESULT_VARIABLE tmp_ec ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE)
+            execute_process(COMMAND "${Python_EXECUTABLE}" "-c" "import os;import pathlib as p;l=[e for e in (p.Path(os.environ['GARFIELD_HOME'])/'lib/cmake/Garfield/GarfieldConfig.cmake').read_text().splitlines() if 'set(GARFIELD_VERSION' in e];print(l[0].split('\"')[1])" OUTPUT_VARIABLE tmp RESULT_VARIABLE tmp_ec ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE)
             if ("x${tmp_ec}" STREQUAL "x0")
               string(STRIP "${tmp}" ExtDep_Garfield_VERSION)
               if ("x${ExtDep_Garfield_VERSION}" STREQUAL "x")

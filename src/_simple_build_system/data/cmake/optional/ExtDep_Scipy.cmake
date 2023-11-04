@@ -5,7 +5,7 @@
 # dependency, unless it is integral to it's functionality (a prime example would
 # be a package whose unit tests depends on scipy being available).
 
-EXECUTE_PROCESS(COMMAND "python3" "-c" "import scipy;print (scipy.__version__)"
+EXECUTE_PROCESS(COMMAND "${Python_EXECUTABLE}" "-c" "import scipy;print (scipy.__version__)"
                 OUTPUT_VARIABLE tmp RESULT_VARIABLE tmp_ec ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE)
 
 if ("x${tmp_ec}" STREQUAL "x0")

@@ -1,4 +1,4 @@
-EXECUTE_PROCESS(COMMAND "python3" "-c" "import ase; import ase.io;print (ase.__version__)"
+EXECUTE_PROCESS(COMMAND "${Python_EXECUTABLE}" "-c" "import ase; import ase.io;print (ase.__version__)"
                 OUTPUT_VARIABLE tmp RESULT_VARIABLE tmp_ec ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE)
 
 if ("x${tmp_ec}" STREQUAL "x0")

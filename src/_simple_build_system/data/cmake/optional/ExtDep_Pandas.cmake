@@ -5,7 +5,7 @@
 # dependency, unless it is integral to it's functionality (a prime example would
 # be a package whose unit tests depends on pandas being available).
 
-EXECUTE_PROCESS(COMMAND "python3" "-c" "import pandas;print (pandas.__version__)"
+EXECUTE_PROCESS(COMMAND "${Python_EXECUTABLE}" "-c" "import pandas;print (pandas.__version__)"
                 OUTPUT_VARIABLE tmp RESULT_VARIABLE tmp_ec ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE)
 
 if ("x${tmp_ec}" STREQUAL "x0")
