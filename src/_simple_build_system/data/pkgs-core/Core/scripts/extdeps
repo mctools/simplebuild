@@ -1,0 +1,77 @@
+#!/usr/bin/env python3
+
+def extract_extdeps():
+    import simplebuild.cfg as c
+    import pickle
+    with c.dirs.envcache.open("br") as fh:
+        envcache = pickle.load(fh)
+    extdeps_enabled = set( extdep_name
+                           for extdep_name,extdep_info
+                           in envcache["extdeps"].items()
+                           if extdep_info.get("present") )
+    extdeps_disabled = set( extdep_name
+                            for extdep_name,extdep_info
+                            in envcache["extdeps"].items()
+                            if not extdep_info.get("present") )
+    return extdeps_enabled, extdeps_disabled
+
+def parse_args( argv = None ):
+    if argv is None:
+        import sys
+        argv = sys.argv
+    import argparse
+    descr = """Query list of simplebuild optional external dependencies,
+               especially whether or not they are enabled (if needed and
+               present). Running without arguments simply provides a list of all
+               such dependencies, while specifying certain arguments will list
+               the status of only those."""
+
+    parser = argparse.ArgumentParser(argv[0],description=descr)
+    parser.add_argument('NAME', nargs='*' )
+    parser.add_argument('--require', action='store_true',
+                        help=('Silently verify that all listed dependencies'
+                              ' are enabled (end with non-zero exit code if not)'))
+    parser.add_argument('--require-disabled', action='store_true',
+                        help=('Silently verify that all listed dependencies'
+                              ' are disabled (end with non-zero exit code if not)'))
+    parser.add_argument('--enabled', action='store_true',
+                        help='Only print those enabled.')
+    parser.add_argument('--disabled', action='store_true',
+                        help='Only print those disabled.')
+    args = parser.parse_args(argv[1:])
+    if sum(1 for a in (args.require,
+                       args.require_disabled,
+                       args.enabled,
+                       args.disabled) if a ) > 1:
+        parser.error('Conflicting flags.')
+    return args
+
+def main( argv = None ):
+    args = parse_args( argv )
+    name_list = set(args.NAME)
+    enabled, disabled = extract_extdeps()
+    unknown = name_list - ( enabled | disabled )
+    if unknown:
+        raise SystemExit('Unknown external dependency names: %s'%(' '.join(unknown)))
+
+    import sys
+    if args.require:
+        sys.exit( 0 if len(name_list - enabled)==0 else 1 )
+    if args.require_disabled:
+        sys.exit( 0 if len(name_list - disabled)==0 else 1 )
+    if not name_list:
+        name_list = enabled | disabled
+    if args.enabled:
+        n = enabled & name_list
+        if n:
+            print('\n'.join( n ))
+    elif args.disabled:
+        n = disabled & name_list
+        if n:
+            print('\n'.join( n ))
+    else:
+        for n in name_list:
+            print('%s (%s)'%(n, 'enabled' if n in enabled else 'disabled'))
+
+if __name__=='__main__':
+    main()
