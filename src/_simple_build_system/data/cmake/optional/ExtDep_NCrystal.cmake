@@ -68,10 +68,6 @@ function(
   list( APPEND ncrystal_cxx_cflags "-I${NCrystal_INCDIR}" )
   list( APPEND ncrystal_c_cflags "-I${NCrystal_INCDIR}" )
 
-  #Adding flags, to help with redirection resolution in NCrystalRel headers (FIXME: temporary workaround!):
-  list( APPEND ncrystal_cxx_cflags "-DDGCODE_USE_SYSTEM_NCRYSTAL" )
-  list( APPEND ncrystal_c_cflags "-DDGCODE_USE_SYSTEM_NCRYSTAL" )
-
   #Convert from list to single string:
   string( REPLACE ";" " " ncrystal_cxx_cflags "${ncrystal_cxx_cflags}" )
   string( REPLACE ";" " " ncrystal_c_cflags "${ncrystal_c_cflags}" )

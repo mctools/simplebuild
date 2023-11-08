@@ -27,8 +27,6 @@ def perform_configuration(cmakeargs=[],
     #Pre-inspect package directories, simply finding the package dirs for now (do it already to detect some errors early):
     all_pkgdirs = loadpkgs.find_pkg_dirs ( dirs.pkgsearchpath )
 
-    #next load packages, also detecting some errors early.
-
     #Inspect package tree and load the necessary pkg.info files, given the filters:
     pl = loadpkgs.PackageLoader( all_pkgdirs,
                                  select_filter,

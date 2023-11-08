@@ -46,9 +46,8 @@ def parse_depfile(pkgdir):
                         if current is None:
                             _err()
                         current += [e]
-                extra_extdeps, extra_pkgdeps = get_dynamic_dependency(pkg_name)
-                return ( set(extdeps + extra_extdeps),
-                         set(pkgdeps + extra_pkgdeps),
+                return ( set(extdeps),
+                         set(pkgdeps),
                          extra_cflags,
                          extra_ldflags,
                          extra_incdeps )
@@ -323,22 +322,6 @@ class Package:
         print('%s   Clients               : %s'%(prefix,_format(clients_indirect)))
         print('%s   External dependencies : %s'%(prefix,_format(extdeps_indirect)))
         print(prefix+'='*len(l1))
-
-
-_dyndep_map = [ {} ]
-def add_dynamic_dependency( pkgname, extdep_list = None, usepkg_list = None ):
-    #FIXME: Remove again after NCrystal migration?
-    d = _dyndep_map[0]
-    if pkgname not in d:
-        d[pkgname] = dict( extdep_list = [], usepkg_list = [] )
-    if extdep_list:
-        d[pkgname]['extdep_list'] += extdep_list[:]
-    if usepkg_list:
-        d[pkgname]['usepkg_list'] += usepkg_list[:]
-
-def get_dynamic_dependency( pkgname ):
-    e = _dyndep_map[0].get(pkgname)
-    return ( e['extdep_list'],e['usepkg_list'] ) if e else ([],[])
 
 class PackageLoader:
 
