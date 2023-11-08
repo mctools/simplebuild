@@ -49,16 +49,16 @@ namespace pyextra {
 
 //Convenience macro for defining a python module:
 #ifdef PYTHON_MODULE
-#  undefine PYTHON_MODULE
+#  undef PYTHON_MODULE
 #endif
 #define PYTHON_MODULE( modvarname ) PYBIND11_MODULE(PYMODNAME, modvarname)
 
 //Convenience macros for stringification:
 #ifdef sbld_xstringify
-#  undefine sbld_xstringify
+#  undef sbld_xstringify
 #endif
 #ifdef sbld_stringify
-#  undefine sbld_stringify
+#  undef sbld_stringify
 #endif
 #define sbld_xstringify(s) #s
 #define sbld_stringify(s) sbld_xstringify(s)

@@ -32,4 +32,14 @@ namespace Core {
 
 }
 
+//Convenience macros for stringification:
+#ifdef sbld_xstringify
+#  undef sbld_xstringify
+#endif
+#ifdef sbld_stringify
+#  undef sbld_stringify
+#endif
+#define sbld_xstringify(s) #s
+#define sbld_stringify(s) sbld_xstringify(s)
+
 #endif
