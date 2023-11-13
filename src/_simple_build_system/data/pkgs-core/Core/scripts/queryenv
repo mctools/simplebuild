@@ -1,0 +1,87 @@
+#!/usr/bin/env python3
+
+def query( keys, dict_only_keys, opt_bool01 ):
+    import simplebuild.cfg as cfg
+    import pickle
+    with cfg.dirs.envcache.open('rb') as fh:
+        data = pickle.load(fh)
+    for k in keys:
+        if not isinstance(data, dict) or not k in data:
+            raise SystemExit('Invalid key: %s'%k)
+        data = data[k]
+    if dict_only_keys and isinstance(data, dict):
+        print('\n'.join(data.keys()))
+        return
+    if isinstance(data, dict) or isinstance(data, list) or isinstance(data, tuple):
+        import pprint
+        pprint.pprint(data)
+    else:
+        if opt_bool01 and isinstance(data,bool):
+            print(1 if bool(data) else 0)
+        else:
+            print(data)
+
+def pkginfo( pkgname ):
+    if '/' in pkgname or '.' in pkgname:
+        raise SystemExit('Please provide only the package name.')
+    import simplebuild.cfg as cfg
+    if not pkgname in cfg.pkgs:
+        raise SystemExit('Unknown package: %s'%pkgname)
+    print(cfg.pkgs[pkgname]['dirname'])
+
+def main():
+    import sys
+    args=sys.argv[1:]
+    if args and args[0] in ('-h','--help'):
+        import os
+        print("""
+Utility which can be used to probe information about the system from the
+commandline. This is considered expert-only.
+
+Usage:
+
+PROGNAME -h
+PROGNAME --help
+
+                 Display this message.
+
+PROGNAME --pkgdir PKGNAME
+
+                 Print the absolute path to the package of the given name.
+
+PROGNAME [--keys|--bool01] [KEY0 [KEY1 [... KEYN]]]
+
+                 Loads the dictionary of system information contained in the
+                 simplebuild.cfg.dirs.envcache file, and dump the contained
+                 information. If any KEY0..KEYN arguments are provided, the
+                 information corresponding to those key(s) is provided.
+
+                 If --keys is specified and the information to be displayed is a
+                 dictionary, only the keys of that dictionary will be printed.
+
+                 If --bool01 is specified and the information to be displayed is
+                 a boolean, the value will be printed as "1" or "0" rather than
+                 "True" or "False".
+        """.replace('PROGNAME',os.path.basename(sys.argv[0])))
+        raise SystemExit
+
+
+    if args and args[0] == '--pkgdir':
+        args = args[1:]
+        if len(args)!=1:
+            raise SystemExit('Invalid or missing arguments.')
+        pkginfo(args[0])
+    else:
+        keys = args and args[0]=='--keys'
+        if keys:
+            args = args[1:]
+        opt_bool01 = args and args[0]=='--bool01'
+        if opt_bool01:
+            args = args[1:]
+        if opt_bool01 and keys:
+            raise SystemExit("Conflicting options provided")
+        query( args, dict_only_keys = keys, opt_bool01 = opt_bool01 )
+
+
+if __name__ == '__main__':
+    main()

@@ -156,6 +156,10 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
         parser.add_option_group(group_query)
 
         group_other = OptionGroup(parser, "Other options")
+        group_other.add_option("--version",
+                               action="store_true", dest="show_version", default=False,
+                               help="Show simplebuild version and exit")
+
         group_other.add_option("-t", "--tests",
                                action="store_true", dest="runtests", default=False,
                                help="Run tests after the build")
@@ -303,6 +307,12 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
         return parser,opt,new_cfgvars
 
     parser,opt,new_cfgvars=parse_args()
+
+    if opt.show_version:
+        from . import _determine_version
+        sys.stdout.write(_determine_version.determine_version()+'\n')
+        raise SystemExit
+
     if opt.quiet:
         conf.make_quiet()
 

@@ -207,7 +207,7 @@ def deinstall_parts(instdir,pkgname,current_parts,disappeared_parts):
         elif d=='libsrc':
             rm_pattern(i/'lib','*PKG__%s.*'%pkgname)
         elif d.startswith('app_'):
-            rm_tree( i / 'bin' / '%s%s_%s'%(runnable_prefix,pkgname.lower(),d[4:].lower()) )
+            rm_tree( ( i / 'bin' / '%s%s_%s' )%(runnable_prefix,pkgname.lower(),d[4:].lower()) )
         elif d=='symlink__scripts':
             rm_pattern( i/'scripts','%s%s_*'%(runnable_prefix,pkgname.lower()))#FIXME: clashes (see fixme above)
             (pkgcache/'symlinks'/'scripts.pkl').touch()
@@ -230,7 +230,7 @@ def deinstall_parts(instdir,pkgname,current_parts,disappeared_parts):
                 rm_file( pkgcache / 'symlinks' / 'python.pkl.old' )
         elif d.startswith('pycpp_') or d=='symlink__python':
             if d.startswith('pycpp'):
-                rm_file( i / 'python' / pkgname / '%s.so'%d[6:] )
+                rm_file( ( i / 'python' / pkgname / '%s.so' )%d[6:] )
             if not pydone:
                 pydone=True
                 if not any((e.startswith('pycpp') or e=='symlink__python') for e in current_parts):
