@@ -95,7 +95,7 @@ def parse(filename):
             lvars['dep_versions'] = cmakevars['SBLD_GLOBAL_VERSION_DEPS_%s'%lang]
             cflags = ' '.join([cmakevars['CMAKE_%s_FLAGS'%lang],cmakevars.get('SBLD_GLOBAL_COMPILE_FLAGS_%s'%lang,'')])
             if lang=='C':
-                cflags = ' '.join([c for c in cflags.split() if not c.startswith('-std=c++')])
+                cflags = ' '.join([c for c in cflags.split() if not (c.startswith('-std=c++') or c.startswith('-std=gnu++'))])
             elif lang=='CXX':
                 cflags = ' '.join([c for c in cflags.split() if not (c.startswith('-std=c') and not c.startswith('-std=c++'))])
             lvars['cflags'] = cflags

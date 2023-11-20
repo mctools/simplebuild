@@ -2,15 +2,23 @@ set(HAS_ZLib 0)
 if (NOT SBLD_VERBOSE)
   set(ZLIB_FIND_QUIETLY ON)
 endif()
-FIND_PACKAGE(ZLIB)
+set( tmp_zlib_find_package_args "ZLIB" "1.2.8" )
+FIND_PACKAGE(${tmp_zlib_find_package_args})
 if (ZLIB_FOUND)
     set(HAS_ZLib 1)
-    if (NOT "x${ZLIB_INCLUDE_DIRS}" STREQUAL "x/usr/include")
-      set(ExtDep_ZLib_COMPILE_FLAGS "${ExtDep_ZLib_COMPILE_FLAGS} -I${ZLIB_INCLUDE_DIRS} -isystem${ZLIB_INCLUDE_DIRS}")
-    else()
-      set(ExtDep_ZLib_COMPILE_FLAGS "${ExtDep_ZLib_COMPILE_FLAGS}")
-    endif()
-    #get_filename_component(ZLIB_LIBRARIES  "${ZLIB_LIBRARIES}" REALPATH)
+    extract_extdep_flags(
+      CXX
+      "${tmp_zlib_find_package_args}"
+      "ZLIB::ZLIB" ""
+      ExtDep_ZLib_COMPILE_FLAGS
+      ExtDep_ZLib_LINK_FLAGS
+    )
     set(ExtDep_ZLib_LINK_FLAGS "${ZLIB_LIBRARIES}")
-    set(ExtDep_ZLib_VERSION "${ZLIB_VERSION_STRING}")
+    if ( DEFINED "ZLIB_VERSION" )
+      #cmake 3.26+
+      set(ExtDep_ZLib_VERSION "${ZLIB_VERSION}")
+    else()
+      #legacy
+      set(ExtDep_ZLib_VERSION "${ZLIB_VERSION_STRING}")
+    endif()
 endif()
