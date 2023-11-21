@@ -86,8 +86,10 @@ class RedirectionCfg:
         cfgdict = decode_toml_textdata_to_dict( textdata, path )
         if list(cfgdict.keys())!= ['special'] or list(cfgdict['special'].keys())!= ['redirect_search_path']:
             error.error(f'Invalid format of redirection cfg file at {path}')
-        self.__sp = decode_list_of_search_paths( DecodeContext( str(path), path.parent ),
-                                             cfgdict['special']['redirect_search_path'] )
+        ctx = DecodeContext( str(path), path.parent )
+        ctx.set_item_name('redirect_search_path')
+        self.__sp = decode_list_of_search_paths( ctx,
+                                                 cfgdict['special']['redirect_search_path'] )
     @property
     def search_path( self ):
         return self.__sp

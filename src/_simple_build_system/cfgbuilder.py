@@ -197,6 +197,13 @@ class CfgBuilder:
             for cfg_file in mod.simplebuild_bundle_list():
                 if not cfg_file.is_absolute() or not cfg_file.is_file():
                     error.error(f'Non-absolute or non-existing cfg file path returned from {srcdescr}')
+                #The .resolve() in the next line means that it is easier to work
+                #with an on-disk clone of a repo which is otherwise providing
+                #it's bundles after a pip install. If that clone is then "pip
+                #install -e" (editable), then the resolve will go to the on-disk
+                #clone rather than the symlinked file in the site-packages
+                #area. The advantage is that newly added files in these repos
+                #will still be picked up.
                 cfg_file = cfg_file.absolute().resolve()
                 if cfg_file in self.__used_cfg_files:
                     self.__print(f' -> skipping provided file already used: {cfg_file}')
