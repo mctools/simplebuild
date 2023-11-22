@@ -67,7 +67,7 @@ def calculate_env_setup( oldenv = None ):
 
     #So inject our new variables:
     for pathvar, inst_subdirs in sorted( var.env_paths.items() ):
-        prepend_entries = [ instdir / sd for sd in inst_subdirs ]
+        prepend_entries = [ instdir / sd for sd in sorted(inst_subdirs) ]
         ed = env_dict if pathvar in env_dict else oldenv
         env_dict[pathvar] = modify_path_var( pathvar,
                                              env_dict = ed,

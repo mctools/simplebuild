@@ -327,28 +327,20 @@ class PackageLoader:
 
     def __init__(self,
                  pkgdirs,
-                 select_pkg_filter=None,
-                 exclude_pkg_filter=None,
+                 pkg_filter_obj=None,
                  autodeps=None,
                  load_all=False):
+        """Locates package directories and inits wrapper Package objects for
+        each.  It will respect select_pkg_filter and attempt to be economical
+        about loading the package configuration files. Filters will receive
+        package reldirname and basename as input.'
         """
-        Locates package directories and inits wrapper Package objects for each.
-        It will respect select_pkg_filter or exclude_pkg_filter and attempt to be
-        economical about loading the package configuration files. Filters will
-        receive package reldirname and basename as input.'
-        """
-        #use load_all to (inefficiently) load all cfg info even when select filter is set (to produce pkg graphs)
+        #use load_all to (inefficiently) load all cfg info even when filter is
+        #set (for queries about pkg metadata)
 
-        if exclude_pkg_filter == 'NOTLEGACYMODE':
-            pkg_filter_obj =  select_pkg_filter
-            del select_pkg_filter
-            del exclude_pkg_filter
-            legacy_mode = False
-            #pkg_filter_obj.dump()
-            if pkg_filter_obj.fully_open():
-                pkg_filter_obj = None
-        else:
-            legacy_mode = True
+        #pkg_filter_obj.dump()
+        if pkg_filter_obj.fully_open():
+            pkg_filter_obj = None
 
         #Note, when select_pkg_filter is set, we do not need to load ALL cfg
         #files, hence the difference in treatment below.
@@ -362,10 +354,7 @@ class PackageLoader:
         #    error.error("Can't exclude packages when simultaneously requesting to enable only certain packages")
 
         #2) Construct Package objects and name->object maps:
-        if legacy_mode:
-            default_enabled = False if select_pkg_filter else True
-        else:
-            default_enabled = pkg_filter_obj is None
+        default_enabled = pkg_filter_obj is None
 
         n2p={}
         lowercased_pkgs=set()
@@ -393,26 +382,13 @@ class PackageLoader:
         g=self.name2pkg.get
         def pkg_name2obj(pn):
             return g(pn,None)
-        if legacy_mode:
-            if select_pkg_filter:
-                for p in pkgs:
-                    if select_pkg_filter(p.name,p.dirname):
-                        p.setup(pkg_name2obj,autodeps,enable_and_recurse_to_deps=True)
-                #always enable the autodeps no matter what:
-                if autodeps:
-                    for p in (pkg_name2obj(ad) for ad in autodeps):
-                        p.setup(pkg_name2obj,autodeps,enable_and_recurse_to_deps=True)
-            if not select_pkg_filter or load_all:
-                for p in pkgs:
-                    p.setup(pkg_name2obj,autodeps)
-        else:
-            if pkg_filter_obj:
-                for p in pkgs:
-                    if pkg_filter_obj.passes( p.name, p.reldirname ):
-                        p.setup(pkg_name2obj,autodeps,enable_and_recurse_to_deps=True)
-            if load_all or not pkg_filter_obj:
-                for p in pkgs:
-                    p.setup(pkg_name2obj,autodeps)
+        if pkg_filter_obj:
+            for p in pkgs:
+                if pkg_filter_obj.passes( p.name, p.reldirname ):
+                    p.setup(pkg_name2obj,autodeps,enable_and_recurse_to_deps=True)
+        if load_all or not pkg_filter_obj:
+            for p in pkgs:
+                p.setup(pkg_name2obj,autodeps)
 
         #4) setup client links (only to clients which are setup):
         for p in pkgs:
@@ -420,12 +396,6 @@ class PackageLoader:
                 for pd in p.direct_deps:
                     if pd.is_setup:
                         pd.direct_clients.add(p)
-
-        #5) Apply exclusion filter:
-        if legacy_mode and exclude_pkg_filter:
-            for p in pkgs:
-                if exclude_pkg_filter(p.name,p.dirname):
-                    p.disable()
 
         for p in self.enabled_pkgs_iter():
             p.deps()#must setup deps of all enabled packages, otherwise we can't be sure to detect circular deps

@@ -38,39 +38,19 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
     ### Parse arguments  ####
     #########################
 
-    legacy_mode = False
-
     def get_simplebuild_pkg_dirs():
         from . import dirs
         return [dirs.projdir, *dirs.extrapkgpath]
 
-    if legacy_mode:
-        from . import dirs # noqa: F811
-        rel_blddir=os.path.relpath(dirs.blddir)
-        rel_instdir=os.path.relpath(dirs.installdir)
-
-
-    if legacy_mode:
-        from . import envcfg
-        proj_pkg_selection_enabled = envcfg.var.enable_projects_pkg_selection_flag
-    else:
-        proj_pkg_selection_enabled = False
     def parse_args():
 
         #Prepare parser:
         parser = OptionParser(usage='%prog [options]')
 
-        if legacy_mode:
-            group_build = OptionGroup(parser, "Controlling the build","The build will be carried out"
-                                      " in the %s/ directory and after a successful build it"
-                                      " will install the results in %s/. In addition to"
-                                      " configuration variables, the follow options can be used to fine-tune"
-                                      " the build process."%(rel_blddir,rel_instdir))
-        else:
-            group_build = OptionGroup(parser, "Controlling the build","The build will be carried out"
-                                      " and installed in a cache directory (use --info to see which). In addition to"
-                                      " configuration variables, the follow options can be used to fine-tune"
-                                      " the build process.")
+        group_build = OptionGroup(parser, "Controlling the build","The build will be carried out"
+                                  " and installed in a cache directory (use --info to see which). In addition to"
+                                  " configuration variables, the follow options can be used to fine-tune"
+                                  " the build process.")
 
         group_build.add_option("-j", "--jobs",
                                type="int", dest="njobs", default=0,
@@ -86,50 +66,23 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
                                help="Force (re)examination of environment")
         group_build.add_option("-i", "--insist",
                                action="store_true", dest="insist", default=False,
-                               help="Insist on reconf/rebuild/reinstall from scratch")#nb: does not forget CMake args!
+                               help="Insist on reconf/rebuild/reinstall from scratch")
         parser.add_option_group(group_build)
 
-        group_cfgvars = OptionGroup(parser, "Setting configuration variables",
-                                    "You can set variables to be used during the configuration stage. Once"
-                                    " set, the variables will be remembered and do not need to be specified"
-                                    " upon next invocation of %s. Use the -s switch for more info."%progname)
-        group_cfgvars.add_option("-s", "--show",
-                                 action='store_true', dest="show", default=False,
-                                 help="Show stored configuration variables and exit")
-        group_cfgvars.add_option("-f", "--forget",
-                                 action='store_true', dest="forget", default=False,
-                                 help="Forget stored configuration variables and exit")
-        group_cfgvars.add_option("-r", "--release",
-                                 action='store_true', dest="release", default=False,
-                                 help="Shortcut for CMAKE_BUILD_TYPE=RELEASE")
-        group_cfgvars.add_option("-d", "--debug",
-                                 action='store_true', dest="debug", default=False,
-                                 help="Shortcut for CMAKE_BUILD_TYPE=DEBUG")
-        parser.add_option_group(group_cfgvars)
+        group_pkgselect = OptionGroup(parser, "Selecting what packages to enable",
+                                      "The flags below provide a convenient alternative to"
+                                      " direct modification of the configuration variable named \"ONLY\". Default is to enable all packages.")
+        group_pkgselect.add_option("-a","--all",action='store_true', default=False,dest='enableall',
+                                 help="Enable *all* packages.")
 
-        if legacy_mode:
-
-            group_pkgselect = OptionGroup(parser, "Selecting what packages to enable",
-                                          "The flags below provide a convenient alternative to"
-                                          " direct modification of the configuration variable named \"ONLY\". Default is to enable all packages.")
-            group_pkgselect.add_option("-a","--all",action='store_true', default=False,dest='enableall',
-                                     help="Enable *all* packages.")
-
-            if proj_pkg_selection_enabled:
-              group_pkgselect.add_option("-p","--project",
-                                     action='store', dest="project", default='',metavar='PROJ',
-                                     help=('Enable packages in selected projects under $DGCODE_PROJECTS_DIR'
-                                           +' (defined by the name of their top-level directory under $DGCODE_PROJECTS_DIR).'))
-
-            parser.add_option_group(group_pkgselect)
+        parser.add_option_group(group_pkgselect)
 
         group_query = OptionGroup(parser, "Query options")
 
         #FIXME: Should be something simple like -s (after we retire the current way of setting cmake args
-        if not legacy_mode:
-            group_query.add_option('--cfginfo',
-                                   action='store_true', dest='cfginfo', default=False,
-                                   help='Print overall configuration information (based on the simplebuild.cfg file) and exit.')
+        group_query.add_option('--cfginfo',
+                               action='store_true', dest='cfginfo', default=False,
+                               help='Print overall configuration information (based on the simplebuild.cfg file) and exit.')
 
 
         group_query.add_option("--pkginfo",
@@ -137,7 +90,9 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
                                help="Print information about package PKG")
         group_query.add_option("--incinfo",
                                action="store", dest="incinfo", default='',metavar='CFILE',
-                               help="Show inclusion relationships for the chosen CFILE. CFILE must be a C++ or C file in the package search path. Optionally multiple files can be specified using comma-separation and wildcards (\"*\').")
+                               help=( "Show inclusion relationships for the chosen CFILE. CFILE must be a C++"
+                                      " or C file in the package search path. Optionally multiple files can be"
+                                      " specified using comma-separation and wildcards (\"*\').") )
         group_query.add_option("--pkggraph",
                                action="store_true", dest="pkggraph", default=False,
                                help="Create graph of package dependencies")
@@ -169,14 +124,9 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
         group_other.add_option("--testfilter",
                                type="str", dest="testfilter", default='',
                                help="Only run tests with names matching provided patterns (passed on to 'dgtests --filter', c.f. 'dgtests --help' for details)",metavar="PATTERN")
-        if legacy_mode:
-            group_other.add_option("-c", "--clean",
-                                   action='store_true', dest="clean", default=False,
-                                   help="Remove %s and %s directories and exit"%(rel_blddir,rel_instdir))
-        else:
-            group_other.add_option("-c", "--clean",
-                                   action='store_true', dest="clean", default=False,
-                                   help="Completely remove cache directories and exit.")
+        group_other.add_option("-c", "--clean",
+                               action='store_true', dest="clean", default=False,
+                               help="Completely remove cache directories and exit.")
         group_other.add_option("--replace",
                                action="store", dest="replace", default=None, metavar='PATTERN',
                                help="Global search and replace in packages via pattern like '/OLDCONT/NEWCONT/' (use with care!)")
@@ -195,18 +145,8 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
 
         #Actually parse arguments, taking care that the ones of the form VAR=value
         #must be interpreted as user configuration choices, most passed to cmake.
-        new_cfgvars={}
         args_unused=[]
-        (opt, args) = parser.parse_args(argv[1:])
-        for a in args:
-            t=a.split('=',1)
-            if len(t)==2 and t[0] and ' ' not in t[0]:
-                if t[0] in new_cfgvars:
-                    parser.error('Configuration variable %s supplied multiple times'%t[0])
-                new_cfgvars[t[0]]=t[1]
-            else:
-                args_unused+=[a]
-        del args
+        (opt, args_unused) = parser.parse_args(argv[1:])
 
         opt._querypaths=[]
         if opt.grepc:
@@ -215,74 +155,16 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
             opt.grep=opt.grepc
             opt.grepc=bool(opt.grepc)
 
-        if legacy_mode:
-            opt.cfginfo = False
-
-        if new_cfgvars and (opt.forget or opt.clean or opt.pkginfo or opt.grep or opt.incinfo or opt.cfginfo):
-            parser.error("Don't supply <var>=<val> arguments together with --cfginfo, --clean, --forget, --grep, --incinfo, --pkginfo flags")
-
         if opt.pkggraph_activeonly:
             opt.pkggraph=True
-
-        #rel/debug flags:
-        if opt.release and opt.debug:
-            parser.error('Do not supply both --debug and --release flags')
-        if (opt.release or opt.debug) and 'CMAKE_BUILD_TYPE' in new_cfgvars:
-            parser.error('Do not supply --debug or --release flags while setting CMAKE_BUILD_TYPE directly')
-        if opt.release:
-            new_cfgvars['CMAKE_BUILD_TYPE']='RELEASE'
-        if opt.debug:
-            new_cfgvars['CMAKE_BUILD_TYPE']='DEBUG'
-
-        if legacy_mode and proj_pkg_selection_enabled:
-          if opt.project and opt.enableall:
-            parser.error('Do not specify both --all and --project')
-
-          if opt.project:
-              #TODO: This is rather specific to our way of structuring directories...
-              if 'ONLY' in new_cfgvars:
-                  parser.error('Do not set ONLY=... variable when supplying --project flag')
-              #if 'NOT' in new_cfgvars:
-              #    parser.error('Do not set NOT=... variable when supplying --project flag')
-              projs = set(e.lower() for e in opt.project.split(','))
-              extra='Framework::*,'
-              from . import dirs
-              if dirs.extrapkgpath:
-                  extra+='Extra::*,'
-              if not projs:
-                  extra=extra[:-1]#remove comma
-              new_cfgvars['ONLY']='%s%s'%(extra,','.join('Projects::%s*'%p for p in projs))
-              if 'NOT' not in new_cfgvars:
-                  new_cfgvars['NOT']=''
 
         #if opt.pkgs and opt.enableall:
             #parser.error('Do not specify both --all and --project')
 
-    #    if opt.pkgs:
-    #        if 'ONLY' in new_cfgvars:
-    #            parser.error('Do not set ONLY=... variable when supplying --pkg flag')
-    #        if 'NOT' in new_cfgvars:
-    #            parser.error('Do not set NOT=... variable when supplying --pkg flag')
-    ##    if opt.pkgs:
-    ##        pkgs = set(e.lower() for e in opt.pkg.split(','))
-    ##        _only=new_cfgvars.get('ONLY','')
-    ##        new_cfgvars['ONLY']='%s%s'%(extra,','.join('Projects/%s*'%p for p in projs))
-    ##        new_cfgvars['NOT']=''
-    ##     .... todo...
-
-        if legacy_mode and opt.enableall:
-            if 'ONLY' in new_cfgvars:
-                parser.error('Do not set ONLY=... variable when supplying --all flag')
-            #if 'NOT' in new_cfgvars:
-            #    parser.error('Do not set NOT=... variable when supplying --all flag')
-            if 'NOT' not in new_cfgvars:
-                new_cfgvars['NOT']=''
-            new_cfgvars['ONLY']='*'#this is how we make sure --all is remembered
-
         query_mode_withpathzoom_n = sum(int(bool(a)) for a in [opt.grep,opt.replace,opt.find])
         query_mode_n = query_mode_withpathzoom_n + sum(int(bool(a)) for a in [opt.pkggraph,opt.pkginfo,opt.incinfo,opt.cfginfo])
-        if int(opt.forget)+int(opt.show)+int(opt.clean)+ query_mode_n > 1:
-            parser.error("More than one of --clean, --forget, --show, --pkggraph, --pkginfo, --grep, --grepc, --replace, --find, --cfginfo, --incinfo specified at the same time")
+        if int(opt.clean)+ query_mode_n > 1:
+            parser.error("More than one of --clean, --pkggraph, --pkginfo, --grep, --grepc, --replace, --find, --cfginfo, --incinfo specified at the same time")
         opt.query_mode = query_mode_n > 0
         if query_mode_withpathzoom_n > 0:
             for a in args_unused:
@@ -304,9 +186,9 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
             parser.error("Do not supply both --quiet and --verbose flags")
 
 
-        return parser,opt,new_cfgvars
+        return parser,opt
 
-    parser,opt,new_cfgvars=parse_args()
+    parser,opt=parse_args()
 
     if opt.show_version:
         from . import _determine_version
@@ -327,7 +209,6 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
         raise SystemExit
 
     if opt.cfginfo:
-        assert not legacy_mode
         print("FIXME: cfginfo mode is not yet implemented!")
         raise SystemExit
 
@@ -336,21 +217,31 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
     from . import conf
     from . import envcfg
     from . import utils
+
+    if not dirs.blddir.exists() and not dirs.installdir.exists():
+        #Silently set this in case of completely fresh build, to avoid getting
+        #some slightly confusing printouts later:
+        opt.insist = True
+
     if opt.removelock and dirs.lockfile.exists():
         os.remove(dirs.lockfile)
 
+    lockfile_content = str(os.getpid())
     if dirs.lockfile.exists():
+        locking_pid = dirs.lockfile.read_text()
         error.error('ERROR: Presence of lock file indicates competing invocation of '
-                    '%s. Force removal with %s --removelock if you are sure this is incorrect.'%(progname,progname))
+                    f'{progname} (by pid {locking_pid}). Force removal'
+                    f' with {progname} --removelock if you are sure this is incorrect.')
     dirs.create_bld_dir()
+    dirs.lockfile.write_text(lockfile_content)
 
-    utils.touch(dirs.lockfile)
+    assert dirs.lockfile.read_text()==lockfile_content
 
-    assert dirs.lockfile.exists()
     def unlock():
+        expected_content = lockfile_content
         from os import remove
         from .dirs import lockfile
-        if lockfile.exists():
+        if lockfile.exists() and lockfile.read_text()==expected_content:
             remove(lockfile)
     import atexit
     atexit.register(unlock)
@@ -358,43 +249,12 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
     if opt.clean:
         if dirs.blddir.is_dir() or dirs.installdir.is_dir():
             if not opt.quiet:
-                print("Removing temporary cache directories and forgetting stored CMake args. Exiting.")
+                print("Removing temporary cache directories. Exiting.")
             conf.safe_remove_install_and_build_dir()
         else:
             if not opt.quiet:
                 print("Nothing to clean. Exiting.")
         sys.exit(0)
-    try:
-        old_cfgvars = utils.pkl_load(dirs.varcache)
-    except IOError:
-        old_cfgvars = {}
-
-    if opt.forget:
-        if old_cfgvars:
-            os.remove(dirs.varcache)
-            if not opt.quiet:
-                print("Cleared %i configuration variable%s."%(len(old_cfgvars),'' if len(old_cfgvars)==1 else 's'))
-        else:
-            if not opt.quiet:
-                print("No configuration variables set, nothing to clear.")
-        sys.exit(0)
-
-    #combine old and new config vars:
-    cfgvars=dict((k,v) for k,v in new_cfgvars.items() if v)
-    for k,v in old_cfgvars.items():
-        if k not in new_cfgvars:
-            cfgvars[k]=v
-
-    #Make sure that if nothing is specified, we compile ALL packages,
-    #or just Framework packages if project package selection is enabled (+ all extrapkgpath packages, if the path is set):
-    if legacy_mode:
-        pkg_selection_default = "*" if not proj_pkg_selection_enabled else ("Framework::*,Extra::*" if dirs.extrapkgpath else "Framework::*")
-        if 'NOT' not in cfgvars and 'ONLY' not in cfgvars: #and not opt.pkgs
-            cfgvars['ONLY'] = pkg_selection_default
-
-    #Old check, we try to allow both variables now:
-    #if 'ONLY' in cfgvars and 'NOT' in cfgvars:
-    #    parser.error('Can not set both ONLY and NOT variables simultaneously. Unset at least one by ONLY="" or NOT=""')
 
     #Detect changes to system cmake or python files and set opt.examine or opt.insist as appropriate.
     from . import mtime
@@ -402,7 +262,10 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
     try:
         oldsysts = utils.pkl_load(dirs.systimestamp_cache)
     except IOError:
-        opt.insist=True
+        if not opt.insist:
+            if dirs.systimestamp_cache.exists():
+                print("Could not load timestamp cache insist due to IOError loading dirs.systimestamp_cache")
+            opt.insist=True
         oldsysts = (None,None)
 
     if envcfg.var.allow_sys_dev:
@@ -413,131 +276,32 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
     if not opt.insist and oldsysts!=systs:
         if oldsysts[0]!=systs[0]:
             opt.examine = True
-        if oldsysts[1]!=systs[1]:
+        if not opt.insist and oldsysts[1]!=systs[1]:
+            print("simple-build-system time stamp changed -> performing complete rebuild for safety.")
             opt.insist = True
 
-    if dirs.envcache.exists():
+    if not opt.insist and dirs.envcache.exists():
         envdict=utils.pkl_load(dirs.envcache)
-        #insist rebuilding from scratch if install dir was changed since the build dir was last used
-        _autoreconf_cache_dirs = envdict['_autoreconf_environment'][0]
-        assert _autoreconf_cache_dirs[0][0]=='install_dir'
-        assert _autoreconf_cache_dirs[1][0]=='build_dir'
-        _autoreconf_inst_dir = _autoreconf_cache_dirs[0][1]
-        _autoreconf_bld_dir = _autoreconf_cache_dirs[1][1]
-        if ( _autoreconf_inst_dir != str(conf.install_dir())
-             or _autoreconf_bld_dir != str(conf.build_dir()) ):
+        #insist rebuilding COMPLETELY from scratch if install or build dirs changed:
+        _autoreconf_inst_dir = envdict['_autoreconf_environment'].get('install_dir')
+        _autoreconf_bld_dir = envdict['_autoreconf_environment'].get('build_dir')
+        if _autoreconf_inst_dir != str(conf.install_dir()):
+            print("Performing complete rebuild since the cache install dir changed (%s -> %s)"%(_autoreconf_inst_dir,
+                                                                                                str(conf.install_dir())))
+            opt.insist = True
+        elif _autoreconf_bld_dir != str(conf.build_dir()):
+            print("Performing complete rebuild since the cache build dir changed (%s -> %s)"%(_autoreconf_bld_dir,
+                                                                                              str(conf.build_dir())))
             opt.insist = True
 
     if opt.insist:
         conf.safe_remove_install_and_build_dir()
         dirs.create_bld_dir()
 
-    utils.pkl_dump(cfgvars,dirs.varcache)
     utils.pkl_dump(systs,dirs.systimestamp_cache)
 
-    if opt.show:
-        if cfgvars:
-            if not opt.quiet:
-                print('Currently the following configuration variables are set:')
-            if not opt.quiet:
-                print()
-            #print the values even when quiet:
-            for k,v in sorted(cfgvars.items()):
-                print('    %s=%s'%(k,shlex.quote(v)))
-        else:
-            if not opt.quiet:
-                print('Currently no configuration variables are set.')
-        if not opt.quiet:
-            print()
-            print('To modify this you can (note this is mostly for expert users!):')
-            print()
-            print('  - set variable by supplying VAR=VAL arguments to %s'%progname)
-            print('  - unset a variable by setting it to nothing (VAR=)')
-            print('  - unset all variables by running %s with --forget (but note that'%progname)
-            print('    the ONLY variable is special and defaults to "%s")'%(pkg_selection_default))
-            print()
-            print('These are the variables with special support in %s'%progname)
-            print()
-            print('  - SBLD_EXTRA_CFLAGS  : Extra compilation flags to be passed to the compiler')
-            print('                         Example: SBLD_EXTRA_CFLAGS=-Wshadow')
-            print('  - SBLD_EXTRA_LDFLAGS : Extra link flags to be passed to the linker')
-            print('  - SBLD_RELAX         : Set to 1 to temporarily ignore compiler warnings')
-            print('  - ONLY               : Enable only certain packages.')
-            print('                         Example: ONLY="Framework::*,BasicExamples"')
-            print('  - NOT                : Disable certain packages.')
-            print('  - Geant4=0, ROOT=0, etc.. : Force a given external dependency to be')
-            print('                              considered as absent, even if present.')
-        sys.exit(0)
-
-    def create_filter(pattern):
-        #fixme soon obsolete
-        #Patterns separated with ; or ,.
-        #
-        #A '/' char indicates a pattern to be tested versus the path to the package,
-        #otherwise it will be a test just against the package name.
-        #
-        #matching is done case-insensitively via the fnmatch module
-
-        aliases = dirs.pkgdir_aliases
-        def expand_alias(part):
-          if '::' not in part:
-            return [part]
-          pkgdirAlias = part.split('::')[0].lower()
-          subdirPattern = part.split('::')[1].lower()
-          if pkgdirAlias in aliases:
-            pkgdir = aliases[pkgdirAlias]
-            if isinstance(pkgdir,list):
-              return [os.path.join(d, subdirPattern) for d in pkgdir]
-            else:
-              return [os.path.join(pkgdir,subdirPattern)]
-          else:
-            print("Error: Can't find directory alias for %s in %s"%(part.split('::')[0],part))
-            sys.exit(1)
-
-        # Separate patterns, and expand directory aliases
-        pattern_parts = [item for p in pattern.replace(';',',').split(',') if p for item in expand_alias(p)]
-
-        import fnmatch
-        import re
-        namepatterns = []
-        dirpatterns = []
-        for p in pattern_parts:
-          if '/' not in p:
-            namepatterns.append(re.compile(fnmatch.translate(p.lower())).match)
-          elif p.startswith('/'):
-            dirpatterns.append(re.compile(fnmatch.translate(p.lower())).match)
-          else:
-            # create pattern for ALL paths in the pkg search path
-            dirpatterns.extend([re.compile(fnmatch.translate( ('%s/%s'%(d,p)).lower() )).match for d in dirs.pkgsearchpath])
-
-        def the_filter(pkgname,absdir):
-            for p in namepatterns:
-                if p(pkgname.lower()):
-                    return True
-            for d in dirpatterns:
-                if d(absdir.lower()):
-                    return True
-            return False
-
-        return the_filter
-
-    if legacy_mode:
-        select_filter=create_filter(cfgvars['ONLY']) if 'ONLY' in cfgvars else None
-        exclude_filter=create_filter(cfgvars['NOT']) if 'NOT' in cfgvars else None
-        cmakeargs=[shlex.quote('%s=%s'%(k,v)) for k,v in cfgvars.items() if k not in set(['ONLY','NOT'])]
-        cmakeargs.sort()
-    else:
-        #fixme: cleanup variable usage after migration!
-        select_filter = envcfg.var.pkg_filter
-        assert select_filter is not None
-        exclude_filter = 'NOTLEGACYMODE'
-        if 'ONLY' in cfgvars or 'NOT' in cfgvars:
-            error.error('Do not use old-school -p/-a/ONLY=/NOT= mode for filtering packages.'
-                        ' Instead add a [build] pkg_filter = ["filter",...] entry in your main simplebuild.cfg.')
-        cmakeargs = []#fixme
-
-
-
+    select_filter = envcfg.var.pkg_filter
+    assert select_filter is not None
     autodisable = True
 
     from . import backend
@@ -545,9 +309,7 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
     err_txt,unclean_exception = None,None
     error.default_error_type = error.Error
     try:
-        pkgloader = backend.perform_configuration(cmakeargs=cmakeargs,
-                                                  select_filter=select_filter,
-                                                  exclude_filter=exclude_filter,
+        pkgloader = backend.perform_configuration(select_filter=select_filter,
                                                   autodisable = autodisable,
                                                   force_reconf=opt.examine,
                                                   load_all_pkgs = opt.query_mode,
@@ -765,7 +527,7 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
                     out+='%s%s%s'%(colbegin,s,colend)
                     first=False
                 else:
-                    out += '\n%s                                     %s%s%s'%(prefix,colbegin,s,colend)
+                    out += '\n%s                                      %s%s%s'%(prefix,colbegin,s,colend)
             return out
             #return ' '.join(l)
 
@@ -819,20 +581,12 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
         print('  System                           : %s'%env.env['system']['general']['system'])
         cp=env.env['cmake_printinfo']
         unused_vars = set(cp['unused_vars'])
-        unused_vars_withvals=[]
-        ucvlist = []
-        for k,v in cfgvars.items():
-            if k in unused_vars:
-                ucvlist+=['%s%s=%s%s'%(col_bad,k,shlex.quote(v),col_end)]
-                unused_vars_withvals+=[ucvlist[-1]]
-            else:
-                ucvlist+=['%s=%s'%(k,shlex.quote(v))]
 
-        print('  User configuration variables[*]  : %s'%formatlist(ucvlist,None))
         print('  Required dependencies            : %s'%formatlist(['%s[%s]'%(k,v) for k,v in sorted(set(reqdep))],None))
         print('  Optional dependencies present    : %s'%formatlist(['%s[%s]'%(e,env.env['extdeps'][e]['version']) for e in extdeps_avail],
                                                                            col_ok))
         print('  Optional dependencies missing[*] : %s'%formatlist(extdeps_missing,col_bad))
+        print('  Package filters[*]               : <TODO>')
         pkgtxt_en ='%s%i%s package%s built successfully'%(col_ok if n_enabled else '',
                                                           n_enabled,
                                                           col_end if n_enabled else '',
@@ -844,10 +598,7 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
         print('  %s : %s'%(pkgtxt_en.ljust(32+(len(col_end)+len(col_ok) if n_enabled else 0)),formatlist(pkg_enabled,col_ok)))
         print('  %s : %s'%(pkgtxt_dis.ljust(32+(len(col_end)+len(col_bad) if n_disabled else 0)),formatlist(pkg_disabled,col_bad)))
         print()
-        if unused_vars_withvals:
-            print('%sWARNING%s Unused user cfg variables  : %s'%(col_bad,col_end,formatlist(unused_vars_withvals,None)))
-            print()
-        if cp['other_warnings'] or ( len(cp['unused_vars'])>len(unused_vars_withvals)):
+        if cp['other_warnings'] or len(cp['unused_vars'])>0:
             print('%sWARNING%s unspecified warnings from CMake encountered during environment inspection!'%(col_bad,col_end))
             print()
 
@@ -877,15 +628,9 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
 
 
     if not opt.quiet:
-        if legacy_mode and cfgvars.get('ONLY','')=='Framework::*' and 'NOT' not in cfgvars:
-            print("%sNote that only Framework packages were enabled by default:%s"%(col.bldmsg_notallselectwarn,col.end))
-            print()
-            print("%s  - To enable pkgs for a given project do: simplebuild -p<projectname>%s"%(col.bldmsg_notallselectwarn,col.end))
-            print("%s  - To enable all pkgs do: simplebuild -a%s"%(col.bldmsg_notallselectwarn,col.end))
-            print()
-
         from .envsetup import calculate_env_setup
-        if not legacy_mode and not prevent_env_setup_msg and calculate_env_setup():
+        needs_env_setup = bool(calculate_env_setup())
+        if not prevent_env_setup_msg and needs_env_setup:
             print(f'{col.warnenvsetup}Build done. To use the resulting environment you must first enable it!{col.end}')
             print()
             print(f'{col.warnenvsetup}Type the following command (exactly) to do so (undo later by --env-unsetup instead):{col.end}')
@@ -895,5 +640,6 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
         else:
             print("Build done. You are all set to begin using the software!")
             print()
-            print(f'To see available applications, type "{conf.runnable_prefix}" and hit the TAB key twice.')
-            print()
+            if not needs_env_setup:
+                print(f'To see available applications, type "{conf.runnable_prefix}" and hit the TAB key twice.')
+                print()

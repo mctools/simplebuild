@@ -22,7 +22,6 @@ incdirname='include'
 #libdirname='lib'#fixme: unused, 'lib' is simply hardcoded in a few places.
 
 envcache = blddir / 'env.cache'
-varcache = blddir / 'vars.cache' #dynamic user settings (for pkg filters and cmake flags)
 systimestamp_cache=blddir / 'systimestamp.cache'
 lockfile=blddir / ".lock"
 

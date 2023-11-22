@@ -1,6 +1,4 @@
-def perform_configuration(cmakeargs=[],
-                          select_filter=None,
-                          exclude_filter=None,
+def perform_configuration(select_filter=None,
                           autodisable = True,
                           force_reconf=False,
                           load_all_pkgs=False,
@@ -30,7 +28,6 @@ def perform_configuration(cmakeargs=[],
     #Inspect package tree and load the necessary pkg.info files, given the filters:
     pl = loadpkgs.PackageLoader( all_pkgdirs,
                                  select_filter,
-                                 exclude_filter,
                                  autodeps=conf.autodeps,
                                  load_all = load_all_pkgs )
 
@@ -44,31 +41,35 @@ def perform_configuration(cmakeargs=[],
 
     #Inspect environment via cmake (caching the result of previous runs).
 
-    _current_reconf_environment_cache = [None]
-    def current_reconf_environment(envdict):
-        if _current_reconf_environment_cache[0] is None:
-            _current_reconf_environment_cache[0] = (
-                ( ( 'install_dir',str(conf.install_dir())), ('build_dir',str(conf.build_dir()))),
-                tuple( (b,shutil.which(b)) for b in sorted(set(envdict['autoreconf']['bin_list'].split(';')))),
-                tuple( (e,os.environ.get(e)) for e in sorted(set([*envdict['autoreconf']['env_list'].split(';'),*volatile_misc])) ),
-            )
-        return _current_reconf_environment_cache[0]
+    def calc_current_reconf_environment( envdict ):
+        return dict(
+            install_dir = str(conf.install_dir()),
+            build_dir = str(conf.build_dir()),
+            command_paths = dict( (b,str(shutil.which(b))) for b in sorted(set(envdict['autoreconf']['bin_list'].split(';')))),
+            environment_variables = dict( (e,os.environ.get(e)) for e in sorted(set([*envdict['autoreconf']['env_list'].split(';'),*volatile_misc])) )
+        )
 
     assert dirs.blddir.is_dir()
     assert ( dirs.blddir / '.sbbuilddir' ).exists()
 
-    envdict=None
+    cmakeargs = []#fixme: take from cfgbuilder
+
+    envdict = None
     if not force_reconf and os.path.exists(dirs.envcache):
         #load from cache:
         envdict=utils.pkl_load(dirs.envcache)
+        current_reconf_environment = calc_current_reconf_environment(envdict)
         #check if reconf has been triggered:
-        if envdict['_cmakeargs']!=cmakeargs:
+        if envdict['_cmakeargs'] != cmakeargs:
             if not quiet:
                 print("%sChange in cmake variables detected => reinspecting environment"%prefix)
             envdict=None
-        elif envdict['_autoreconf_environment']!=current_reconf_environment(envdict):
+        elif envdict['_autoreconf_environment'] != current_reconf_environment:
             if not quiet:
                 print("%sChange in environment detected => reinspecting via CMake"%prefix)
+                for e in calc_env_changes( envdict['_autoreconf_environment'],
+                                           current_reconf_environment ):
+                    print(f'{prefix}  -> change: {e}')
             envdict=None
         elif len(actually_needed_extdeps - envdict['_actually_needed_extdeps']) > 0:
             if not quiet:
@@ -100,7 +101,7 @@ def perform_configuration(cmakeargs=[],
         assert '_actually_needed_extdeps' not in envdict
         envdict['_actually_needed_extdeps'] = actually_needed_extdeps
         assert '_autoreconf_environment' not in envdict
-        envdict['_autoreconf_environment']=current_reconf_environment(envdict)
+        envdict['_autoreconf_environment'] = calc_current_reconf_environment(envdict)
         envdict['_pyversion'] = pyversionstr
         envdict['system']['volatile'].update({ 'misc': {**dict((e,os.getenv(e)) for e in volatile_misc)} })
         utils.pkl_dump(envdict,dirs.envcache)
@@ -384,3 +385,26 @@ if __name__=="__main__":
         f.write(content)
 
     return pl
+
+def calc_env_changes( old, new ):
+    if set(old.keys()) != set(new.keys()):
+        yield f'autoreconf format change!'
+        return
+    dns = ('install_dir','build_dir')
+
+    for dn in dns:
+        if old[dn] != new[dn]:
+            yield f'Directory changed: {dn}'
+    for tn in [ tn for tn in sorted(old.keys()) if not tn in dns ]:
+        old_tn, new_tn = old[tn], new[tn]
+        ko, kn = set(old_tn.keys()), set(new_tn.keys())
+        for k in kn|ko:
+            vo, vn = old_tn[k], new_tn[k]
+            if vo!=vn:
+                vofmt = f'"{vo}"' if vo is not None else '<unset>'
+                vnfmt = f'"{vn}"' if vn is not None else '<unset>'
+                yield f'value of "{k}" ({tn}) changed from {vofmt} to {vnfmt}'
+        for k in ko-kn:
+            yield f'{tn} - no longer tracking "{k}"'
+        for k in kn-ko:
+            yield f'{tn} - now also tracking "{k}"'
