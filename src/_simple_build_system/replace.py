@@ -31,6 +31,7 @@ def replacefile(filename,printname,search_pattern,replace_pattern):
         fh=open(filename,'wt')
         fh.write(cont)
         fh.close()
+        from .io import print
         print('  %50s : %i replacements'%(printname,n))
     return n
 

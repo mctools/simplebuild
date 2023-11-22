@@ -154,8 +154,10 @@ def _classify(nfo):
                     "header" if nfo['isheader'] else "source")
 
 def provide_info(pkgloader,f):
+    from .io import print
     nfo = collect_info(pkgloader,f)
-    print("\nInvestigating %s file: %s"%(_classify(nfo),_printform(nfo['pkg'],f)))
+    print()
+    print("Investigating %s file: %s"%(_classify(nfo),_printform(nfo['pkg'],f)))
     nrelationships = 0
     for i in ('includes','is included by'):
         for d in ('directly','indirectly'):
@@ -163,16 +165,22 @@ def provide_info(pkgloader,f):
             if l:
                 nrelationships += len(l)
                 t='1 file' if len(l)==1 else '%i files'%len(l)
-                print("\nFile %s %s (%s):\n"%(i,t,d))
+                print()
+                print("File %s %s (%s):"%(i,t,d))
+                print()
                 for e in l:
                     print('      %s'%e)
     if not nrelationships:
-        print("\nFile neither includes nor is included by any other file in the framework")
+        print()
+        print("File neither includes nor is included by any other file in the framework")
     print()
 
 def provide_info_multifiles(pkgloader,files):
+    from .io import print
     nfos = dict((fn,collect_info(pkgloader,fn)) for fn in files)
-    print("\nInvestigating %i files:\n"%len(files))
+    print()
+    print("Investigating %i files:"%len(files))
+    print()
     for fn in files:
         nfo = nfos[fn]
         print('      %s (%s)'%(_printform(nfo['pkg'],fn),_classify(nfo)))
@@ -193,9 +201,12 @@ def provide_info_multifiles(pkgloader,files):
                 i_plural = {'includes':'include','is included by':'are included by'}[i]
                 nrelationships += len(l)
                 t='1 file' if len(l)==1 else '%i files'%len(l)
-                print("\nFiles %s %s (%s):\n"%(i_plural,t,d))
+                print()
+                print("Files %s %s (%s):"%(i_plural,t,d))
+                print()
                 for e in l:
                     print('      %s'%e)
     if not nrelationships:
-        print("\nFiles neither includes nor are included by other files in the framework")
+        print()
+        print("Files neither includes nor are included by other files in the framework")
     print()

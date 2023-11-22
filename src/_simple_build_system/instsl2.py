@@ -2,6 +2,7 @@ import os
 import errno
 import sys
 from . import utils
+from .io import print
 
 def go():
     join=os.path.join
@@ -29,24 +30,24 @@ def go():
                     #link missing, or broken.
                     if os.path.lexists(join(destdir,linkname)):
                         #link was actually existing, but broken
-                        print ("WARNING: Having to fix broken link: %s"%join(destdir,linkname))
+                        print("WARNING: Having to fix broken link: %s"%join(destdir,linkname))
                         os.remove(join(destdir,linkname))
                     else:
-                        print ("WARNING: Having to recreate supposedly preexisting link: %s"%join(destdir,linkname))
+                        print("WARNING: Having to recreate supposedly preexisting link: %s"%join(destdir,linkname))
                     utils.mkdir_p(destdir)
                     os.symlink(src,join(destdir,linkname))
 
         obsoleted = current.difference(needed)
         for destdir,linkname,src in obsoleted:
             if verbose>0:
-                print ("Removing obsolete symlink %s %s"%(destdir,linkname))
+                print("Removing obsolete symlink %s %s"%(destdir,linkname))
             try:
                 os.remove(join(destdir,linkname))
             except OSError as exc:
                 if exc.errno == errno.ENOENT and not os.path.exists(join(destdir,linkname)):
                     #perhaps we were aborted and restarted so we should just report and carry on
                     if verbose>=0:
-                        print ("WARNING: Obsolete symlink already removed.")
+                        print("WARNING: Obsolete symlink already removed.")
                     pass
                 else:
                     raise
@@ -60,7 +61,7 @@ def go():
         #create links:
         for destdir,linkname,src in needed:
             if verbose>0:
-                print ("Installing symlink %s"%join(destdir,linkname))
+                print("Installing symlink %s"%join(destdir,linkname))
             try:
                 os.symlink(src,join(destdir,linkname))
             except OSError as exc:
@@ -83,7 +84,7 @@ def go():
 try:
     go()
 except KeyboardInterrupt:
-    print ("<<symlink installation interrupted by user!>>>")
+    print("<<symlink installation interrupted by user!>>>")
     #Fixme: Any way to recover state?? (if so we should also catch other errors)
     sys.stdout.flush()
     sys.stderr.flush()

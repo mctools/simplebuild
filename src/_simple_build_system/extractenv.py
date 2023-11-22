@@ -143,7 +143,7 @@ def parse(filename):
 
     return cfgvars
 
-def extractenv(tmpdir,cmakedir,*,cmakeargs,actually_needed_extdeps,quiet=True,verbose=False,prefix=''):
+def extractenv(tmpdir,cmakedir,*,cmakeargs,actually_needed_extdeps,quiet=True,verbose=False):
     assert not (quiet and verbose)
     ec = utils.system("rm -rf %s/cmake/"%tmpdir)
     if ec!=0:
@@ -151,8 +151,13 @@ def extractenv(tmpdir,cmakedir,*,cmakeargs,actually_needed_extdeps,quiet=True,ve
     ec = utils.system("mkdir -p %s/cmake/"%tmpdir)
     if ec!=0:
         return
-    print("%sInspecting environment via CMake"%prefix)#don't silence this even if quiet==true (since cmake will always give a bit of output)
-    capture = ' 2>&1|tee cmake_output21_capture.txt; exit ${PIPESTATUS[0]}'
+    from . import io as _io
+    print = _io.print
+    print("Inspecting environment via CMake")
+    if     _io.is_quiet():
+        capture = ' >& cmake_output21_capture.txt; exit ${PIPESTATUS[0]}'
+    else:
+        capture = ' 2>&1|tee cmake_output21_capture.txt; exit ${PIPESTATUS[0]}'
 
     #pass on conda cmake args:
     general_cmake_args = envcfg.var.cmake_args or ''
@@ -170,7 +175,7 @@ def extractenv(tmpdir,cmakedir,*,cmakeargs,actually_needed_extdeps,quiet=True,ve
                                                                cmakedir,
                                                                capture))
     t1 = time.time()
-    print("%sEnvironment inspection done (%.2g seconds)"%(prefix,t1-t0))#don't silence this even if quiet==true
+    print("Environment inspection done (%.2g seconds)"%(t1-t0))
     if ec!=0:
         return
     with ( pathlib.Path(tmpdir) / 'cmake' / 'cmake_output21_capture.txt' ).open('rt') as fh:

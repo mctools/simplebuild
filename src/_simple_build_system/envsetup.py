@@ -5,7 +5,6 @@ def emit_env_unsetup( oldenv = None ):
     emit_env_dict( calculate_env_unsetup( oldenv ) )
 
 def create_install_env_clone( env_dict = None ):
-    from .envsetup import calculate_env_setup
     if env_dict is None:
         import os
         env_dict = os.environ.copy()
@@ -76,7 +75,7 @@ def calculate_env_setup( oldenv = None ):
 
 
     #Set relevant non-path vars:
-    env_dict['SIMPLEBUILD_CURRENT_ENV'] = ':'.join(str(e) for e in fpcontent)
+    env_dict['_SIMPLEBUILD_CURRENT_ENV'] = ':'.join(str(e) for e in fpcontent)
     env_dict['SBLD_INSTALL_PREFIX']  = str(instdir)
     env_dict['SBLD_DATA_DIR']        = str(instdir/'data')
     env_dict['SBLD_LIB_DIR']         = str(instdir/'lib')
@@ -87,7 +86,7 @@ def calculate_env_setup( oldenv = None ):
 def env_with_previous_pathvar_changes_undone( oldenv ):
     assert oldenv is not None
     env = {}
-    oldfp = oldenv.get('SIMPLEBUILD_CURRENT_ENV')
+    oldfp = oldenv.get('_SIMPLEBUILD_CURRENT_ENV')
     if oldfp:
         import pathlib
         _ = oldfp.split(':')
@@ -98,12 +97,13 @@ def env_with_previous_pathvar_changes_undone( oldenv ):
 
 def emit_env_dict( env_dict):
     import shlex
+    from . import io as _io
     for k,v in sorted(env_dict.items()):
         if v is None:
-            print(f'export {k}=')#always this first, since unset statement might be an error if not already set.
-            print(f'unset {k}')
+            _io.raw_print_ignore_quiet(f'export {k}=')#always this first, since unset statement might be an error if not already set.
+            _io.raw_print_ignore_quiet(f'unset {k}')
         else:
-            print('export %s=%s'%(k,shlex.quote(str(v))))
+            _io.raw_print_ignore_quiet('export %s=%s'%(k,shlex.quote(str(v))))
 
 def modify_path_var(varname,*,env_dict, blockpath = None, prepend_entries = None):
     """Removes all references to blockpath or its subpaths from a path variable,

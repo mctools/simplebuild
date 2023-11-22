@@ -21,19 +21,17 @@ autodeps = set(['Core'])
 projectname='SBLD'
 projectname_lc = projectname.lower()
 runnable_prefix = 'sb_'
-print_prefix_name = 'simplebuild'
-print_prefix = f'{print_prefix_name}: '
-quiet = False#might be overridden by a cal to make_quiet
-_printfct = [print]
+
+#TODO: Do not repeat .io stuff here:
+from . import io as _io
+print_prefix_name = _io.print_prefix_name
+print_prefix = _io.print_prefix
 def print( *args, **kwargs ):
-    _printfct[0]( print_prefix, *args, **kwargs )
+    return _io.print( *args, **kwargs )
 def print_no_prefix( *args, **kwargs ):
-    _printfct[0]( *args, **kwargs )
+    return _io.print_no_prefix( *args, **kwargs )
 def make_quiet():
-    global quiet
-    if not quiet:
-        quiet = True
-        _printfct[0] = lambda *args, **kwargs : None
+    return _io.make_quiet()
 
 def runnable_name(pkg,base_name):
     #create global runnable name for a runnable in a package:

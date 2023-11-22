@@ -66,6 +66,7 @@ def pkgfiles(pkg):
 
 def grep(pkg,pattern,countonly=False):
     n=0
+    from .io import print,print_no_prefix
     for f in pkgfiles(pkg):
         pdir=pkgdir_for_search(pkg)
         ff=pjoin(pdir,f)
@@ -73,9 +74,10 @@ def grep(pkg,pattern,countonly=False):
             if not countonly:
                 pkgdir=os.path.relpath(pdir)
                 pkgdir=(col.ok if pkg.enabled else col.bad) + pkgdir + col.end
-                print('  %s/%s [L%i]: %s'%(pkgdir,f,linenum,line), end=' ')
-                if not line.endswith('\n'):
-                    print()
+                output = '  %s/%s [L%i]: %s'%(pkgdir,f,linenum,line)
+                if not '\n' in output:
+                    output += '\n'
+                print(output,end='')
             n+=1
     if countonly and n:
         pn=pkg.name

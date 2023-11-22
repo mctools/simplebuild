@@ -4,12 +4,9 @@ import sys
 import pathlib
 
 def err(msg):
-    #FIXME: obsolete?
-    if isinstance(msg,list):
-        print ("ERROR: %s"%('\nERROR: '.join(msg)))
-    else:
-        print ("ERROR: %s"%msg)
-    sys.exit(1)
+    #fixme: remove this functions from utils
+    from .error import error as errfct
+    errfct( msg )
 
 def system(cmd,*,env=None):
     #flush output, to avoid confusing ordering in log-files:
@@ -26,7 +23,8 @@ def system(cmd,*,env=None):
         sys.stderr.flush()
         import time
         time.sleep(0.2)
-        print ("<<<Command execution interrupted by user!>>>")
+        from . import io as _io
+        _io.print("<<<Command execution interrupted by user!>>>")
         if hasattr(sys,'exc_clear'):
             sys.exc_clear()#python2 only
         ec=126
@@ -155,7 +153,8 @@ def update_pkl_if_changed(pklcont,filename):
         try:
             oldcont=pkl_load(filename)
         except EOFError:
-            print ( "WARNING: Old pickle file %s ended unexpectedly"%filename)
+            from . import io as _io
+            _io.print( "WARNING: Old pickle file %s ended unexpectedly"%filename)
             oldcont=(None,'bad....')
             pass
         if oldcont==pklcont:
@@ -164,12 +163,6 @@ def update_pkl_if_changed(pklcont,filename):
         os.rename(filename,str(filename)+'.old')
     if changed:
         pkl_dump(pklcont,filename)
-
-def touch(fname, times=None):
-    #like unix touch, but creates directory if needed:
-    mkdir_p(os.path.dirname(fname))
-    with open(fname, 'a'):
-        os.utime(fname, times)
 
 def shlex_split(s):
     try:

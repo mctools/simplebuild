@@ -287,16 +287,16 @@ class Package:
         })
         return d
 
-    def dumpinfo(self,autodeps,prefix=''):
+    def dumpinfo(self,autodeps):
         from . import col
         from . import env
         width=max(75,len(self.dirname)+30)
-        prefix+='==='
+        from .io import print, print_prefix
         def _format(l):
             if not l:
                 return col.darkgrey+'<none>'+col.end
             from . import formatlist
-            return '\n'.join(formatlist.formatlist([(n,col.ok if b else col.bad) for n,b in sorted(l)],width-40,indent_first='',indent_others=prefix+' '*27))
+            return '\n'.join(formatlist.formatlist([(n,col.ok if b else col.bad) for n,b in sorted(l)],width-40,indent_first='',indent_others=print_prefix+' '*27))
         extdeps_direct = [(e,env.env['extdeps'][e]['present']) for e in self.direct_deps_extnames]
         extdeps_indirect = [(e,env.env['extdeps'][e]['present']) for e in self.extdeps() if e not in self.direct_deps_extnames]
         def nameformat(n):
@@ -308,20 +308,20 @@ class Package:
 
         s='='*int((width-len('Package information')-2)//2)
         l1='%s Package information %s'%(s,s)
-        print(prefix+l1)
-        print('%s Package name            : %s'%(prefix,_format([(self.name,self.enabled)])))
-        print('%s Enabled                 : %s'%(prefix,_format([('Yes' if self.enabled else 'No',self.enabled)])))
-        print('%s Relative location       : %s%s%s'%(prefix,col.blue,self.reldirname,col.end))
-        print('%s Physical location       : %s%s%s'%(prefix,col.yellow,self.dirname,col.end))
-        print('%s Direct relations'%prefix)
-        print('%s   Dependencies          : %s'%(prefix,_format(deps_direct)))
-        print('%s   Clients               : %s'%(prefix,_format(clients_direct)))
-        print('%s   External dependencies : %s'%(prefix,_format(extdeps_direct)))
-        print('%s Indirect relations'%prefix)
-        print('%s   Dependencies          : %s'%(prefix,_format(deps_indirect)))
-        print('%s   Clients               : %s'%(prefix,_format(clients_indirect)))
-        print('%s   External dependencies : %s'%(prefix,_format(extdeps_indirect)))
-        print(prefix+'='*len(l1))
+        print(l1)
+        print('Package name            : %s'%(_format([(self.name,self.enabled)])))
+        print('Enabled                 : %s'%(_format([('Yes' if self.enabled else 'No',self.enabled)])))
+        print('Relative location       : %s%s%s'%(col.blue,self.reldirname,col.end))
+        print('Physical location       : %s%s%s'%(col.yellow,self.dirname,col.end))
+        print('Direct relations')
+        print('  Dependencies          : %s'%(_format(deps_direct)))
+        print('  Clients               : %s'%(_format(clients_direct)))
+        print('  External dependencies : %s'%(_format(extdeps_direct)))
+        print('Indirect relations')
+        print('  Dependencies          : %s'%(_format(deps_indirect)))
+        print('  Clients               : %s'%(_format(clients_indirect)))
+        print('  External dependencies : %s'%(_format(extdeps_indirect)))
+        print('='*len(l1))
 
 class PackageLoader:
 

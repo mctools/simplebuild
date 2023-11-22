@@ -5,11 +5,15 @@ def main( prevent_env_setup_msg = False ):
         #Special short-circuit to efficiently enable standard --env-setup usage:
         if '--env-u' in sys.argv[1:]:
             #Enable --env-unsetup usage, even outside a simplebuild project:
+            from . import io as _io
+            _io.make_quiet()
             from .envsetup import emit_envunsetup
             emit_envunsetup()
             raise SystemExit
-        if '--env-s' in sys.argv[1:]:
+        if any(a.startswith('--env-s') for a in sys.argv[1:]):
             #Short-circuit to efficiently enable --env-setup call:
+            from . import io as _io
+            _io.make_quiet()
             from .envsetup import emit_envsetup
             emit_envsetup()
             raise SystemExit

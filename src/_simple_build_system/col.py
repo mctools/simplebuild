@@ -1,5 +1,5 @@
-from . import envcfg
-import sys
+from . import envcfg as _envcfg
+import sys as _sys
 
 black = '\033[30m'
 red = '\033[31m'
@@ -37,20 +37,21 @@ inc_samedir = lightblue
 #inc_dynpkg = lightcyan
 warnenvsetup = lightyellow
 
-if __name__=='__main__':
-    for cname in [c for c in dir() if not c[0]=='_' and not c=='end']:
-        col=eval(cname)
-        print (''.join([cname.ljust(20),' : ',col,cname,end]))
-
 #allow users to modify colours by having stuff like "export SIMPLEBUILD_COLOR_FIX=bldmsg_symlink=red" in their environment:
-cf = envcfg.var.color_fix_code
+cf = _envcfg.var.color_fix_code
 if cf:
     exec(cf)
 
 #Disable colours when output is redirected:
-if not sys.stdout.isatty():
+if not _sys.stdout.isatty():
     for cname in [c for c in dir() if not c[0]=='_']:
         exec('%s=""'%cname)
+
+
+if __name__=='__main__':
+    for cname in [c for c in dir() if not c[0]=='_' and not c=='end']:
+        col=eval(cname)
+        print(''.join([cname.ljust(20),' : ',str(col),cname,end]))
 
 def bldcol(name):
     name='bldmsg_'+name

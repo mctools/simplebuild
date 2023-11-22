@@ -1,33 +1,40 @@
 #!/usr/bin/env python3
-import os
-import sys
-import fnmatch
-import shutil
-import shlex
-import pathlib
-from .conf import runnable_is_test
-from .utils import mkdir_p
-from .utils import system
-from . import testxml
-from . import dirs
-_ospathjoin=os.path.join
+def perform_tests(testdir,installdir,njobs,nexcerpts,filters,do_pycoverage,pkgloader=None):
+    import os
+    import sys
+    import fnmatch
+    import shutil
+    import shlex
+    import pathlib
+    from .conf import runnable_is_test
+    from .utils import mkdir_p
+    from .utils import system
+    from . import testxml
+    from . import dirs
+    from . import io as _io
+    _ospathjoin=os.path.join
 
-def perform_tests(testdir,installdir,njobs,prefix,nexcerpts,filters,do_pycoverage,pkgloader=None):
+    print = _io.print
 
     col_ok = '\033[92m'
     col_bad = '\033[91m'
     col_end = '\033[0m'
 
-    print(prefix+'Running tests in %s:\n'%testdir+prefix)
+    print(f'Running tests in {testdir}:')
+    print()
     sys.stdout.flush()
     sys.stderr.flush()
 
     assert not os.path.exists(testdir)
     testdir=os.path.abspath(testdir)
-    line_hr = "%s ---------------------------------------+-----------+--------+----------+------------------"%prefix
-    line_titles = "%s  Test job results                      | Time [ms] | Job EC | Log-diff | Trouble info"%prefix
-    header='\n'.join([line_hr,line_titles,line_hr])
-    footer=line_hr
+    line_hr = " ---------------------------------------+-----------+--------+----------+------------------"
+    line_titles = "  Test job results                      | Time [ms] | Job EC | Log-diff | Trouble info"
+    def print_header():
+        print(line_hr)
+        print(line_titles)
+        print(line_hr)
+    def print_footer():
+        print(line_hr)
 
     logdir=_ospathjoin(installdir,'tests/testref')
     #bindirs=[_ospathjoin(installdir,'bin'),_ospathjoin(installdir,'scripts')]
@@ -90,10 +97,11 @@ def perform_tests(testdir,installdir,njobs,prefix,nexcerpts,filters,do_pycoverag
 
     if not tests:
         if nfiltered:
-            print('%sWARNING: All %i tests were blocked by specified filters.\n%s'%(prefix,nfiltered,prefix))
-        print(header)
-        print('%s  n/a'%prefix)
-        print(footer)
+            print(f'WARNING: All {nfiltered} tests were blocked by specified filters.')
+            print()
+        print_header()
+        print('  n/a')
+        print_footer()
         return 0
 
     mkdir_p(testdir)
@@ -159,8 +167,9 @@ def perform_tests(testdir,installdir,njobs,prefix,nexcerpts,filters,do_pycoverag
     rep.sort()
     excerpts_to_print=[]
     if nfiltered:
-        print('%sNote: %i tests were blocked by specified filters.\n%s'%(prefix,nfiltered,prefix))
-    print(header)
+        print(f'Note: {nfiltered} tests were blocked by specified filters.')
+        print()
+    print_header()
     for t,ec,ecdiff in rep:
         time_ms=float(open(_ospathjoin(testdir,t,'timing_ms')).read())
         ecstr='FAIL' if ec else ' OK '
@@ -173,9 +182,7 @@ def perform_tests(testdir,installdir,njobs,prefix,nexcerpts,filters,do_pycoverag
             ec_global=1
             if nexcerpts>0:
                 excerpts_to_print += [(t,testdir,'output.log' if ec!=0 else 'refdiff.log')]
-        print("%s  %-37s |  %6.0f   |  %s  |   %s   | %s"%(prefix,t,time_ms,
-                                                           ecstr,
-                                                           logdiffstr,info))
+        print("  %-37s |  %6.0f   |  %s  |   %s   | %s"%(t,time_ms,ecstr,logdiffstr,info))
         logdiffok = (ecdiff is None or not ecdiff)
         testinfo[t].update( dict(time_ms = time_ms,
                                  exitcode = ec,
@@ -188,20 +195,20 @@ def perform_tests(testdir,installdir,njobs,prefix,nexcerpts,filters,do_pycoverag
          ec = system(f'cd {shlex.quote(str(coverage_out_dir))} && '
                      f'python3 -mcoverage combine --keep --data-file={shlex.quote(str(_cov_outfile.name))} {_cov_infiles}')
          if ec!=0:
-             print(prefix,"ERROR: py-coverage combine step failed!")
+             print("ERROR: py-coverage combine step failed!")
          else:
              reportdir_quoted = shlex.quote(str((coverage_out_dir/"htmlreport").absolute().resolve()))
              ec = system('python3 -mcoverage html '
                          f'--data-file={shlex.quote(str(_cov_outfile.absolute().resolve()))}'
                          f'  --directory={reportdir_quoted} --ignore-errors')
              if ec!=0:
-                 print(prefix,"ERROR: py-coverage html report generation failed!")
+                 print("ERROR: py-coverage html report generation failed!")
              else:
-                 print(prefix,f"Pycoverage report available in: {reportdir_quoted}/index.html")
+                 print(f"Pycoverage report available in: {reportdir_quoted}/index.html")
 
     assert len(alltests)==len(set(alltests))
 
-    print(footer)
+    print_footer()
 
     do_junitxml = True
     if do_junitxml:
@@ -219,7 +226,9 @@ def perform_tests(testdir,installdir,njobs,prefix,nexcerpts,filters,do_pycoverag
         with outfile.open('wt') as f:
             for line in testxmlwriter.generate_xml():
                 f.write('%s\n'%line)
-        print('%s\n%s  Test results are also summarised in %s\n%s'%(prefix,prefix,outfile.name,prefix))
+        print()
+        print('  Test results are also summarised in: {outfile.name}')
+        print()
 
     if excerpts_to_print:
         for t,testdir,logname in excerpts_to_print:
@@ -234,9 +243,9 @@ def perform_tests(testdir,installdir,njobs,prefix,nexcerpts,filters,do_pycoverag
     sys.stderr.flush()
 
     if ec_global:
-        print(prefix+'  %sERROR: Some tests failed!%s'%(col_bad,col_end))
-        print(prefix)
+        print('  %sERROR: Some tests failed!%s'%(col_bad,col_end))
+        print()
     else:
-        print(prefix+'  %sAll tests completed without failures!%s'%(col_ok,col_end))
-        print(prefix)
+        print('  %sAll tests completed without failures!%s'%(col_ok,col_end))
+        print()
     return 0 if ec_global==0 else 1

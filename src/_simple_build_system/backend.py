@@ -92,7 +92,7 @@ def perform_configuration(select_filter=None,
         envdict = extractenv.extractenv(dirs.blddir,dirs.cmakedetectdir,
                                         cmakeargs=cmakeargs,
                                         actually_needed_extdeps=actually_needed_extdeps,
-                                        quiet=quiet,verbose=verbose,prefix=prefix)
+                                        quiet=quiet,verbose=verbose)
         if not envdict:
             utils.rm_f(dirs.envcache)
             error.error('Failure during cmake configuration')
@@ -255,7 +255,7 @@ def perform_configuration(select_filter=None,
                 db.save_to_file()
                 if unclean_exception:
                     #unknown exceptions need an ugly traceback so we can notice and try to avoid them in the future
-                    error.print_traceback(unclean_exception,prefix)
+                    error.print_traceback(unclean_exception)
                 error.clean_exit(1)
             new_parts = db.db['pkg2parts'][p.name]
             disappeared_parts = old_parts.difference(new_parts)

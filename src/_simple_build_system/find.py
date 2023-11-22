@@ -8,11 +8,12 @@ def find(pkg,pattern):
     #rd=pkgdir_for_search(pkg)
     rd=pkg.reldirname#always match on package reldir, even for dynamic packages!!
     pattern='*%s*'%pattern.lower()
+    from .io import print
     for flocal in pkgfiles(pkg):
         f = pjoin(rd,flocal)
         if fnmatch.fnmatch(f.lower(),pattern):
             ff=os.path.relpath(pjoin(pkg.dirname,flocal))
-            print('match:',ff)
+            print('  ',ff)
             n+=1
     return n
 

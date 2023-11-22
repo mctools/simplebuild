@@ -22,12 +22,13 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
     #Always inspect cfg and set up appropriate warnings/error printouts:
     from . import error
     from . import conf
+    from . import io as _io
 
     error.fmt_simplebuild_warnings()
 
     progname=os.path.basename(argv[0])
-    prefix = conf.print_prefix
-    print = conf.print
+    prefix = _io.print_prefix
+    print = _io.print
 
     from optparse import OptionParser,OptionGroup#FIXME: deprecated, use argparse instead!
 
@@ -196,7 +197,7 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
         raise SystemExit
 
     if opt.quiet:
-        conf.make_quiet()
+        _io.make_quiet()
 
     if opt.env_setup:
         from .envsetup import emit_envsetup
@@ -335,15 +336,14 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
     error.default_error_type = SystemExit
 
     if err_txt:
-        pr="\n\nERROR during configuration:\n\n  %s\n\nAborting."%(err_txt.replace('\n','\n  '))
-        print(pr.replace('\n','\n%s'%prefix))
+        print("\n\nERROR during configuration:\n\n  %s\n\nAborting."%(err_txt.replace('\n','\n  ')))
         #make all packages need reconfig upon next run:
         from . import db
         db.db['pkg2timestamp']={}
         db.save_to_file()
         #exit (with ugly traceback if unknown type of exception):
         if unclean_exception:
-            error.print_traceback(unclean_exception,prefix)
+            error.print_traceback(unclean_exception)
         sys.exit(1)
 
     assert dirs.makefiledir.is_dir()
@@ -362,12 +362,14 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
 
     if opt.grep:
         qp=query_pkgs()
-        print("Grepping %i packages for pattern %s\n"%(len(qp),opt.grep))
+        print("Grepping %i packages for pattern %s"%(len(qp),opt.grep))
+        print()
         n=0
         from . import grep
         for pkg in qp:
             n+=grep.grep(pkg,opt.grep,countonly=opt.grepc)
-        print("\nFound %i matches"%n)
+        print()
+        print("Found %i matches"%n)
         sys.exit(0)
 
     if opt.replace:
@@ -377,22 +379,27 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
         search_pat,replace_pat = replace.decode_pattern(opt.replace)
         if not search_pat:
             parser.error("Bad syntax in replacement pattern: %s"%p)
-        print("\nReplacing all \"%s\" with \"%s\""%(search_pat,replace_pat))
+        print()
+        print("Replacing all \"%s\" with \"%s\""%(search_pat,replace_pat))
         n = 0
         for pkg in qp:
             n+=replace.replace(pkg,search_pat,replace_pat)
-        print("\nPerformed %i replacements"%n)
+        print()
+        print("Performed %i replacements"%n)
         sys.exit(0)
 
     if opt.find:
         qp=query_pkgs()
         p=opt.find
         from . import find#fnmatch!!
-        print("\nFinding all files and paths matching \"%s\"\n"%(p))
+        print()
+        print("Finding all files and paths matching \"%s\""%(p))
+        print()
         n = 0
         for pkg in qp:
             n+=find.find(pkg,p)
-        print("\nFound %i matches"%n)
+        print()
+        print("Found %i matches"%n)
         sys.exit(0)
 
     if opt.incinfo:
@@ -438,7 +445,7 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
         if not pkg:
             utils.err('Unknown package "%s"'%opt.pkginfo)
         else:
-            pkg.dumpinfo(pkgloader.autodeps,prefix)
+            pkg.dumpinfo(pkgloader.autodeps)
             sys.exit(0)
 
     if opt.pkggraph:
@@ -446,7 +453,7 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
         from . import dotgen
         dotgen.dotgen(pkgloader,dotfile,enabled_only=opt.pkggraph_activeonly)
         if not opt.quiet:
-            print('%sPackage dependencies in graphviz DOT format has been generated in %s'%(prefix,dotfile))
+            print('Package dependencies in graphviz DOT format has been generated in %s'%(dotfile))
         ec=utils.system('dot -V > /dev/null 2>&1')
         if ec:
             if not opt.quiet:
@@ -466,7 +473,7 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
 
     if not opt.njobs:
         from . import cpudetect
-        opt.njobs=cpudetect.auto_njobs(prefix)
+        opt.njobs=cpudetect.auto_njobs()
 
     #VERBOSE:
     # -1: always quiet
@@ -490,9 +497,10 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
 
     if not opt.quiet:
         print()
-        print('%sSuccessfully built and installed all enabled packages!'%prefix)
+        print('Successfully built and installed all enabled packages!')
         print()
-        print('%sSummary:'%prefix)
+        print('Summary:')
+        print()
         def fixpath( p ):
             if envcfg.var.conda_prefix:
                 pabs = p.absolute().resolve()
@@ -587,6 +595,7 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
                                                                            col_ok))
         print('  Optional dependencies missing[*] : %s'%formatlist(extdeps_missing,col_bad))
         print('  Package filters[*]               : <TODO>')
+        print('')
         pkgtxt_en ='%s%i%s package%s built successfully'%(col_ok if n_enabled else '',
                                                           n_enabled,
                                                           col_end if n_enabled else '',
@@ -613,7 +622,6 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
         ec = perform_tests( testdir = dirs.testdir,
                             installdir = dirs.installdir,
                             njobs = opt.njobs,
-                            prefix = prefix,
                             nexcerpts = opt.nexcerpts,
                             filters = _testfilter,
                             do_pycoverage = False,

@@ -32,23 +32,29 @@ def clean_exit(ec):
     ce._the_ec=ec
     raise ce
 
-def print_traceback(exc,prefix=''):
-    print (prefix)
+def print_traceback(exc):
+    from .io import print
+    print()
     import traceback
-    print ("%s----begin traceback---"%prefix)
+    print("----begin traceback---")
     if hasattr(exc,'__traceback__'):
         traceback.print_exception(type(exc),exc,exc.__traceback__)
     else:
         #This can only happen in python2:
         traceback.print_exc(exc)
-    print ("%s----end traceback---"%prefix)
-    print (prefix)
+    print("----end traceback---")
+    print()
 
+
+def direct_print_warning( msg ):
+    from .io import print_prefix,print_prefix_name,print_no_prefix
+    s = print_prefix.replace(print_prefix_name, '%s WARNING'%print_prefix_name)
+    print_no_prefix('%s%s'%(s,msg))
 
 _orig_showwarning = warnings.showwarning
 def _custom_warning_fmt(msg,cat,*args,**kwargs):
     if issubclass(cat,SimpleBuildUserWarning):
-        print('simplebuild WARNING: %s'%msg)
+        direct_print_warning(warning)
     else:
         _orig_showwarning(msg,cat,*args,**kwargs)
 

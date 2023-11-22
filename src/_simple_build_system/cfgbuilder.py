@@ -1,6 +1,6 @@
-import pathlib
 from .singlecfg import SingleCfg
 from . import error
+import pathlib
 
 def locate_master_cfg_file():
     import os
@@ -46,13 +46,12 @@ class CfgBuilder:
 
     """
 
-    def __init__(self, master_cfg : SingleCfg, master_cfg_file, quiet = False ):
+    def __init__(self, master_cfg : SingleCfg, master_cfg_file ):
         #Input:
         #Take build settings straight from master_cfg:
-        from . import conf
-        print_prefix = f'{conf.print_prefix} cfgbuilder INFO::'
-        self.__print = ( ( lambda *a,**kw: print(print_prefix,*a,**kw) )
-                         if not quiet else ( lambda *a,**kw: None ) )
+        from . import io as _io
+        print_prefix = f'{_io.print_prefix}cfgbuilder:'
+        self.__print = lambda *a,**kw: _io.print_no_prefix(print_prefix,*a,**kw)
         self.__build_mode = master_cfg.build_mode
         self.__build_njobs = master_cfg.build_njobs
         self.__build_cachedir = master_cfg.build_cachedir

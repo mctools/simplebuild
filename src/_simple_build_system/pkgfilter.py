@@ -22,7 +22,6 @@ class PkgFilter:
                 continue
             if f.startswith('RE::'):
                 onreldir = ''
-                #print("RAW REGEX IN:",f[4:])
                 regex = f[4:]
             else:
                 onreldir = './' if ('/' in f) else None
@@ -31,7 +30,6 @@ class PkgFilter:
                 regex = fnmatch.translate( f )
             try:
                 reobj = re.compile(regex)
-                #print("RAW REGEX PATTERN RECOGNISED:",reobj.pattern, 'FROM:',regex )
             except re.error as re:
                 from . import error
                 error.error(f'Invalid selection pkg filter pattern: "{forig}"')
@@ -46,6 +44,7 @@ class PkgFilter:
         return not self.__accept_filters and not self.__reject_filters
 
     def dump( self ):
+        from .io import print
         print( "PkgFilter::" )
         for onreldir, reobj in self.__accept_filters:
             print( f'  -> ACCEPTANCE Pattern="{reobj.pattern}", applied_to={f"{onreldir}reldir" if onreldir is not None else "pkgname"}')
