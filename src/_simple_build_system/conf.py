@@ -3,6 +3,7 @@
 import os
 import pathlib
 import sysconfig
+from . import io as _io
 
 def AbsPath( p ):
     return pathlib.Path(p).expanduser().resolve().absolute()
@@ -23,7 +24,6 @@ projectname_lc = projectname.lower()
 runnable_prefix = 'sb_'
 
 #TODO: Do not repeat .io stuff here:
-from . import io as _io
 print_prefix_name = _io.print_prefix_name
 print_prefix = _io.print_prefix
 def print( *args, **kwargs ):
@@ -117,7 +117,7 @@ def pkg_search_path():
     candidates.extend(extra_pkg_path())
     dirs = []
     for d in candidates:
-        if not d in dirs:
+        if d not in dirs:
             dirs.append( d )
     return dirs
 

@@ -1,7 +1,3 @@
-import os
-from .grep import pkgfiles
-pjoin=os.path.join
-
 def decode_pattern(p):
     #pattern like '<delim><pat1><delim><pat2><delim>' (example "/bla/lala/" or "#bla#lala#"
     if len(p)<4 or p.count(p[0])!=3 or p[-1]!=p[0]:
@@ -35,8 +31,14 @@ def replacefile(filename,printname,search_pattern,replace_pattern):
         print('  %50s : %i replacements'%(printname,n))
     return n
 
-def replace(pkg,search_pattern,replace_pattern):
+def replace(pkg,search_pattern,replace_pattern,filenames):
+    from .grep import pkgfiles
+    import os
+    import pathlib
+    pjoin=os.path.join
     n=0
     for f in pkgfiles(pkg):
+        if filenames and pathlib.Path(f) not in filenames:
+            continue
         n+=replacefile(pjoin(pkg.dirname,f),pjoin(pkg.name,f),search_pattern,replace_pattern)
     return n

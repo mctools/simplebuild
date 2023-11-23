@@ -1,9 +1,8 @@
 import os
-from . import conf
-from . import col
 pjoin=os.path.join
 
 def grepfile(filename,pattern,color=None):
+    from . import col
     fh=None
     if filename.endswith('.gz'):
         import gzip
@@ -54,6 +53,7 @@ def pkgdir_for_search(pkg,*subpath):
 def pkgfiles(pkg):
     #Attempt to return files which are meaningful (to keep it simple, we say it
     #is all files in subdirs + the pkg.info file).
+    from . import conf
     d = pkgdir_for_search(pkg)
     yield conf.package_cfg_file
     for d2rel in os.listdir(d):
@@ -64,21 +64,28 @@ def pkgfiles(pkg):
                     if not os.path.isdir(pjoin(d2,frel)):
                         yield pjoin(d2rel,frel)
 
-def grep(pkg,pattern,countonly=False):
+def grep(pkg,pattern,filenames=None,countonly=False):
+    import pathlib
+    from . import col
     n=0
-    from .io import print,print_no_prefix
+    from .io import print
+    col_match = None if countonly else col.grep_match
     for f in pkgfiles(pkg):
+        f = pathlib.Path(f)
+        if filenames and f not in filenames:
+            continue
         pdir=pkgdir_for_search(pkg)
         ff=pjoin(pdir,f)
-        for linenum,line in grepfile(ff,pattern,color=None if countonly else col.grep_match):
-            if not countonly:
-                pkgdir=os.path.relpath(pdir)
-                pkgdir=(col.ok if pkg.enabled else col.bad) + pkgdir + col.end
-                output = '  %s/%s [L%i]: %s'%(pkgdir,f,linenum,line)
-                if not '\n' in output:
-                    output += '\n'
-                print(output,end='')
+        for linenum,line in grepfile( ff, pattern, color = col_match):
             n+=1
+            if countonly:
+                continue
+            pkgdir=os.path.relpath(pdir)
+            pkgdir=(col.ok if pkg.enabled else col.bad) + pkgdir + col.end
+            output = '  %s/%s [L%i]: %s'%(pkgdir,f,linenum,line)
+            if '\n' not in output:
+                output += '\n'
+            print(output,end='')
     if countonly and n:
         pn=pkg.name
         pn=(col.ok if pkg.enabled else col.bad) + pn + col.end

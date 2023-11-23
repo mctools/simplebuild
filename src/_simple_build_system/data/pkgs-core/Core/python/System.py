@@ -5,6 +5,7 @@ import subprocess
 import shutil
 import contextlib
 import tempfile
+import atexit
 
 __all__ = [ 'quote', 'mkdir_p', 'chmod_x', 'rm_rf', 'rm_f', 'isemptydir', 'system',
             'system_throw', 'which', 'quote_cmd', 'recursive_find', 'remove_atexit' ]
@@ -14,7 +15,8 @@ __all__ = [ 'quote', 'mkdir_p', 'chmod_x', 'rm_rf', 'rm_f', 'isemptydir', 'syste
 try:
     #Python3: quote from shlex + make pathlib-aware:
     from shlex import quote as _shlex_quote
-    quote = lambda s : _shlex_quote(str(s) if hasattr(s,'__fspath__') else s)
+    def quote(s):
+        return _shlex_quote(str(s) if hasattr(s,'__fspath__') else s)
 except ImportError:
     #Python2: quote from pipes:
     from pipes import quote
@@ -103,7 +105,8 @@ def system(cmd,catch_output=False,env=None):
     cmd=['bash','-c',cmd]
     #wrap exit code to 0..127, in case the return code is passed on to
     #sys.exit(ec):
-    fixec = lambda ec : ec if (ec>=0 and ec<=127) else 127
+    def fixec(ec):
+        return ec if (ec>=0 and ec<=127) else 127
     if catch_output:
         try:
             p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,env=env)
@@ -130,7 +133,8 @@ def system_throw(cmd,catch_output=False,env=None):
     return out
 
 def recursive_find(searchdir,filenamepattern):
-    import os,fnmatch
+    import os
+    import fnmatch
     # matches=set()
     for root, dirnames, filenames in os.walk(searchdir):
         for filename in fnmatch.filter(filenames+dirnames, filenamepattern):
@@ -146,12 +150,15 @@ def _filecleaner():
     global _files_to_clean
     for f in _files_to_clean:
         rm_rf(f)
-import atexit
 atexit.register(_filecleaner)
 
 def exec_bash_and_updateenv(cmd):
     """Execute a given bash command and update environment variables in current python process accordingly"""
-    import os, sys, subprocess, shlex, json
+    import os
+    import sys
+    import subprocess
+    import shlex
+    import json
     #Execute with /usr/bin/env bash and use python3+json to stream the resulting os.environ to stdout, using a well-defined encoding:
     import pathlib
     pyintrp = shlex.quote(str(pathlib.Path(sys.executable)))
@@ -173,8 +180,10 @@ def changedir(subdir):
     """Context manager for working in a given subdir and then switching back"""
     the_cwd = os.getcwd()
     os.chdir(subdir)
-    try: yield
-    finally: os.chdir(the_cwd)
+    try:
+        yield
+    finally:
+        os.chdir(the_cwd)
 
 @contextlib.contextmanager
 def work_in_tmpdir():

@@ -1,4 +1,5 @@
-#Build script which is intended to make the following steps smooth, painless and efficient for users:
+# Build script which is intended to make the following steps smooth, painless
+# and efficient for users:
 #
 #  1) Detect environment with cmake
 #  2) Configuration step
@@ -6,190 +7,35 @@
 #  4) Install step
 #  5) Test launch.
 #
-# Most importantly, it is intended that minimal cpu time is used to needless redo work in steps 1-4
-# above when user changes code or configuration.
-
-import sys
-import os
-import glob
-import shlex
-import pathlib
+# Most importantly, it is intended that minimal cpu time is used to needless
+# redo work in steps 1-4 above when user changes code or configuration.
 
 def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
+
+    from . import error
+    error.fmt_simplebuild_warnings()#as early as possible
+    from . import io as _io
+    import sys
+    import os
+    import pathlib
+
     if argv  is None:
         argv = sys.argv[:]
 
-    #Always inspect cfg and set up appropriate warnings/error printouts:
-    from . import error
-    from . import conf
-    from . import io as _io
 
-    error.fmt_simplebuild_warnings()
 
-    progname=os.path.basename(argv[0])
+    progname = os.path.basename( argv[0] )
     prefix = _io.print_prefix
     print = _io.print
 
-    from optparse import OptionParser,OptionGroup#FIXME: deprecated, use argparse instead!
+    from . import dirs
+    simplebuild_pkg_dirs = [dirs.projdir, *dirs.extrapkgpath]
 
-    def isfile(s):
-        return os.path.exists(s) and not os.path.isdir(s)
-
-    #########################
-    ### Parse arguments  ####
-    #########################
-
-    def get_simplebuild_pkg_dirs():
-        from . import dirs
-        return [dirs.projdir, *dirs.extrapkgpath]
-
-    def parse_args():
-
-        #Prepare parser:
-        parser = OptionParser(usage='%prog [options]')
-
-        group_build = OptionGroup(parser, "Controlling the build","The build will be carried out"
-                                  " and installed in a cache directory (use --info to see which). In addition to"
-                                  " configuration variables, the follow options can be used to fine-tune"
-                                  " the build process.")
-
-        group_build.add_option("-j", "--jobs",
-                               type="int", dest="njobs", default=0,
-                               help="Use up to N parallel processes",metavar="N")
-        group_build.add_option("-v", "--verbose",
-                               action='store_true', dest="verbose", default=False,
-                               help="Enable more verbosity")
-        group_build.add_option("-q", "--quiet",
-                               action='store_true', dest="quiet", default=False,
-                               help="Less verbose. Silence even some warnings")
-        group_build.add_option("-e", "--examine",
-                               action='store_true', dest="examine", default=False,
-                               help="Force (re)examination of environment")
-        group_build.add_option("-i", "--insist",
-                               action="store_true", dest="insist", default=False,
-                               help="Insist on reconf/rebuild/reinstall from scratch")
-        parser.add_option_group(group_build)
-
-        group_pkgselect = OptionGroup(parser, "Selecting what packages to enable",
-                                      "The flags below provide a convenient alternative to"
-                                      " direct modification of the configuration variable named \"ONLY\". Default is to enable all packages.")
-        group_pkgselect.add_option("-a","--all",action='store_true', default=False,dest='enableall',
-                                 help="Enable *all* packages.")
-
-        parser.add_option_group(group_pkgselect)
-
-        group_query = OptionGroup(parser, "Query options")
-
-        #FIXME: Should be something simple like -s (after we retire the current way of setting cmake args
-        group_query.add_option('--cfginfo',
-                               action='store_true', dest='cfginfo', default=False,
-                               help='Print overall configuration information (based on the simplebuild.cfg file) and exit.')
-
-
-        group_query.add_option("--pkginfo",
-                               action="store", dest="pkginfo", default='',metavar='PKG',
-                               help="Print information about package PKG")
-        group_query.add_option("--incinfo",
-                               action="store", dest="incinfo", default='',metavar='CFILE',
-                               help=( "Show inclusion relationships for the chosen CFILE. CFILE must be a C++"
-                                      " or C file in the package search path. Optionally multiple files can be"
-                                      " specified using comma-separation and wildcards (\"*\').") )
-        group_query.add_option("--pkggraph",
-                               action="store_true", dest="pkggraph", default=False,
-                               help="Create graph of package dependencies")
-        group_query.add_option("--activegraph",
-                               action="store_true", dest="pkggraph_activeonly", default=False,
-                               help="Create graph for enabled packages only")
-        group_query.add_option("--grep",
-                               action="store", dest="grep", default='',metavar='PATTERN',
-                               help="Grep files in packages for PATTERN")
-        group_query.add_option("--grepc",
-                               action="store", dest="grepc", default='',metavar='PATTERN',
-                               help="Like --grep but show only count per package")
-        group_query.add_option("--find",
-                               action="store", dest="find", default=None, metavar='PATTERN',
-                               help="Search for file and path names matching PATTERN")
-        parser.add_option_group(group_query)
-
-        group_other = OptionGroup(parser, "Other options")
-        group_other.add_option("--version",
-                               action="store_true", dest="show_version", default=False,
-                               help="Show simplebuild version and exit")
-
-        group_other.add_option("-t", "--tests",
-                               action="store_true", dest="runtests", default=False,
-                               help="Run tests after the build")
-        group_other.add_option("--testexcerpts",
-                               type="int", dest="nexcerpts", default=0,
-                               help="Show N first and last lines of each log file in failed tests",metavar="N")
-        group_other.add_option("--testfilter",
-                               type="str", dest="testfilter", default='',
-                               help="Only run tests with names matching provided patterns (passed on to 'dgtests --filter', c.f. 'dgtests --help' for details)",metavar="PATTERN")
-        group_other.add_option("-c", "--clean",
-                               action='store_true', dest="clean", default=False,
-                               help="Completely remove cache directories and exit.")
-        group_other.add_option("--replace",
-                               action="store", dest="replace", default=None, metavar='PATTERN',
-                               help="Global search and replace in packages via pattern like '/OLDCONT/NEWCONT/' (use with care!)")
-        group_other.add_option("--removelock",
-                               action='store_true', dest="removelock", default=False,
-                               help="Force removal of lockfile")
-
-        group_other.add_option("--env-setup",
-                               action="store_true", dest="env_setup", default=False,
-                               help="Emit shell code needed to modify environment variables to use build packages, then exit.")
-        group_other.add_option("--env-unsetup",
-                               action="store_true", dest="env_unsetup", default=False,
-                               help="Emit shell code undoing the effect of any previous --env-setup usage, then exit.")
-
-        parser.add_option_group(group_other)
-
-        #Actually parse arguments, taking care that the ones of the form VAR=value
-        #must be interpreted as user configuration choices, most passed to cmake.
-        args_unused=[]
-        (opt, args_unused) = parser.parse_args(argv[1:])
-
-        opt._querypaths=[]
-        if opt.grepc:
-            if opt.grep:
-                parser.error("Don't supply both --grep and --grepc")
-            opt.grep=opt.grepc
-            opt.grepc=bool(opt.grepc)
-
-        if opt.pkggraph_activeonly:
-            opt.pkggraph=True
-
-        #if opt.pkgs and opt.enableall:
-            #parser.error('Do not specify both --all and --project')
-
-        query_mode_withpathzoom_n = sum(int(bool(a)) for a in [opt.grep,opt.replace,opt.find])
-        query_mode_n = query_mode_withpathzoom_n + sum(int(bool(a)) for a in [opt.pkggraph,opt.pkginfo,opt.incinfo,opt.cfginfo])
-        if int(opt.clean)+ query_mode_n > 1:
-            parser.error("More than one of --clean, --pkggraph, --pkginfo, --grep, --grepc, --replace, --find, --cfginfo, --incinfo specified at the same time")
-        opt.query_mode = query_mode_n > 0
-        if query_mode_withpathzoom_n > 0:
-            for a in args_unused:
-                qp=os.path.abspath(os.path.realpath(a))
-                simplebuild_pkg_dirs = get_simplebuild_pkg_dirs()
-                if not any([qp.startswith(str(d)) for d in simplebuild_pkg_dirs]):
-                    parser.error("grep/find/replace/... can only work on directories below %s"%simplebuild_pkg_dirs) #TODO ' '.join(simplebuild_pkg_dirs) might look nicer
-                gps=[d for d in glob.glob(qp) if os.path.isdir(d)]
-                if not gps:
-                    parser.error("no directory matches for '%s'"%a)
-                for d in sorted(gps):
-                  opt._querypaths+=['%s/'%os.path.relpath(d,str(codedir)) for codedir in simplebuild_pkg_dirs if d.startswith(str(codedir))]
-            args_unused=[]
-
-        if args_unused:
-            parser.error("Unrecognised arguments: %s"%' '.join(args_unused))
-
-        if opt.verbose and opt.quiet:
-            parser.error("Do not supply both --quiet and --verbose flags")
-
-
-        return parser,opt
-
-    parser,opt=parse_args()
+    from .parse_args import parse_args
+    parser, opt = parse_args(
+        return_parser = True,
+        simplebuild_pkg_dirs = simplebuild_pkg_dirs
+    )
 
     if opt.show_version:
         from . import _determine_version
@@ -209,8 +55,12 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
         emit_env_unsetup()
         raise SystemExit
 
-    if opt.cfginfo:
-        print("FIXME: cfginfo mode is not yet implemented!")
+    if opt.summary:
+        print("FIXME: summary mode is not yet implemented!")
+        raise SystemExit
+
+    if opt.init:
+        print("FIXME: init mode is not yet implemented!")
         raise SystemExit
 
     #setup lockfile:
@@ -255,7 +105,7 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
         else:
             if not opt.quiet:
                 print("Nothing to clean. Exiting.")
-        sys.exit(0)
+        raise SystemExit
 
     #Detect changes to system cmake or python files and set opt.examine or opt.insist as appropriate.
     from . import mtime
@@ -336,7 +186,9 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
     error.default_error_type = SystemExit
 
     if err_txt:
-        print("\n\nERROR during configuration:\n\n  %s\n\nAborting."%(err_txt.replace('\n','\n  ')))
+        #fixme: unprefixed printouts?:
+        print("\n\nERROR during configuration:\n\n  %s\n\n"
+              "Aborting."%(err_txt.replace('\n','\n  ')))
         #make all packages need reconfig upon next run:
         from . import db
         db.db['pkg2timestamp']={}
@@ -349,60 +201,81 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
     assert dirs.makefiledir.is_dir()
 
     def query_pkgs():
-        l=[]
-        for p in sorted(pkgloader.pkgs):
-            if not opt._querypaths:
-                l+=[p]
-            else:
-                for qp in opt._querypaths:
-                    if (p.reldirname+'/').startswith(qp):
-                        l+=[p]
-                        break
-        return l
+        #returns list of (pkg,filenames) where filenames is None, or a list of
+        #the files in the pkg to search (e.g. ['pkg.info','pycpp_bla/mod.cc']
+        all_pkgs = list(sorted(pkgloader.pkgs))
+        if not opt.querypaths:
+            return [(p,None) for p in all_pkgs]
+        res=[]
+        for p in all_pkgs:
+            search_entire_package = False
+            filenames=[]
+            for qp in opt.querypaths:
+                assert isinstance(p.dirname,str)#fixme: to pathlib.Path
+                pdir = pathlib.Path(p.dirname)
+                if pdir == qp or utils.path_is_relative_to( pdir, qp ):
+                    search_entire_package = True
+                    break
+                if utils.path_is_relative_to( qp, pdir ):
+                    filenames.append( qp.relative_to(pdir) )
+            if search_entire_package:
+                res.append( (p, None) )
+            elif filenames:
+                res.append( (p, filenames) )
+        return res
 
     if opt.grep:
-        qp=query_pkgs()
-        print("Grepping %i packages for pattern %s"%(len(qp),opt.grep))
+        qp = query_pkgs()
+        print("Grepping %i packages for pattern \"%s\""%(len(qp),opt.grep))
         print()
         n=0
         from . import grep
-        for pkg in qp:
-            n+=grep.grep(pkg,opt.grep,countonly=opt.grepc)
+        for pkg,filenames in qp:
+            n += grep.grep( pkg,
+                            opt.grep,
+                            filenames = filenames,
+                            countonly = opt.grepc )
         print()
         print("Found %i matches"%n)
-        sys.exit(0)
+        raise SystemExit
 
     if opt.replace:
-        qp=query_pkgs()
-        p=opt.replace
+        qp = query_pkgs()
+        pattern = opt.replace
         from . import replace
-        search_pat,replace_pat = replace.decode_pattern(opt.replace)
+        search_pat, replace_pat = replace.decode_pattern(pattern)
         if not search_pat:
-            parser.error("Bad syntax in replacement pattern: %s"%p)
+            parser.error("Bad syntax in replacement pattern: %s"%pattern)
         print()
         print("Replacing all \"%s\" with \"%s\""%(search_pat,replace_pat))
         n = 0
-        for pkg in qp:
-            n+=replace.replace(pkg,search_pat,replace_pat)
+        for pkg,filenames in qp:
+            n += replace.replace( pkg,
+                                  search_pat,
+                                  replace_pat,
+                                  filenames = filenames )
         print()
         print("Performed %i replacements"%n)
-        sys.exit(0)
+        raise SystemExit
 
     if opt.find:
-        qp=query_pkgs()
-        p=opt.find
-        from . import find#fnmatch!!
+        qp = query_pkgs()
+        pattern = opt.find
+        from . import find
         print()
-        print("Finding all files and paths matching \"%s\""%(p))
+        print("Finding files and paths matching \"%s\""%(opt.find))
         print()
         n = 0
-        for pkg in qp:
-            n+=find.find(pkg,p)
+        for pkg,filenames in qp:
+            n += find.find( pkg,
+                            pattern = opt.find,
+                            filenames = filenames )
         print()
         print("Found %i matches"%n)
-        sys.exit(0)
+        raise SystemExit
 
     if opt.incinfo:
+        import glob
         def _val_incinfofn(fn):
             if '*' in fn:
                 #try to expand wildcards:
@@ -422,9 +295,7 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
                 parser.error("Not a file: %s"%fn)
             fn=os.path.abspath(os.path.realpath(fn))
             p = pathlib.Path(fn).absolute().resolve()
-            simplebuild_pkg_dirs = get_simplebuild_pkg_dirs()
             if not any( utils.path_is_relative_to(p,d) for d in simplebuild_pkg_dirs):
-                #TODO: This currently fails for dynamic packages!
                 parser.error(f"File {p} must be located under one of the following directories:\n%s"%('\n '.join(str(e) for e in simplebuild_pkg_dirs)))
             return [fn]#expands to a single file
         from . import incinfo
@@ -438,7 +309,7 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
             incinfo.provide_info(pkgloader,fns[0])
         else:
             incinfo.provide_info_multifiles(pkgloader,fns)
-        sys.exit(0)
+        raise SystemExit
 
     if opt.pkginfo:
         pkg=pkgloader.name2pkg.get(opt.pkginfo,None)
@@ -446,29 +317,38 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
             utils.err('Unknown package "%s"'%opt.pkginfo)
         else:
             pkg.dumpinfo(pkgloader.autodeps)
-            sys.exit(0)
+            raise SystemExit
 
     if opt.pkggraph:
         dotfile=dirs.blddir / 'pkggraph.dot'
         from . import dotgen
         dotgen.dotgen(pkgloader,dotfile,enabled_only=opt.pkggraph_activeonly)
         if not opt.quiet:
-            print('Package dependencies in graphviz DOT format has been generated in %s'%(dotfile))
+            print('Package dependencies in graphviz DOT format has'
+                  ' been generated in %s'%(dotfile))
         ec=utils.system('dot -V > /dev/null 2>&1')
         if ec:
             if not opt.quiet:
                 print('Warning: command "dot" not found or ran into problems.')
-                print('Please install graphviz to enable graphical dependency displays')
+                print('Please install graphviz to enable graphical'
+                      ' dependency displays')
             sys.exit(1)
-        ec=utils.system('unflatten -l3 -c7 %s|dot -Tpng -o%s/pkggraph.png'%(dotfile,dirs.blddir))
-        if ec or not isfile('%s/pkggraph.png'%dirs.blddir):
+        pkggraphout = dirs.blddir / 'pkggraph.png'
+        import shlex
+        ec=utils.system(
+            'unflatten -l3 -c7 %s|dot -Tpng -o %s'%(shlex.quote(str(dotfile)),
+                                                    shlex.quote(str(pkggraphout)))
+        )
+        if ec or not pkggraphout.is_file():
             if not opt.quiet:
-                print('Error: Problems with dot command while transforming pkggraph.dot to pkggraph.png')
+                print('Error: Problems with dot command while transforming'
+                      f' {dotfile.name} to {pkggraphout.name}')
             sys.exit(1)
         else:
             if not opt.quiet:
-                print('Package dependencies in PNG format has been generated in %s/pkggraph.png'%dirs.blddir)
-        sys.exit(0)
+                print('Package dependencies in PNG format has been generated'
+                      ' in %s'%pkggraphout)
+        raise SystemExit
 
 
     if not opt.njobs:
@@ -588,7 +468,6 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
 
         print('  System                           : %s'%env.env['system']['general']['system'])
         cp=env.env['cmake_printinfo']
-        unused_vars = set(cp['unused_vars'])
 
         print('  Required dependencies            : %s'%formatlist(['%s[%s]'%(k,v) for k,v in sorted(set(reqdep))],None))
         print('  Optional dependencies present    : %s'%formatlist(['%s[%s]'%(e,env.env['extdeps'][e]['version']) for e in extdeps_avail],

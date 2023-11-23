@@ -114,7 +114,6 @@ def find_pkg_dirs( basedir_list ):
 class Package:
     #Only construct this with the PackageLoader
 
-    #for python3:
     def __lt__(self,o):
         assert self.name != o.name
         return self.name < o.name

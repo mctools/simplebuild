@@ -18,7 +18,6 @@ def perform_configuration(select_filter=None,
     from . import mtime
     from . import envcfg
     import pickle
-    import pathlib
     import pipes
     import shutil
 
@@ -388,14 +387,14 @@ if __name__=="__main__":
 
 def calc_env_changes( old, new ):
     if set(old.keys()) != set(new.keys()):
-        yield f'autoreconf format change!'
+        yield 'autoreconf format change!'
         return
     dns = ('install_dir','build_dir')
 
     for dn in dns:
         if old[dn] != new[dn]:
             yield f'Directory changed: {dn}'
-    for tn in [ tn for tn in sorted(old.keys()) if not tn in dns ]:
+    for tn in [ tn for tn in sorted(old.keys()) if tn not in dns ]:
         old_tn, new_tn = old[tn], new[tn]
         ko, kn = set(old_tn.keys()), set(new_tn.keys())
         for k in kn|ko:

@@ -227,7 +227,7 @@ def perform_tests(testdir,installdir,njobs,nexcerpts,filters,do_pycoverage,pkglo
             for line in testxmlwriter.generate_xml():
                 f.write('%s\n'%line)
         print()
-        print('  Test results are also summarised in: {outfile.name}')
+        print(f'  Test results are also summarised in: {outfile.name}')
         print()
 
     if excerpts_to_print:

@@ -54,7 +54,7 @@ def direct_print_warning( msg ):
 _orig_showwarning = warnings.showwarning
 def _custom_warning_fmt(msg,cat,*args,**kwargs):
     if issubclass(cat,SimpleBuildUserWarning):
-        direct_print_warning(warning)
+        direct_print_warning( msg )
     else:
         _orig_showwarning(msg,cat,*args,**kwargs)
 
