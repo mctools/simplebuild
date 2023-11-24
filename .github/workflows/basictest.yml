@@ -49,12 +49,16 @@ jobs:
 
     - name: Install package
       run: |
-           python3 -m pip install ./src
+           python3 -m pip install ./src &&
+           echo "sb --version: "$(sb --version)
 
     - name: Build-and-test-release-mode
       run: |
-        cd ./src/devel/example_project_release_mode && sb -vtj1 --testexcerpts=100
+        mkdir myproj &&
+        cd myproj &&
+        sb --init core_val &&
+        sb -t --testexcerpts=100 &&
+        sbenv sb_core_extdeps --require-disabled NCrystal Numpy matplotlib Geant4 &&
+        sbenv sb_core_extdeps --require ZLib
 
-    - name: Build-and-test-debug-mode
-      run: |
-        cd ./src/devel/example_project_debug_mode && sb -vtj1 --testexcerpts=100
+#TODO:    - name: Build-and-test-debug-mode
