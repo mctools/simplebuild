@@ -22,20 +22,12 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
     if argv  is None:
         argv = sys.argv[:]
 
-
-
     progname = os.path.basename( argv[0] )
     prefix = _io.print_prefix
     print = _io.print
 
-    from . import dirs
-    simplebuild_pkg_dirs = [dirs.projdir, *dirs.extrapkgpath]
-
     from .parse_args import parse_args
-    parser, opt = parse_args(
-        return_parser = True,
-        simplebuild_pkg_dirs = simplebuild_pkg_dirs
-    )
+    parser, opt = parse_args( return_parser = True )
 
     if opt.show_version:
         from . import _determine_version
@@ -46,11 +38,15 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
         _io.make_quiet()
 
     if opt.env_setup:
+        #should actually have been done in _cli.py already
+        _io.make_quiet()
         from .envsetup import emit_envsetup
         emit_envsetup()
         raise SystemExit
 
     if opt.env_unsetup:
+        #should actually have been done in _cli.py already
+        _io.make_quiet()
         from .envsetup import emit_env_unsetup
         emit_env_unsetup()
         raise SystemExit
@@ -59,15 +55,13 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
         print("FIXME: summary mode is not yet implemented!")
         raise SystemExit
 
-    if opt.init:
-        print("FIXME: init mode is not yet implemented!")
+    if opt.init is not None:
+        from . import init_project
+        init_project.init_project( depbundles = opt.init )
         raise SystemExit
 
     #setup lockfile:
     from . import dirs
-    from . import conf
-    from . import envcfg
-    from . import utils
 
     if not dirs.blddir.exists() and not dirs.installdir.exists():
         #Silently set this in case of completely fresh build, to avoid getting
@@ -80,7 +74,7 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
     lockfile_content = str(os.getpid())
     if dirs.lockfile.exists():
         locking_pid = dirs.lockfile.read_text()
-        error.error('ERROR: Presence of lock file indicates competing invocation of '
+        error.error('Presence of lock file indicates competing invocation of '
                     f'{progname} (by pid {locking_pid}). Force removal'
                     f' with {progname} --removelock if you are sure this is incorrect.')
     dirs.create_bld_dir()
@@ -90,18 +84,33 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
 
     def unlock():
         expected_content = lockfile_content
-        from os import remove
-        from .dirs import lockfile
-        if lockfile.exists() and lockfile.read_text()==expected_content:
-            remove(lockfile)
+        if ( dirs.lockfile.exists()
+             and dirs.lockfile.read_text()==expected_content ):
+            dirs.lockfile.unlink()
     import atexit
     atexit.register(unlock)
+
+    from . import conf
+    from . import envcfg
 
     if opt.clean:
         if dirs.blddir.is_dir() or dirs.installdir.is_dir():
             if not opt.quiet:
-                print("Removing temporary cache directories. Exiting.")
+                print("Removing temporary cache directories.")
             conf.safe_remove_install_and_build_dir()
+            #Let us perhaps also try and remove the cachedir, i.e. the parent
+            #dir of install and build. We want to remove it to not litter an
+            #empty "simplebuild_cache" in peoples bundle dirs, but we also do
+            #not want to remove a directory which a user might have created
+            #manually for their cache (even if empty, since it might still be
+            #confusing). As a compromise, we remove it only if it is in the
+            #default location with the default name (users messing with pkg_root
+            #or cachedir are anyway expected to be more advanced):
+            dcache = envcfg.var.build_dir_resolved.parent
+            assert dcache == envcfg.var.install_dir_resolved.parent
+            if ( dcache == ( envcfg.var.projects_dir / 'simplebuild_cache' )
+                 and not any( dcache.iterdir() ) ):
+                 dcache.rmdir()
         else:
             if not opt.quiet:
                 print("Nothing to clean. Exiting.")
@@ -109,6 +118,7 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
 
     #Detect changes to system cmake or python files and set opt.examine or opt.insist as appropriate.
     from . import mtime
+    from . import utils
     systs = (mtime.mtime_cmake(),mtime.mtime_pymods())
     try:
         oldsysts = utils.pkl_load(dirs.systimestamp_cache)
@@ -295,8 +305,12 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
                 parser.error("Not a file: %s"%fn)
             fn=os.path.abspath(os.path.realpath(fn))
             p = pathlib.Path(fn).absolute().resolve()
-            if not any( utils.path_is_relative_to(p,d) for d in simplebuild_pkg_dirs):
-                parser.error(f"File {p} must be located under one of the following directories:\n%s"%('\n '.join(str(e) for e in simplebuild_pkg_dirs)))
+            simplebuild_pkg_dirs = [dirs.projdir, *dirs.extrapkgpath]
+            if not any( utils.path_is_relative_to(p,d)
+                        for d in simplebuild_pkg_dirs):
+                _dirsfmt=('\n '.join(str(e) for e in simplebuild_pkg_dirs))
+                parser.error(f'File {p} must be located under one of the '
+                             f'following directories:\n{_dirsfmt}')
             return [fn]#expands to a single file
         from . import incinfo
         fnsraw = opt.incinfo.split(',') if ',' in opt.incinfo else [opt.incinfo]
@@ -355,6 +369,9 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
         from . import cpudetect
         opt.njobs=cpudetect.auto_njobs()
 
+    if not opt.quiet:
+        print("Configuration completed => Launching build with %i parallel processes"%opt.njobs)
+
     #VERBOSE:
     # -1: always quiet
     #  0: only warnings
@@ -365,130 +382,22 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
         extramakeopts=' VERBOSE=-1'
     else:
         extramakeopts=''
-    if not opt.quiet:
-        print("Configuration completed => Launching build with %i parallel processes"%opt.njobs)
 
     assert dirs.makefiledir.is_dir()
-    ec=utils.system("cd %s && make --warn-undefined-variables -f Makefile -j%i%s"%(dirs.makefiledir,opt.njobs,extramakeopts))
+    ec = utils.system(f'cd {dirs.makefiledir} && '
+                      'make --warn-undefined-variables -f Makefile'
+                      f' -j{opt.njobs}{extramakeopts}')
     if ec!=0:
         if not opt.quiet:
             print("ERROR: Build problems encountered")
         sys.exit(1 if ec > 128 else ec)
 
     if not opt.quiet:
-        print()
-        print('Successfully built and installed all enabled packages!')
-        print()
-        print('Summary:')
-        print()
-        def fixpath( p ):
-            if envcfg.var.conda_prefix:
-                pabs = p.absolute().resolve()
-                cp = pathlib.Path(envcfg.var.conda_prefix).absolute().resolve()
-                if cp.is_dir() and utils.path_is_relative_to( pabs, cp ):
-                    return os.path.join('${CONDA_PREFIX}',str(pabs.relative_to(cp)))
-            return str(p)
-        print('  Projects directory               : %s'%fixpath(dirs.projdir))
-        print('  Installation directory           : %s'%fixpath(dirs.installdir))
-        print('  Build directory                  : %s'%fixpath(dirs.blddir))
-
-        from . import col
-        col_ok = col.ok
-        col_bad = col.bad
-        col_end = col.end
-        #FIXME: Use formatlist module!
-        def formatlist(lin,col):
-            l=lin[:]
-            colbegin = col if col else ''
-            colend = col_end if col else ''
-            if not l or l==['']:
-                return '<none>'
-            first=True
-            out=''
-            while l:
-                s=''
-                while l and len(s)<40:
-                    if s:
-                        s += ' '
-                    s += l.pop(0)
-                if first:
-                    out+='%s%s%s'%(colbegin,s,colend)
-                    first=False
-                else:
-                    out += '\n%s                                      %s%s%s'%(prefix,colbegin,s,colend)
-            return out
-            #return ' '.join(l)
-
-        pkg_src_info = []
-        for basedir in dirs.pkgsearchpath:
-            pkg_nr = len([p.name for p in pkgloader.pkgs if p.dirname.startswith(str(basedir))])
-            pkg_enabled = len([p.name for p in pkgloader.pkgs if p.enabled and p.dirname.startswith(str(basedir))])
-            pkg_src_info.append([basedir, pkg_enabled, (pkg_nr-pkg_enabled) ])
-
-        def pkg_info_str(info):
-            p=fixpath(info[0])
-            if info[1]+info[2]==0:
-                descr='no pkgs'
-            else:
-                nbuilt = '%s%d%s'%(col_ok,info[1],col_end) if info[1]!=0 else '0'
-                nskipped = '%s%d%s'%(col_bad,info[2],col_end) if info[2]!=0 else '0'
-                descr='%s built, %s skipped'%(nbuilt, nskipped)
-            return "%s (%s)"%(p, descr)
-
-        print('  Package search path              : %s'%formatlist([pkg_info_str(info) for info in pkg_src_info],None))
-
-        nmax = 20
-        pkg_enabled = sorted([p.name for p in pkgloader.pkgs if p.enabled])
-        n_enabled = len(pkg_enabled)
-        lm2='(%i more,'
-        limittxt=['...',lm2,'supply','--verbose','to','see','all)']
-        if not opt.verbose and n_enabled>nmax:
-            limittxt[1] = lm2%(n_enabled-nmax)
-            pkg_enabled = pkg_enabled[0:nmax]+limittxt
-        pkg_disabled = sorted([p.name for p in pkgloader.pkgs if not p.enabled])
-        n_disabled = len(pkg_disabled)
-        if not opt.verbose and n_disabled>nmax:
-            limittxt[1] = lm2%(n_disabled-nmax)
-            pkg_disabled = pkg_disabled[0:nmax]+limittxt
-        from . import env
-        extdeps_avail = sorted(k for (k,v) in env.env['extdeps'].items() if v['present'])
-        extdeps_missing = sorted(k for (k,v) in env.env['extdeps'].items() if not v['present'])
-
-        #Compilers (Fortran is considered optional), CMake, and required externals deps like Python and pybind11:
-        reqdep = [('CMake',env.env['system']['general']['cmake_version'])]
-        for lang,info in env.env['system']['langs'].items():
-            if not info:
-                continue
-            if info['cased']!='Fortran':
-                reqdep += [(info['cased'],info['compiler_version_short'])]
-                for dep in info['dep_versions'].split(';'):
-                    reqdep += [tuple(dep.split('##',1))]
-            else:
-                assert not info['dep_versions']#If allowed, we would need to print them somewhere
-
-        print('  System                           : %s'%env.env['system']['general']['system'])
-        cp=env.env['cmake_printinfo']
-
-        print('  Required dependencies            : %s'%formatlist(['%s[%s]'%(k,v) for k,v in sorted(set(reqdep))],None))
-        print('  Optional dependencies present    : %s'%formatlist(['%s[%s]'%(e,env.env['extdeps'][e]['version']) for e in extdeps_avail],
-                                                                           col_ok))
-        print('  Optional dependencies missing[*] : %s'%formatlist(extdeps_missing,col_bad))
-        print('  Package filters[*]               : <TODO>')
-        print('')
-        pkgtxt_en ='%s%i%s package%s built successfully'%(col_ok if n_enabled else '',
-                                                          n_enabled,
-                                                          col_end if n_enabled else '',
-                                                          '' if n_enabled==1 else 's')
-        pkgtxt_dis='%s%i%s package%s skipped due to [*]'%(col_bad if n_disabled else '',
-                                                          n_disabled,
-                                                          col_end if n_disabled else '',
-                                                          '' if n_disabled==1 else 's')
-        print('  %s : %s'%(pkgtxt_en.ljust(32+(len(col_end)+len(col_ok) if n_enabled else 0)),formatlist(pkg_enabled,col_ok)))
-        print('  %s : %s'%(pkgtxt_dis.ljust(32+(len(col_end)+len(col_bad) if n_disabled else 0)),formatlist(pkg_disabled,col_bad)))
-        print()
-        if cp['other_warnings'] or len(cp['unused_vars'])>0:
-            print('%sWARNING%s unspecified warnings from CMake encountered during environment inspection!'%(col_bad,col_end))
-            print()
+        from . import build_summary
+        build_summary.produce_build_summary(
+            pkgloader = pkgloader,
+            verbose = opt.verbose
+        )
 
     if opt.runtests:
         assert (conf.test_dir().parent / '.sbbuilddir').exists()
@@ -506,18 +415,21 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
                             do_pycoverage = False,
                             pkgloader = pkgloader )
 
+        from . import env
+        from . import col
+        cp = env.env['cmake_printinfo']
         if ec==0 and (cp['unused_vars'] or cp['other_warnings']):
             #Make sure user sees these warnings:
-            print('%sWARNING%s There were warnings (see above)'%(col_bad,col_end))
+            print('%sWARNING%s There were warnings (see above)'%(col.bad,col.end))
             print()
         if ec:
             sys.exit(ec)
-
 
     if not opt.quiet:
         from .envsetup import calculate_env_setup
         needs_env_setup = bool(calculate_env_setup())
         if not prevent_env_setup_msg and needs_env_setup:
+            from . import col
             print(f'{col.warnenvsetup}Build done. To use the resulting environment you must first enable it!{col.end}')
             print()
             print(f'{col.warnenvsetup}Type the following command (exactly) to do so (undo later by --env-unsetup instead):{col.end}')

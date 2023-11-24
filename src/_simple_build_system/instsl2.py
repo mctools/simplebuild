@@ -1,6 +1,7 @@
 import os
 import errno
 import sys
+import pathlib
 from . import utils
 from .io import print
 
@@ -73,7 +74,9 @@ def go():
     #check for and cleanup empty dirs:
     if dirs_with_removals:
         #we removed files, remove dirs if not empty:
-        for d in (d for d in dirs_with_removals if utils.isemptydir(d)):
+        def isemptydir( p ):
+            return not any( pathlib.Path(p).iterdir() )
+        for d in (d for d in dirs_with_removals if isemptydir(d)):
             try:
                 os.rmdir(d)
             except OSError as exc:

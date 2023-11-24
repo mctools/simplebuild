@@ -1,13 +1,14 @@
-# Custom Exception class to distinguish exceptions thrown by our code from other exceptions.
+# Error/warning functions and classes to distinguish exceptions thrown by our
+# code from other exceptions.
 #
-# Intended usage:
+# Typical intended usage:
 #
 # from . import error
 # error.error('some error message')
-
-
-# IMPORTANT: This module should NOT import other simplebuild modules (in particular
-# not anything triggering envcfg etc.)
+# error.warn('some warning message')
+#
+# IMPORTANT: This module should NOT import other simplebuild modules (in
+# particular not anything triggering envcfg etc.)
 
 import warnings
 
@@ -22,7 +23,7 @@ class SimpleBuildUserWarning( UserWarning ):
 default_error_type = SystemExit
 
 def error(*args):
-    raise default_error_type('\n'.join(args))
+    raise default_error_type('ERROR: '+'\n'.join(args))
 
 #Used to exit the programme after catching and dealing with an Error at a lower level.
 class CleanExit(Exception):

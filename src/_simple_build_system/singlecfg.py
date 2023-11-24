@@ -1,5 +1,3 @@
-__all__ = ['SingleCfg']
-
 import pathlib
 import typing
 import re
@@ -160,6 +158,14 @@ _reobj_valid_identifier = re.compile(_reexp_valid_identifier)
 def _is_valid_identifier( s ):
     return s and isinstance(s,str) and _reobj_valid_identifier.search(s) is not None
 
+_reexp_valid_lowercase_identifier = r'^[a-z][a-z0-9_]*$'
+_reobj_valid_lowercase_identifier = re.compile(_reexp_valid_identifier)
+def _is_valid_lowercase_identifier( s ):
+    return s and isinstance(s,str) and _reobj_valid_lowercase_identifier.search(s) is not None
+
+is_valid_bundle_name = _is_valid_lowercase_identifier
+
+
 def _generate_toml_schema():
 
     def decode_nonempty_str( ctx : TOMLSchemaDecodeContext, item ):
@@ -170,6 +176,11 @@ def _generate_toml_schema():
     def decode_valid_identifier_string( ctx : TOMLSchemaDecodeContext, item ):
         if not _is_valid_identifier(item):
             error.error(f'Invalid value "{item}" for item {ctx.item_name} (expected string matching {_reexp_valid_identifier}) in {ctx.src_descr}')
+        return item
+
+    def decode_valid_lowercase_identifier_string( ctx : TOMLSchemaDecodeContext, item ):
+        if not _is_valid_lowercase_identifier(item):
+            error.error(f'Invalid value "{item}" for item {ctx.item_name} (expected string matching {_reexp_valid_lowercase_identifier}) in {ctx.src_descr}')
         return item
 
     def decode_is_bool( ctx : TOMLSchemaDecodeContext, item ):
@@ -183,6 +194,14 @@ def _generate_toml_schema():
         for i,k in enumerate(item):
             if not _is_valid_identifier(k):
                 error.error(f'Invalid value of list entry #{i+1} in item {ctx.item_name} (expected string matching {_reexp_valid_identifier}) in {ctx.src_descr}')
+        return tuple(item)
+
+    def decode_is_list_of_valid_lowercase_identifier_string( ctx : TOMLSchemaDecodeContext, item ):
+        if not isinstance( item, list ):
+            error.error(f'Invalid value "{item}" for item {ctx.item_name} (expected list) in {ctx.src_descr}')
+        for i,k in enumerate(item):
+            if not _is_valid_lowercase_identifier(k):
+                error.error(f'Invalid value of list entry #{i+1} in item {ctx.item_name} (expected string matching {_reexp_valid_lowercase_identifier}) in {ctx.src_descr}')
         return tuple(item)
 
     def decode_is_env_paths( ctx : TOMLSchemaDecodeContext, item ):
@@ -233,31 +252,17 @@ def _generate_toml_schema():
             p = ctx.default_dir / p
         return p.absolute().resolve()
 
-    return dict( project   = dict( name        = (decode_valid_identifier_string,None),
+    return dict( project   = dict( name        = (decode_valid_lowercase_identifier_string,None),
                                    pkg_root      = (decode_dir, '.'),
                                    env_paths   = (decode_is_env_paths,[]),
                                   ),
-                 depend    = dict( projects     = (decode_is_list_of_nonempty_str,[]),
+                 depend    = dict( projects     = (decode_is_list_of_valid_lowercase_identifier_string,[]),
                                    search_path = (decode_list_of_search_paths,[])
                                   ),
                  build     = dict( mode = ( lambda a,b : decode_str_enum(a,b,('debug','release')), 'release' ),
                                    njobs = (decode_nonneg_int, 0),
                                    cachedir = (decode_dir, './simplebuild_cache'),
                                    pkg_filter = (decode_is_list_of_nonempty_str,[]),
-                                   #^^^
-                                   #Starting with all packages available,
-                                   #filters are matched in order, removing those
-                                   #not matching (the matching is inverted if a
-                                   #filter is prefixed with a "!" character.
-                                   #
-                                   #Matches which will exclude rather than
-                                   #filter simply prefixed with !, entries with
-                                   #'/' in them are matched on relative
-                                   #directory to their pkg_root, otherwise just
-                                   #on the name.
-                                   #
-                                   #To use regular expressions rather than shell globbing (fnmatch), prefix the filter with "RE::"
-
                                    extdep_ignore = (decode_is_list_of_valid_identifier_string,[]),
                                    cmake_flags = (decode_is_list_of_nonempty_str,[]),
                                    extra_cflags = (decode_is_list_of_nonempty_str,[]),

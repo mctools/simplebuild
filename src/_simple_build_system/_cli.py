@@ -21,9 +21,20 @@ def main( prevent_env_setup_msg = False ):
     frontend.simplebuild_main( prevent_env_setup_msg = prevent_env_setup_msg )
 
 def unwrapped_main():
-    #For the unwrapped_simplebuild entry point, presumably only called from a bash
-    #function taking care of the --env-setup.
+    #For the unwrapped_simplebuild entry point, presumably only called from a
+    #bash function taking care of the --env-setup-silent-fail.
     import sys
+    if len(sys.argv)==2 and sys.argv[1]=='--env-setup-silent-fail':
+        #Quietly check if we are in a simplebuild project, and abort if not.
+        from .cfglocate import locate_master_cfg_file
+        mf = locate_master_cfg_file()
+        if mf and not mf.is_file():
+            from . import io as _io
+            _io.make_quiet()
+            from .envsetup import emit_envsetup
+            emit_envsetup()
+        raise SystemExit
+
     sys.argv[0] = 'simplebuild'
     main( prevent_env_setup_msg = True )
 

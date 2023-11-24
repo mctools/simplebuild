@@ -1,4 +1,5 @@
-def parse_args( argv = None, return_parser = False, simplebuild_pkg_dirs = None ):
+def parse_args( argv = None, return_parser = False ):
+
     import argparse
     import sys
     import os
@@ -196,10 +197,6 @@ projects, etc.
                      " this conflict should have been caught earlier)")
     args.query_mode = query_mode_n > 0
 
-    def get_simplebuild_pkg_dirs():
-        from . import dirs
-        return [dirs.projdir, *dirs.extrapkgpath]
-
     args.querypaths=[]
 
     if query_mode_withpathzoom_n > 0:
@@ -208,9 +205,19 @@ projects, etc.
             if not qp.exists():
                 parser.error(f'Path not found: {qp}')
             qp = qp.absolute().resolve()
-            simplebuild_pkg_dirs = simplebuild_pkg_dirs or []
             args.querypaths.append(qp)
         args_unused=[]
+
+    if args.init:
+        from .singlecfg import is_valid_bundle_name
+        args.init = []
+        for a in args_unused:
+            if not is_valid_bundle_name(a):
+                parser.error(f'Invalid name for dependency bundle: {a}')
+            args.init.append( a )
+        args_unused = []
+    else:
+        args.init = None
 
     if args_unused:
         parser.error("Unrecognised arguments: %s"%' '.join(args_unused))

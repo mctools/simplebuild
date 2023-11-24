@@ -8,15 +8,17 @@ def _query(n, *, boolean=False):
         return (_ or '').lower() in ['true', 'on', 'yes', '1']
     return _
 
-def _newcfg():
-    from .cfgbuilder import locate_master_cfg_file, CfgBuilder
+def _build_cfg():
+    from .cfglocate import locate_master_cfg_file
+    from .cfgbuilder import CfgBuilder
     from .singlecfg import SingleCfg
     from .pkgfilter import PkgFilter
     master_cfg_file = locate_master_cfg_file()
 
     if not master_cfg_file or not master_cfg_file.is_file():
         from . import error
-        error.error('In order to continue, please step into a directory tree with a simplebuild.cfg file at its root.')
+        error.error('In order to continue, please step into a directory'
+                    ' tree with a simplebuild.cfg file at its root.')
 
     assert master_cfg_file.is_file()
 
@@ -25,8 +27,6 @@ def _newcfg():
     pkgfilterobj = PkgFilter( cfg.build_pkg_filter )
 
     class EnvCfg:
-
-        legacy_mode = False
 
         #These are the basic ones:
         build_dir_resolved = cfg.build_cachedir / 'bld'
@@ -41,13 +41,14 @@ def _newcfg():
         conda_prefix =  _query('CONDA_PREFIX')
         cmake_args =  _query('CMAKE_ARGS')
 
-        #These are most likely almost never used by anyone (thus keeping as env vars for now!):
+        #These are most likely almost never used by anyone (thus keeping as env
+        #vars for now!):
         color_fix_code = _query('SIMPLEBUILD_COLOR_FIX')
         allow_sys_dev =  _query('SIMPLEBUILD_ALLOWSYSDEV',boolean=True)
 
-        # NOTE: backend.py also checks environment variables to check if something
-        # changed needing an automatic cmake reconf. We provide a good base list
-        # here:
+        # NOTE: backend.py also checks environment variables to check if
+        # something changed needing an automatic cmake reconf. We provide a good
+        # base list here:
 
         reconf_env_vars = [
             #All of the above except SIMPLEBUILD_ALLOWSYSDEV:
@@ -60,4 +61,4 @@ def _newcfg():
 
     return EnvCfg()
 
-var = _newcfg()
+var = _build_cfg()

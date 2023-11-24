@@ -53,7 +53,7 @@ jobs:
 
     - name: Build-and-test-release-mode
       run: |
-        cd ./src/devel/example_project_release_mode && simplebuild -vtj1 --testexcerpts=100
+        cd ./src/devel/example_project_release_mode && sb -vtj1 --testexcerpts=100
 
     - name: Build-and-test-debug-mode
       run: |

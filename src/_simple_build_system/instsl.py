@@ -1,6 +1,7 @@
 import os
 import errno
 import sys
+import pathlib
 from . import utils
 from .io import print
 
@@ -36,7 +37,7 @@ def go():
                     raise
         if not needed:
             #we removed all of our files, remove dir if not empty:
-            if utils.isemptydir(destdir):
+            if not any(pathlib.Path(destdir).iterdir()):
                 try:
                     os.rmdir(destdir)
                 except OSError as exc:

@@ -124,13 +124,10 @@ def pkg_search_path():
 def build_dir():
     from . import envcfg
     return envcfg.var.build_dir_resolved
+
 def install_dir():
     from . import envcfg
     return envcfg.var.install_dir_resolved
-
-    from . import envcfg
-
-
 
 def test_dir():
     return build_dir() / 'testresults/'

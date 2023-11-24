@@ -6,15 +6,15 @@ from . import conf#project specific configuration
 #system dir is one up from the modules dir:
 sysdir = str(pathlib.Path(__file__).resolve().absolute().parent.parent)
 #NEVERUSE # DGBUILD-EXPORT-ONLY>>fmwkdir = conf.framework_dir()
-blddir = conf.build_dir()
+blddir = conf.build_dir() # imports envcfg
 makefiledir = blddir / 'makefiles'
 
-extrapkgpath = conf.extra_pkg_path()
-pkgsearchpath = conf.pkg_search_path()
+extrapkgpath = conf.extra_pkg_path() # imports envcfg
+pkgsearchpath = conf.pkg_search_path() # imports envcfg
 
-installdir = conf.install_dir()
-testdir = conf.test_dir()
-projdir = conf.projects_dir()
+installdir = conf.install_dir() # imports envcfg
+testdir = conf.test_dir() # imports envcfg
+projdir = conf.projects_dir() # imports envcfg
 datadir = pathlib.Path(__file__).resolve().absolute().parent / 'data'
 cmakedetectdir = datadir / 'cmake'
 

@@ -7,6 +7,7 @@ recursive-include src/_simple_build_system/data/pkgs-core_val LICENSE pkg.info *
 recursive-include src/_simple_build_system/data/pkgs-core_val/**/data *
 recursive-include src/_simple_build_system/data/pkgs-core_val/**/scripts *
 recursive-include src simplebuild.cfg
+include src/_simple_build_system/data/cfgtemplate.txt
 
 global-exclude *~* *\#* .*
 global-exclude *.pyc *.pyo */__pycache__/* */.ruff_cache/*

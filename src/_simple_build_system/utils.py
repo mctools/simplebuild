@@ -92,17 +92,10 @@ def is_empty_dir( path ):
     #any(..) returns False for empty iterables.
     return path.is_dir() and not any( path.iterdir() )
 
-def isemptydir(path):
-    #obsolete str-based version
-    if not os.path.isdir(path):
-        return False
-    for f in os.listdir(path):
-        return False
-    return True
-
 def rmdir(path):
-    if isemptydir(path):
-        os.rmdir(path)
+    p = pathlib.Path(path)
+    if p.is_dir() and not any(p.iterdir()):
+        p.rmdir()
 
 def listfiles(d,filterfnc=0,error_on_no_match=True,ignore_logs=False):
     from . import conf

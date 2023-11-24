@@ -2,33 +2,6 @@ from .singlecfg import SingleCfg
 from . import error
 import pathlib
 
-def locate_master_cfg_file():
-    import os
-    p = os.environ.get('SIMPLEBUILD_CFG')
-    if p:
-        p = pathlib.Path(p).expanduser()
-        if not p.exists():
-            error.error('SIMPLEBUILD_CFG was set to a non-existing directory or file')
-        if p.is_dir():
-            p = p / 'simplebuild.cfg'
-            if not p.exists():
-                error.error('SIMPLEBUILD_CFG was set to a directory'
-                            ' with no simplebuild.cfg file in it')
-        else:
-            if not p.exists():
-                error.error('SIMPLEBUILD_CFG was set to non-existing file')
-        if not p.is_absolute():
-            error.error('SIMPLEBUILD_CFG must be set to an absolute path')
-        return p
-    p = pathlib.Path('.').absolute()#NB: NOT .resolve() on purpose!
-    f = p / 'simplebuild.cfg'
-    if f.exists():
-        return f
-    for p in sorted(p.parents,reverse=True):
-        f = p / 'simplebuild.cfg'
-        if f.exists():
-            return f
-
 def load_builtin_cfgs():
     pd = pathlib.Path(__file__).absolute().parent / 'data'
     cfgs = [ ( pd / 'pkgs-core' / 'simplebuild.cfg' ).absolute().resolve(),

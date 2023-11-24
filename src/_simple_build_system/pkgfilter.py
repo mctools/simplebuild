@@ -2,10 +2,10 @@ class PkgFilter:
 
     """Parse and implement the package filters defined in simplebuild.cfg data."""
 
-    #If any positive filters are defined, a pkg must pass at least one of them to pass.
-    #Furthermore, a pkg must NOT pass any of the defined negative filters, if any.
-    #
-    #TODO: Document filter syntax somewhere!
+    # If any positive filters are defined, a pkg must pass at least one of them to pass.
+    # If any negative filters are defined, a pkg must NOT pass any of them, to pass.
+
+    #TODO: Document filter syntax somewhere (see also cfgtemplate.txt)!
 
     def __init__( self, filter_definition_list ):
         import fnmatch
