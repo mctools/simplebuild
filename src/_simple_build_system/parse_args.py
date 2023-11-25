@@ -21,6 +21,49 @@ projects, etc.
 
 
 """
+
+    #Special for --help+--init mode:
+    initmode_shorthelp=('Initialise a new simplebuild bundle in the current\n'
+                        'directory by creating a simplebuild.cfg file. Use\n'
+                        '--init --help for more options.')
+    _p = progname
+    initmode_longhelp = f"""
+
+New project initialisation mode ("{_p} --init") is used to initialise a new
+simplebuild bundle in the current directory by creating a simplebuild.cfg
+file. Additional arguments can be used to specify bundles which the new project
+should depend on, or they can be a special keyword (DEBUG|COMPACT). In any case,
+it might be most convenient to edit the simplebuild.cfg file afterwards to
+fine-tune the desired settings.
+
+Examples of {_p} --init usage:
+
+$> {_p} --init core_val
+
+    Set up project which depends on the core_val project.
+
+$> {_p} --init DEBUG
+
+    Set up project with build options for producing debug symbols
+    (build.mode='debug').
+
+$> {_p} --init COMPACT
+
+    The resulting simplebuild.cfg file will have all comments and empty lines
+    stripped.
+
+$> {_p} --init core_val dgcode COMPACT DEBUG
+
+    Set up project with dependency on core_val and dgcode bundles, with the
+    build option for producing debug symbols, and a compact simplebuild.cfg
+    file.
+
+    """.strip()+'\n'
+
+    if '--init' in argv and ('-h' in argv or '--help' in argv):
+        print(initmode_longhelp)
+        raise SystemExit
+
     parser = argparse.ArgumentParser(
         usage=f'{progname} [-h|--help] [options]',
         description=descr.strip(),
@@ -99,11 +142,8 @@ projects, etc.
     exclusive.add('find')
 
     group_init = parser.add_argument_group('New project initialisation options')
-    group_init.add_argument('--init',
-                             action='store_true', dest='init',
-                             help=('Initialise a new simplebuild bundle in the'
-                                   ' current\ndirectory by creating a'
-                                   ' simplebuild.cfg file.'))
+    group_init.add_argument('--init', action='store_true', dest='init',
+                            help=initmode_shorthelp)
     exclusive.add('init')
 
     group_test = parser.add_argument_group('Unit testing options')

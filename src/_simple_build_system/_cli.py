@@ -35,7 +35,7 @@ def unwrapped_main():
             emit_envsetup()
         raise SystemExit
 
-    sys.argv[0] = 'simplebuild'
+    sys.argv[0] = 'sb'
     main( prevent_env_setup_msg = True )
 
 def sbenv_main():
@@ -78,7 +78,7 @@ Runs simplebuild (quietly) and if it finishes successfully, then proceeds to lau
     import shlex
     cmd = ' '.join(shlex.quote(e) for e in args)
     from . import frontend
-    frontend.simplebuild_main( argv = ['simplebuild',
+    frontend.simplebuild_main( argv = ['sb',
                                        '--quiet'],
                                prevent_env_setup_msg = True )
     utils.system(cmd,env=run_env)
