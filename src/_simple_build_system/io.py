@@ -4,6 +4,7 @@
 print_prefix_name = 'sbld'
 print_prefix = f'{print_prefix_name}: '
 _quiet = [False]#might be overridden by a call to make_quiet
+_verbose = [False]#might be overridden by a call to make_verbose/make_quiet
 _orig_printfct = print
 _printfct = [_orig_printfct]
 def print( *args, **kwargs ):
@@ -16,5 +17,9 @@ def make_quiet():
     if not _quiet[0]:
         _quiet[0] = True
         _printfct[0] = lambda *args, **kwargs : None
+def make_verbose():
+    _verbose[0] = True
 def is_quiet():
     return _quiet[0]
+def is_verbose():
+    return _verbose[0] and not _quiet[0]

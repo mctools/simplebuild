@@ -36,6 +36,8 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
 
     if opt.quiet:
         _io.make_quiet()
+    if opt.verbose:
+        _io.make_verbose()
 
     if opt.env_setup:
         #should actually have been done in _cli.py already
