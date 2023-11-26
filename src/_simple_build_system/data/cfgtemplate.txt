@@ -107,3 +107,9 @@
   # 'My_utils' would not:
   #
   #   pkg_filter = ['!RE::(?i).*test.*','RE::.*Util.*']
+  #
+  # Commas (m) can not be used in filters, but serve to separate filter
+  # items. In fact, the two following pkg filters are identical:
+  #
+  #   pkg_filter = [ 'My*','!MyBrokenPkg' ]
+  #   pkg_filter = [ 'My*,!MyBrokenPkg' ]

@@ -10,21 +10,43 @@ class PkgFilter:
     def __init__( self, filter_definition_list ):
         import fnmatch
         import re
-        acceptance_filters = []
-        rejection_filters = []
-        for forig in filter_definition_list:
-            f = forig.strip()
-            is_rejection = f.startswith('!')
+        # expand on commas, strip and prune empty filters, remove duplicates:
+        expanded_list = []
+        for e in filter_definition_list:
+            expanded_list += e.split(',')
+        final_list = []
+        for e in expanded_list:
+            e = e.strip()
+            is_rejection = e.startswith('!')
             if is_rejection:
-                f = f[1:]
-            if not f:
+                e = e[1:]
+            if not e:
                 #Silently ignore empty entries (both "!" and "")
                 continue
+            e = ( is_rejection, e )
+            if e not in final_list:
+                final_list.append( e )
+        final_list.sort()
+
+        def fmt( is_rejection, e ):
+            return f'!{e}' if is_rejection else e
+        single_str_list = []
+        acceptance_filters = []
+        rejection_filters = []
+        for is_rejection, f in final_list:
+            forig = fmt(is_rejection,f)
+            single_str_list.append( forig )
+            is_abs_dir_pattern = False
             if f.startswith('RE::'):
                 onreldir = ''
                 regex = f[4:]
             else:
-                onreldir = './' if ('/' in f) else None
+                is_abs_dir_pattern = f.startswith('/')
+                if is_abs_dir_pattern:
+                    from . import error
+                    error.error('Absolute paths not supported in pkg filters')
+                looks_like_reldir = '/' in f
+                onreldir = './' if looks_like_reldir else None
                 if onreldir and not f.startswith('./'):
                     f = './'+f
                 regex = fnmatch.translate( f )
@@ -32,13 +54,14 @@ class PkgFilter:
                 reobj = re.compile(regex)
             except re.error as re:
                 from . import error
-                error.error(f'Invalid selection pkg filter pattern: "{forig}"')
+                error.error(f'Invalid syntax in pkg filter pattern: "{forig}"')
             if is_rejection:
                 rejection_filters.append( ( onreldir, reobj ) )
             else:
                 acceptance_filters.append( ( onreldir, reobj ) )
         self.__accept_filters = tuple(acceptance_filters)
         self.__reject_filters = tuple(rejection_filters)
+        self.__as_single_str = ','.join(single_str_list)
 
     def fully_open( self ):
         return not self.__accept_filters and not self.__reject_filters
@@ -71,3 +94,9 @@ class PkgFilter:
         for name, reldir in pkg_names_and_reldirs:
             if self.passes( name, reldir ):
                 yield name
+
+    def as_string( self ):
+        return self.__as_single_str
+
+    def __str__( self ):
+        return self.as_string()

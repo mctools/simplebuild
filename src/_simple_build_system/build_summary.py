@@ -100,7 +100,9 @@ def produce_build_summary( *, pkgloader, verbose ):
     print('  Optional dependencies present    : %s'%formatlist(['%s[%s]'%(e,env.env['extdeps'][e]['version']) for e in extdeps_avail],
                                                                        col_ok))
     print('  Optional dependencies missing[*] : %s'%formatlist(extdeps_missing,col_bad))
-    print('  Package filters[*]               : <TODO>')
+    _pfilter = ( '<none>' if envcfg.var.pkg_filter.fully_open()
+                 else envcfg.var.pkg_filter.as_string() )
+    print(f"  Package filter[*]                : '{_pfilter}'")
     print('')
     pkgtxt_en ='%s%i%s package%s built successfully'%(col_ok if n_enabled else '',
                                                       n_enabled,
