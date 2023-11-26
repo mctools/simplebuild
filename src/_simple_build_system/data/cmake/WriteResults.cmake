@@ -22,23 +22,28 @@ foreach( tmp
   file(${oa} "VAR@${}${tmp}@${${tmp}}\n")
 endforeach()
 
-
 file(${oa} "VAR@${}CMAKE_VERSION@${CMAKE_VERSION}\n")
 file(${oa} "VAR@${}CMAKE_SYSTEM@${CMAKE_SYSTEM}\n")
-
-file(${oa} "VAR@${}CMAKE_Fortran_OUTPUT_EXTENSION@${CMAKE_Fortran_OUTPUT_EXTENSION}\n")
-file(${oa} "VAR@${}CMAKE_CXX_OUTPUT_EXTENSION@${CMAKE_CXX_OUTPUT_EXTENSION}\n")
-file(${oa} "VAR@${}CMAKE_C_OUTPUT_EXTENSION@${CMAKE_C_OUTPUT_EXTENSION}\n")
-
-file(${oa} "VAR@${}CMAKE_Fortran_COMPILER@${CMAKE_Fortran_COMPILER}\n")
-file(${oa} "VAR@${}CMAKE_Fortran_FLAGS@${CMAKE_Fortran_FLAGS} ${CMAKE_Fortran_FLAGS_${CMAKE_BUILD_TYPE}}\n")
-file(${oa} "VAR@${}CMAKE_CXX_COMPILER@${CMAKE_CXX_COMPILER}\n")
 
 #compiler versions (so we can trigger rebuilds on system upgrades):
 set(tmplangs "CXX;C")
 if (HAS_Fortran)
   list(APPEND tmplangs "Fortran")
 endif()
+
+#Sometimes we appear to really need the uppercase version:
+string(TOUPPER "${CMAKE_BUILD_TYPE}" SBL_UPPERCASE_CMAKE_BUILD_TYPE)
+foreach( lang ${tmplangs} )
+  #Annoyingly the casing in CMAKE_BUILD_TYPE (e.g. "Release") is not identical
+  #to the casing in the variable names like CMAKE_CXX_FLAGS_RELEASE. Not sure if
+  #there is a better way, but at least here is a workaround:
+  if ( DEFINED "CMAKE_${lang}_FLAGS_${SBL_UPPERCASE_CMAKE_BUILD_TYPE}" )
+    set( "sbl_${lang}_flags_for_buildtype" "${CMAKE_${lang}_FLAGS_${SBL_UPPERCASE_CMAKE_BUILD_TYPE}}")
+  elseif ( DEFINED "CMAKE_${lang}_FLAGS_${CMAKE_BUILD_TYPE}" )
+    set( "sbl_${lang}_flags_for_buildtype" "${CMAKE_${lang}_FLAGS_${CMAKE_BUILD_TYPE}}")
+  endif()
+endforeach()
+
 foreach(lang ${tmplangs})
   if(CMAKE_${lang}_COMPILER_VERSION)
     string(REGEX MATCH "([0-9]*)\\.([0-9]*)\\.([0-9]*)" dummy ${CMAKE_${lang}_COMPILER_VERSION})
@@ -53,18 +58,22 @@ foreach(lang ${tmplangs})
   file(${oa} "VAR@${}CMAKE_${lang}_COMPILER_VERSION_SHORT@${CMAKE_${lang}_COMPILER_ID}/${TMPS}\n")
   file(${oa} "VAR@${}CMAKE_${lang}_COMPILER_VERSION_LONG@${TMPL}\n")
   file(${oa} "VAR@${}SBLD_GLOBAL_VERSION_DEPS_${lang}@${SBLD_GLOBAL_VERSION_DEPS_${lang}}\n")
-endforeach()
 
-file(${oa} "VAR@${}CMAKE_CXX_FLAGS@${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_${CMAKE_BUILD_TYPE}}\n")
-file(${oa} "VAR@${}CMAKE_C_COMPILER@${CMAKE_C_COMPILER}\n")
-file(${oa} "VAR@${}CMAKE_C_FLAGS@${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_${CMAKE_BUILD_TYPE}}\n")
+
+  file(${oa} "VAR@${}CMAKE_${lang}_OUTPUT_EXTENSION@${CMAKE_${lang}_OUTPUT_EXTENSION}\n")
+  file(${oa} "VAR@${}CMAKE_${lang}_COMPILER@${CMAKE_${lang}_COMPILER}\n")
+  file(${oa} "VAR@${}CMAKE_${lang}_FLAGS@${CMAKE_${lang}_FLAGS} ${sbl_${lang}_flags_for_buildtype}\n")
+
+  #libstdc++ drags in libm, but in C it might be missing:
+  set( tmp_linkflags ${CMAKE_${lang}_LINK_FLAGS} )
+  if ( "${lang}" STREQUAL "C" )
+    set(tmp_linkflags "${tmp_linkflags} -lm")
+  endif()
+  file(${oa} "VAR@${}CMAKE_${lang}_LINK_FLAGS@${tmp_linkflags}\n")
+endforeach()
 
 file(${oa} "VAR@${}CMAKE_SHARED_LIBRARY_PREFIX@${CMAKE_SHARED_LIBRARY_PREFIX}\n")
 file(${oa} "VAR@${}CMAKE_SHARED_LIBRARY_SUFFIX@${CMAKE_SHARED_LIBRARY_SUFFIX}\n")
-
-file(${oa} "VAR@${}CMAKE_CXX_LINK_FLAGS@${CMAKE_CXX_LINK_FLAGS}\n")
-file(${oa} "VAR@${}CMAKE_C_LINK_FLAGS@${CMAKE_C_LINK_FLAGS} -lm\n")#libstdc++ drags in libm, but in C it might be missing
-file(${oa} "VAR@${}CMAKE_Fortran_LINK_FLAGS@${CMAKE_Fortran_LINK_FLAGS}\n")
 
 file(${oa} "VAR@${}SBLD_GLOBAL_COMPILE_FLAGS_C@${SBLD_GLOBAL_COMPILE_FLAGS_C}\n")
 file(${oa} "VAR@${}SBLD_GLOBAL_COMPILE_FLAGS_CXX@${SBLD_GLOBAL_COMPILE_FLAGS_CXX}\n")

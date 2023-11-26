@@ -16,7 +16,7 @@ def find_testdir(command,testbasedir):
     ecfile=os.path.join(td,'ec.txt')
     if not os.path.exists(ecfile):
         print("ERROR: No test seems to have been run for command: %s"%command)
-        print("Did you just run \"dgbuild -t\" as required?")
+        print("Did you just run \"sb -t\" as required?")
         sys.exit(1)
     with open(ecfile) as fh:
         if fh.read().strip()!='0':
@@ -31,7 +31,7 @@ def find_testoutput(command,testbasedir=None):
     assert os.path.exists(output)
     if not os.path.exists(refdiff):
         print("ERROR: Reference log for command %s does not seem to need any updating"%command)
-        print("Did you just run \"dgbuild -t\" as required?")
+        print("Did you just run \"sb -t\" as required?")
         sys.exit(1)
     return output
 
@@ -110,7 +110,7 @@ atexit.register(final_summary)
 
 for cmd,log,reflog in commands:
     if filecmp.cmp(log,reflog,False):
-        print("Ignoring command %s since the log seems to have been already updated (time to run dgbuild -t again?)."%cmd)
+        print("Ignoring command %s since the log seems to have been already updated (time to run \"sb -t\" again?)."%cmd)
         time.sleep(0.5)
         continue
     show_diff(reflog,log)

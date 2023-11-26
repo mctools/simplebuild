@@ -103,6 +103,10 @@ def produce_build_summary( *, pkgloader, verbose ):
     _pfilter = ( '<none>' if envcfg.var.pkg_filter.fully_open()
                  else envcfg.var.pkg_filter.as_string() )
     print(f"  Package filter[*]                : '{_pfilter}'")
+    print('  Build mode                       : '
+          + f'{envcfg.var.build_mode_summary_string}' )
+
+
     print('')
     pkgtxt_en ='%s%i%s package%s built successfully'%(col_ok if n_enabled else '',
                                                       n_enabled,

@@ -108,9 +108,6 @@ def extra_pkg_path():
     from . import envcfg
     return envcfg.var.extra_pkg_path_list
 
-#NEVERUSE # DGBUILD-EXPORT-ONLY>>def framework_dir():
-#NEVERUSE # DGBUILD-EXPORT-ONLY>>    return (AbsPath(__file__).parent / 'data' / 'pkgs' / 'Framework')
-
 def pkg_search_path():
     #candidates = [framework_dir(), projects_dir()]
     candidates = [projects_dir()]

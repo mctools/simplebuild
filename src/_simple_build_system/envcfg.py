@@ -26,11 +26,27 @@ def _build_cfg():
     cfg = CfgBuilder( master_cfg, master_cfg_file )
     pkgfilterobj = PkgFilter( cfg.build_pkg_filter )
 
+    cachedir_postfix = ( '' if master_cfg.build_mode=='release'
+                           else f'_{master_cfg.build_mode}' )
+
+    _cmake_args = _query('CMAKE_ARGS') or ''
+
+    if master_cfg.build_mode=='release':
+        _cmake_args += ' -DCMAKE_BUILD_TYPE=Release'
+    else:
+        assert master_cfg.build_mode=='debug'
+        _cmake_args += ' -DCMAKE_BUILD_TYPE=Debug'
+    _build_mode_summary_string = master_cfg.build_mode.capitalize()
+
+    while _cmake_args.startswith(' '):
+        _cmake_args = _cmake_args[1:]
+
     class EnvCfg:
 
         #These are the basic ones:
-        build_dir_resolved = cfg.build_cachedir / 'bld'
-        install_dir_resolved = cfg.build_cachedir / 'install'
+        build_dir_resolved = cfg.build_cachedir / f'bld{cachedir_postfix}'
+        install_dir_resolved = cfg.build_cachedir / f'install{cachedir_postfix}'
+
         projects_dir = master_cfg.project_pkg_root #FIXME: Is this ok?
         extra_pkg_path = ':'.join(str(e) for e in cfg.pkg_path)#fixme: keep at Path objects.
         extra_pkg_path_list = cfg.pkg_path#New style!
@@ -39,7 +55,7 @@ def _build_cfg():
 
         #These are used in the context of conda installs:
         conda_prefix =  _query('CONDA_PREFIX')
-        cmake_args =  _query('CMAKE_ARGS')
+        cmake_args =  _cmake_args
 
         #These are most likely almost never used by anyone (thus keeping as env
         #vars for now!):
@@ -58,6 +74,8 @@ def _build_cfg():
         ]
 
         env_paths = cfg.env_paths
+
+        build_mode_summary_string = _build_mode_summary_string
 
     return EnvCfg()
 

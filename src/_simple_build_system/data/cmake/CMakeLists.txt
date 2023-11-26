@@ -1,6 +1,5 @@
 cmake_minimum_required(VERSION 3.24.2...3.27.6)
 
-
 if (SBLD_QUIET)
   #override normal message function and block anything except errors and warnings
   function(message)
@@ -15,15 +14,17 @@ if (SBLD_QUIET)
   endfunction()
 endif()
 
+if( NOT CMAKE_BUILD_TYPE )
+  message( FATAL_ERROR "CMAKE_BUILD_TYPE should always be set" )
+endif()
+
+message( STATUS "Using CMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}" )
+
 project( DETECT LANGUAGES C CXX )
 
 set(output_filename "cmakecfg.txt")
 
 set(BUILD_SHARED_LIBS ON)
-if(NOT CMAKE_BUILD_TYPE)
-  #Note that asserts are still triggered when running RELWITHDEBINFO
-  set(CMAKE_BUILD_TYPE "RELWITHDEBINFO")#other options are DEBUG, RELEASE, MINSIZEREL, RELWITHDEBINFO
-endif()
 
 #We compile with -pedantic and -Werror unless SBLD_RELAX is set:
 set(FLAG_PEDANTIC "")

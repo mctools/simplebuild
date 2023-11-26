@@ -26,7 +26,8 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
     progname = os.path.basename( argv[0] )
 
     from .parse_args import parse_args
-    parser, opt = parse_args( return_parser = True )
+    parser, opt = parse_args( argv = argv,
+                              return_parser = True )
 
     if opt.show_version:
         from . import _determine_version

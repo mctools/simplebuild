@@ -50,7 +50,9 @@ def perform_configuration(select_filter=None,
     assert dirs.blddir.is_dir()
     assert ( dirs.blddir / '.sbbuilddir' ).exists()
 
-    cmakeargs = []#fixme: take from cfgbuilder
+    #TODO: This need to cache and retrigger on cmakeargs is a leftover from
+    #ancient times. Should we simply remove it?
+    cmakeargs = []
 
     envdict = None
     if not force_reconf and os.path.exists(dirs.envcache):

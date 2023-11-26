@@ -38,9 +38,10 @@ def unwrapped_main():
     sys.argv[0] = 'sb'
     main( prevent_env_setup_msg = True )
 
-def sbenv_main():
-    import sys
-    args = sys.argv[1:]
+def sbenv_main( args = None):
+    if args is None:
+        import sys
+        args = sys.argv[1:]
     if not args:
         print("""Usage:
 
@@ -50,14 +51,15 @@ Runs <program> within the simplebuild runtime environment. Note that if you wish
 make sure the codebase has been built first (with simplebuild) you should use sbrun
 rather than sbenv.
 """)
-        sys.exit(1)
+        raise SystemExit(111)
         return
     from .envsetup import create_install_env_clone
     run_env = create_install_env_clone()
     from . import utils
     import shlex
     cmd = ' '.join(shlex.quote(e) for e in args)
-    utils.system(cmd,env=run_env)
+    ec = utils.system(cmd,env=run_env)
+    raise SystemExit(int(ec))
 
 def sbrun_main():
     import sys
@@ -70,18 +72,13 @@ sbrun <program> [args]
 Runs simplebuild (quietly) and if it finishes successfully, then proceeds to launch
 <program> within the simplebuild runtime environment.
 """)
-        sys.exit(1)
+        raise SystemExit(111)
         return
-    from .envsetup import create_install_env_clone
-    run_env = create_install_env_clone()
-    from . import utils
-    import shlex
-    cmd = ' '.join(shlex.quote(e) for e in args)
     from . import frontend
     frontend.simplebuild_main( argv = ['sb',
                                        '--quiet'],
                                prevent_env_setup_msg = True )
-    utils.system(cmd,env=run_env)
+    sbenv_main( args )
 
 if __name__=='__main__':
     main()

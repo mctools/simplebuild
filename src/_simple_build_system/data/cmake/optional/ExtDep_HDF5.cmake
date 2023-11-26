@@ -26,7 +26,7 @@ if (HDF5_FOUND)
         foreach(cflag ${HDF5_DEFINITIONS})
           set(ExtDep_HDF5_COMPILE_FLAGS "${ExtDep_HDF5_COMPILE_FLAGS} ${cflag}")
         endforeach()
-        if (CMAKE_BUILD_TYPE STREQUAL "DEBUG")
+        if ( CMAKE_BUILD_TYPE STREQUAL "Debug" )
           #Setting _FORTIFY_SOURCE results in a warning when not compiling with optimisations enabled
           string(REPLACE "-D_FORTIFY_SOURCE=2" "" ExtDep_HDF5_COMPILE_FLAGS "${ExtDep_HDF5_COMPILE_FLAGS}")
         endif()

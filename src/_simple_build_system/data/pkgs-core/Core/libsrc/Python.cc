@@ -2,7 +2,7 @@
 #include <stdexcept>
 
 namespace {
-  void raw_dgbuild_pyInit()
+  void raw_simplebuild_pyInit()
   {
     if (Py_IsInitialized())
       throw std::runtime_error("Attempt at initialising Python interpreter twice detected");
@@ -12,7 +12,7 @@ namespace {
 
 void pyextra::pyInit(const char * argv0)
 {
-  raw_dgbuild_pyInit();
+  raw_simplebuild_pyInit();
   //Always put at least a dummy entry for sys.argv[0], since some python modules
   //will assume this is always present (for instance the matplotlib tkinter
   //backend with python 3.7):
@@ -27,7 +27,7 @@ void pyextra::pyInit(int argc, char** argv)
     pyInit();
     return;
   }
-  raw_dgbuild_pyInit();
+  raw_simplebuild_pyInit();
   py::list pysysargv;
   for (int i = 0; i < argc; ++i)
     pysysargv.append(std::string(argv[i]));
