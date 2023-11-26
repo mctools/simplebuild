@@ -1,8 +1,6 @@
 def perform_configuration(select_filter=None,
-                          autodisable = True,
                           force_reconf=False,
                           load_all_pkgs=False,
-                          prefix='',
                           quiet=False,
                           verbose=False
                       ):
@@ -20,6 +18,7 @@ def perform_configuration(select_filter=None,
     import pickle
     import pipes
     import shutil
+    from .io import print
 
     #Pre-inspect package directories, simply finding the package dirs for now (do it already to detect some errors early):
     all_pkgdirs = loadpkgs.find_pkg_dirs ( dirs.pkgsearchpath )
@@ -61,25 +60,25 @@ def perform_configuration(select_filter=None,
         #check if reconf has been triggered:
         if envdict['_cmakeargs'] != cmakeargs:
             if not quiet:
-                print("%sChange in cmake variables detected => reinspecting environment"%prefix)
+                print("Change in cmake variables detected => reinspecting environment")
             envdict=None
         elif envdict['_autoreconf_environment'] != current_reconf_environment:
             if not quiet:
-                print("%sChange in environment detected => reinspecting via CMake"%prefix)
+                print("Change in environment detected => reinspecting via CMake")
                 for e in calc_env_changes( envdict['_autoreconf_environment'],
                                            current_reconf_environment ):
-                    print(f'{prefix}  -> change: {e}')
+                    print(f'  -> change: {e}')
             envdict=None
         elif len(actually_needed_extdeps - envdict['_actually_needed_extdeps']) > 0:
             if not quiet:
-                print("%sChange in relevant extdeps detected => reinspecting via CMake"%prefix)
+                print("Change in relevant extdeps detected => reinspecting via CMake")
             envdict=None
 
     #Make sure any change in reported python version triggers reconf (especially important during python2->python3 transision):
     pyversionstr = str(sys.version_info)
     if envdict and envdict.get('_pyversion',None)!=pyversionstr:
         if not quiet:
-            print("%sChange in python environment detected => reinspecting via CMake"%prefix)
+            print("Change in python environment detected => reinspecting via CMake")
             envdict=None
 
     from . import env
@@ -151,12 +150,18 @@ def perform_configuration(select_filter=None,
     missing_needed = set(missing_extdeps).intersection(pl.active_deps_extnames())
 
     if missing_needed:
+        autodisable = True
         if autodisable:
             disabled = pl.disable_pkgs_with_extdeps(missing_extdeps)
             if disabled and not quiet:
-                print('%sDisabled %i packages as result of missing external dependencies'%(prefix,len(disabled)))
+                print(f'Disabled {len(disabled)} packages due '
+                      'to missing external dependencies')
         else:
-            error.error('Selected packages have missing external dependencies: "%s"'%'", "'.join(missing_needed))
+            #This is a leftover from when user absolutely wanted a particular
+            #list of packages to be enabled. Perhaps we want to introduce such a
+            #feature again?
+            error.error('Selected packages have missing external '
+                        'dependencies: "%s"'%'", "'.join(missing_needed))
 
     #Load old contents of global db:
     from . import db
@@ -247,8 +252,13 @@ def perform_configuration(select_filter=None,
             if err_txt:
                 #Error! Nuke the offending package and mark ALL packages for
                 #reconfig (since even the OK ones will not get makefiles updated).
-                pr="\n\nERROR during configuration of package %s:\n\n  %s\n\nAborting."%(p.name,err_txt.replace('\n','\n  '))
-                print(pr.replace('\n','\n%s'%prefix))
+                from . import col
+                print()
+                print(f'{col.bad}ERROR during configuration of package {p.name}:{col.end}')
+                print()
+                for e in err_txt.splitlines():
+                    print(f'  {e}')
+                print()
                 nuke_pkg(p.name)
                 db.db['pkg2timestamp']={}
                 db.save_to_file()
@@ -316,7 +326,7 @@ def perform_configuration(select_filter=None,
         #Test if any pkgs got disabled compared to last time and remove it from install area:
         for disappeared_pkgname in db.db['enabled_pkgnames'].difference(enabled_pkgnames):
             if not quiet:
-                print("%sUninstalling package %s"%(prefix,disappeared_pkgname))
+                print("Uninstalling package %s"%disappeared_pkgname)
             nuke_pkg(disappeared_pkgname)
     db.db['enabled_pkgnames'] = enabled_pkgnames
 

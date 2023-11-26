@@ -1,4 +1,4 @@
-def find(pkg, pattern, filenames = None):
+def find( pkg, pattern, filenames = None ):
     import os
     import fnmatch
     import pathlib
@@ -21,4 +21,5 @@ def find(pkg, pattern, filenames = None):
                                  os.path.relpath((pkg.dirname / flocal),cwd),
                                  col.end ) )
             n+=1
+
     return n

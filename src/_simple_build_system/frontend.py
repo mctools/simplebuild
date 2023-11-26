@@ -15,6 +15,7 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
     from . import error
     error.fmt_simplebuild_warnings()#as early as possible
     from . import io as _io
+    print = _io.print
     import sys
     import os
     import pathlib
@@ -23,8 +24,6 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
         argv = sys.argv[:]
 
     progname = os.path.basename( argv[0] )
-    prefix = _io.print_prefix
-    print = _io.print
 
     from .parse_args import parse_args
     parser, opt = parse_args( return_parser = True )
@@ -165,7 +164,6 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
 
     select_filter = envcfg.var.pkg_filter
     assert select_filter is not None
-    autodisable = True
 
     from . import backend
 
@@ -173,10 +171,8 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
     error.default_error_type = error.Error
     try:
         pkgloader = backend.perform_configuration(select_filter=select_filter,
-                                                  autodisable = autodisable,
                                                   force_reconf=opt.examine,
                                                   load_all_pkgs = opt.query_mode,
-                                                  prefix=prefix,
                                                   quiet=opt.quiet,
                                                   verbose=opt.verbose)
     except KeyboardInterrupt:
