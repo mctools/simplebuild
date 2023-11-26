@@ -54,11 +54,18 @@ jobs:
 
     - name: Build-and-test-release-mode
       run: |
+        set -x
         mkdir myproj &&
         cd myproj &&
         sb --init core_val &&
         sb -t --testexcerpts=100 &&
-        sbenv sb_core_extdeps --require-disabled NCrystal Numpy matplotlib Geant4 &&
-        sbenv sb_core_extdeps --require ZLib
+        sbenv sb_core_extdeps --require-disabled NCrystal Numpy matplotlib Geant4 ZLib
 
-#TODO:    - name: Build-and-test-debug-mode
+    - name: Build-and-test-debug-mode
+      run: |
+        set -x
+        mkdir myprojdebug &&
+        cd myprojdebug &&
+        sb --init core_val DEBUG COMPACT &&
+        sb -t --testexcerpts=100 &&
+        sbenv sb_core_extdeps --require-disabled NCrystal Numpy matplotlib Geant4 ZLib
