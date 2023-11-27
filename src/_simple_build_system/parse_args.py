@@ -1,4 +1,10 @@
-def parse_args( argv = None, return_parser = False ):
+def get_sb_argparse_obj():
+    return parse_args(argv=['sb'],
+                      return_parser_for_sphinx=True)
+
+def parse_args( argv = None,
+                return_parser = False,
+                return_parser_for_sphinx = False ):
 
     import argparse
     import sys
@@ -196,6 +202,8 @@ $> {_p} --init core_val dgcode COMPACT DEBUG
                                    " any\nprevious --env-setup usage, then exit."))
     exclusive.add(('--env-unsetup','env_unsetup'))
 
+    if return_parser_for_sphinx:
+        return parser
     args, args_unused = parser.parse_known_args(argv[1:])
     bad_unused=list(a for a in args_unused if a.startswith('-'))
     if bad_unused:
