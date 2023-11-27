@@ -1,4 +1,5 @@
 #build artifacts:
+/doc/build/
 /build/
 /dist/
 *.egg
