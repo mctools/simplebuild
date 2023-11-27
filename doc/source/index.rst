@@ -11,6 +11,7 @@ Welcome to simplebuild's documentation!
    :caption: Contents:
 
    CodingFramework.rst
+   cmdline.rst
 
 Indices and tables
 ==================
