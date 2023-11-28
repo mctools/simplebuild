@@ -20,6 +20,9 @@ jobs:
           #- { os: macos-13,      CC: clang,    CXX: clang++,    python: "3.11" }
     name: ${{ matrix.os }}.${{ matrix.CC }}.python-${{ matrix.python }}
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash -eux {0}
     env:
       CC: ${{ matrix.CC }}
       CXX: ${{ matrix.CXX }}
@@ -37,36 +40,37 @@ jobs:
 
     - name: Check versions
       run: |
-           which python3 &&
-           python3 --version &&
-           which cmake &&
+           which python3
+           python3 --version
+           which cmake
            cmake --version
 
     - name: Lint python
       run: |
-           python3 -m pip install ruff &&
-           ruff --ignore E501,E741 ./src/src/_simple_build_system/*py &&
+           python3 -m pip install ruff
+           ruff --ignore E501,E741 ./src/src/_simple_build_system/*py
            ruff --ignore E501,E741 ./src/src/_simple_build_system/data/pkgs-core/*/python/*py
 
     - name: Install package
       run: |
-           python3 -m pip install ./src &&
+           python3 -m pip install ./src
            echo "sb --version: "$(sb --version)
 
     - name: Build-and-test-release-mode
       run: |
-        set -x
-        mkdir myproj &&
-        cd myproj &&
-        sb --init core_val &&
-        sb -t --testexcerpts=100 &&
-        sbenv sb_core_extdeps --require-disabled NCrystal Numpy matplotlib Geant4 ZLib
+           mkdir myproj
+           cd myproj
+           sb --init core_val
+           sb -t --testexcerpts=100
+           sbenv sb_core_extdeps --require-disabled NCrystal Numpy matplotlib Geant4 ZLib
 
     - name: Build-and-test-debug-mode
       run: |
-        set -x
-        mkdir myprojdebug &&
-        cd myprojdebug &&
-        sb --init core_val DEBUG COMPACT &&
-        sb -t --testexcerpts=100 &&
-        sbenv sb_core_extdeps --require-disabled NCrystal Numpy matplotlib Geant4 ZLib
+           mkdir myprojdebug
+           cd myprojdebug
+           sb --init core_val DEBUG COMPACT
+           sb -t --testexcerpts=100
+           sbenv sb_core_extdeps --require-disabled NCrystal Numpy matplotlib Geant4 ZLib
+           #Also verify that eval "$(sb --env-setup)" works:
+           eval "$(sb --env-setup)"
+           python3 -c 'import _simple_build_system.envsetup as sbe; sbe.verify_env_already_setup()'
