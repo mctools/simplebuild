@@ -45,6 +45,18 @@ def calculate_env_unsetup( oldenv = None ):
             env_dict[e] = None
     return env_dict
 
+def verify_env_already_setup( oldenv = None ):
+    #For unit test
+    import os
+    if oldenv is None:
+        oldenv = os.environ
+    e = calculate_env_setup()
+    if e:
+        print('ERROR: sbld environment not enabled. Requested changes are:')
+        for k,v in sorted(e.items()):
+            print(f'  {k}={v}')
+        raise SystemExit(1)
+
 def calculate_env_setup( oldenv = None ):
     #returns dict( var -> value ), with None values meaning the variable should
     #be unset.
@@ -81,6 +93,19 @@ def calculate_env_setup( oldenv = None ):
     env_dict['SBLD_LIB_DIR']         = str(instdir/'lib')
     env_dict['SBLD_TESTREF_DIR']     = str(instdir/'tests'/'testref')
     env_dict['SBLD_INCLUDE_DIR']     = str(instdir/'include')
+
+    #Finally, remove those entries already at a correct value:
+    for k in list(_ for _ in env_dict.keys()):
+        v = env_dict[k]
+        if v is None:
+            if v not in oldenv:
+                #already not there
+                del env_dict[k]
+            continue
+        else:
+            if oldenv.get(k)==v:
+                #already at the right value:
+                del env_dict[k]
     return env_dict
 
 def env_with_previous_pathvar_changes_undone( oldenv ):
