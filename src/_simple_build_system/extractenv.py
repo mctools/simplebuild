@@ -1,7 +1,3 @@
-import pathlib
-from . import utils
-from . import envcfg
-
 def parse_stdouterr(fh):
     #Errors causes ec!=0 so are noticed by the user. But we want to capture
     #warnings so we can point them out later, and in particular this one:
@@ -39,11 +35,11 @@ def parse_stdouterr(fh):
     assert bool(unused_vars)==bool(n_warnings)
     return {'other_warnings':n_warnings-(1 if unused_vars else 0),'unused_vars':unused_vars}
 
-def parse(filename):
+def parse(fh):
     extdeps = {}
     sysvars = {'langs':{}}
     cmakevars = {}
-    for l in open(filename):
+    for l in fh:
         c=l[0]
         if c=='#':
             continue
@@ -143,43 +139,57 @@ def parse(filename):
 
     return cfgvars
 
-def extractenv(tmpdir,cmakedir,*,cmakeargs,actually_needed_extdeps,quiet=True,verbose=False):
-    assert not (quiet and verbose)
-    ec = utils.system("rm -rf %s/cmake/"%tmpdir)
-    if ec!=0:
-        return
-    ec = utils.system("mkdir -p %s/cmake/"%tmpdir)
-    if ec!=0:
-        return
+def extractenv(*,cmakeargs,actually_needed_extdeps,quiet=True,verbose=False):
     from . import io as _io
     print = _io.print
-    print("Inspecting environment via CMake")
-    if     _io.is_quiet():
-        capture = ' >& cmake_output21_capture.txt; exit ${PIPESTATUS[0]}'
-    else:
-        capture = ' 2>&1|tee cmake_output21_capture.txt; exit ${PIPESTATUS[0]}'
+    from . import dirs
+    from . import utils
+    from . import envcfg
+    import shlex
 
-    #pass on conda cmake args:
-    general_cmake_args = envcfg.var.cmake_args or ''
-    if general_cmake_args:
-        general_cmake_args = ' '+general_cmake_args
+    print("Inspecting environment via CMake")
+
+    cmakeblddir = dirs.blddir / 'cmake'
+    cmakesrcdir = dirs.cmakedetectdir
+    try:
+        utils.rm_rf( cmakeblddir )
+    except OSError:
+        print(f'Failed to remove temporary cmake bld dir: {cmakeblddir}')
+        return
+    cmakeblddir.mkdir(parents=True)
+
+    cmd = [ 'cmake', '-S', cmakesrcdir, '-B', cmakeblddir ]
+    #Pass on options like build type and conda-forge CMAKE_ARGS:
+    cmd += envcfg.var.cmake_args
+    #Legacy options (unused now?):
+    for a in cmakeargs:
+        cmd.append('-D%s'%a)
+    assert not (quiet and verbose)
+    if quiet:
+        cmd.append('-DSBLD_QUIET=1')
+    if verbose:
+        cmd.append('-DSBLD_VERBOSE=1')
+    _joined_extdeps=':'.join(actually_needed_extdeps)
+    cmd.append( f'-DSBLD_ACTUALLY_USED_EXTDEPS={_joined_extdeps}' )
+
+    output_file = cmakeblddir / 'cmake_output21_capture.txt'
+    output_file_quoted = shlex.quote(str(output_file))
+    cmd = ' '.join(shlex.quote(str(e)) for e in cmd )
+    if _io.is_quiet():
+        cmd += ' >& %s; exit ${PIPESTATUS[0]}'%output_file_quoted
+    else:
+        cmd += ' 2>&1|tee %s; exit ${PIPESTATUS[0]}'%output_file_quoted
 
     import time
     t0 = time.time()
-    ec = utils.system("cd %s/cmake/ && cmake%s%s%s%s %s %s%s"%(tmpdir,
-                                                               general_cmake_args,
-                                                               ' -DSBLD_QUIET=1' if quiet else '',
-                                                               ' -DSBLD_VERBOSE=1' if verbose else '',
-                                                               ' -DSBLD_ACTUALLY_USED_EXTDEPS=%s'%(':'.join(actually_needed_extdeps)),
-                                                               ' '.join('-D'+a for a in cmakeargs),
-                                                               cmakedir,
-                                                               capture))
+    ec = utils.system(cmd)
     t1 = time.time()
     print("Environment inspection done (%.2g seconds)"%(t1-t0))
     if ec!=0:
         return
-    with ( pathlib.Path(tmpdir) / 'cmake' / 'cmake_output21_capture.txt' ).open('rt') as fh:
-        printedinfo = parse_stdouterr(fh)
-    writteninfo = parse('%s/cmake/cmakecfg.txt'%tmpdir)
+    with output_file.open('rt') as fh:
+        printedinfo = parse_stdouterr( fh )
+    with ( cmakeblddir / 'cmakecfg.txt' ).open('rt') as fh:
+        writteninfo = parse( fh )
     writteninfo['cmake_printinfo'] = printedinfo
     return writteninfo

@@ -89,10 +89,12 @@ def perform_configuration(select_filter=None,
         env.env=envdict
     else:
         #must extract the hard way via cmake:
-        envdict = extractenv.extractenv(dirs.blddir,dirs.cmakedetectdir,
-                                        cmakeargs=cmakeargs,
-                                        actually_needed_extdeps=actually_needed_extdeps,
-                                        quiet=quiet,verbose=verbose)
+        envdict = extractenv.extractenv(
+            cmakeargs = cmakeargs,
+            actually_needed_extdeps = actually_needed_extdeps,
+            quiet = quiet,
+            verbose = verbose
+        )
         if not envdict:
             utils.rm_f(dirs.envcache)
             error.error('Failure during cmake configuration')

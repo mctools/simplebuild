@@ -29,17 +29,15 @@ def _build_cfg():
     cachedir_postfix = ( '' if master_cfg.build_mode=='release'
                            else f'_{master_cfg.build_mode}' )
 
-    _cmake_args = _query('CMAKE_ARGS') or ''
+    import shlex
+    _cmake_args = shlex.split( _query('CMAKE_ARGS') or '' )
 
     if master_cfg.build_mode=='release':
-        _cmake_args += ' -DCMAKE_BUILD_TYPE=Release'
+        _cmake_args.append('-DCMAKE_BUILD_TYPE=Release')
     else:
         assert master_cfg.build_mode=='debug'
-        _cmake_args += ' -DCMAKE_BUILD_TYPE=Debug'
+        _cmake_args.append('-DCMAKE_BUILD_TYPE=Debug')
     _build_mode_summary_string = master_cfg.build_mode.capitalize()
-
-    while _cmake_args.startswith(' '):
-        _cmake_args = _cmake_args[1:]
 
     class EnvCfg:
 
