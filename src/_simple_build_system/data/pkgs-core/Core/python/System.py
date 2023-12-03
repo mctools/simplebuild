@@ -81,8 +81,15 @@ def isemptydir(path):
 
 def which(cmd):
     """Function like BASH which (returns None if cmd not found)"""
-    from distutils.spawn import find_executable
-    cmd=find_executable(cmd)
+    try:
+        import shutil
+    except ImportError:
+        shutil = None
+    if shutil and hasattr(shutil,'which'):
+        cmd = shutil.which(cmd)
+    else:
+        from distutils.spawn import find_executable
+        cmd=find_executable(cmd)
     if not cmd:
         return None
     return os.path.abspath(os.path.realpath(cmd))
