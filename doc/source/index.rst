@@ -6,16 +6,39 @@
 Welcome to simplebuild's documentation!
 =======================================
 
+.. include:: wipwarning.rst
+
+..  figure:: images/simplebuild_example_buildsummary.png
+    :figwidth: 60%
+    :align: right
+
+Welcome to the documentation of "simplebuild", a simple to use build system for
+projects with mostly C++, C and Python code. It is primarily intended for usage
+by scientific developers without a strong SW-engineering background.
+
+
+
 .. toctree::
+   :hidden:
    :maxdepth: 2
-   :caption: Contents:
 
-   CodingFramework.rst
+   intro.rst
+   install.rst
+   usage.rst
+   packages.rst
+   simplebuilddotcfg.rst
+   envsetup.rst
    cmdline.rst
+   about.rst
+   contact.rst
 
-Indices and tables
-==================
+..
+  unused stuff:
 
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+  Indices and tables
+  ==================
+
+  * :ref:`genindex`
+  * :ref:`modindex`
+  * :ref:`search`
+

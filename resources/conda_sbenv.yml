@@ -1,0 +1,16 @@
+name: sbenv
+channels:
+  - nodefaults
+  - conda-forge
+dependencies:
+  - python
+  - tomli
+  - pybind11 >= 2.10.4
+  - cmake >=3.24.2
+  - make
+  - compilers
+  - numpy
+  - bash
+  - pip
+  - pip:
+    - simple-build-system
