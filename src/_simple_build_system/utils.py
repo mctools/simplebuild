@@ -214,3 +214,75 @@ def path_is_relative_to( p, pother ):
             return True
         except ValueError:
             return False
+
+def _remove_symlinks( symlinks, verbose ):
+    #FIXME: pathlib
+    dirs_with_removals=set()#to test for empty dirs to be removed at the end
+    if verbose:
+        from .io import print
+    else:
+        def print( *a, **kw ):
+            return None
+    for fn in symlinks:
+        print("Removing obsolete symlink %s"%fn)
+        try:
+            os.remove(fn)
+        except OSError as exc:
+            if exc.errno == errno.ENOENT and not os.path.exists(fn):
+                #perhaps we were aborted and restarted so we should just report and carry on
+                print("WARNING: Obsolete symlink already removed: %s"%fn)
+                pass
+            else:
+                raise
+        dirs_with_removals.add( os.path.dirname( fn ) )
+
+    #check for and cleanup empty dirs:
+    if dirs_with_removals:
+        #we removed files, remove dirs if not empty:
+        def isemptydir( p ):
+            return not any( pathlib.Path(p).iterdir() )
+        for d in (d for d in dirs_with_removals if isemptydir(d)):
+            try:
+                os.rmdir(d)
+            except OSError as exc:
+                if exc.errno == errno.ENOENT:
+                    pass#could have been already been removed by other target due to race condition
+                else:
+                    raise
+
+
+def update_symlinks( oldlist, newlist, verbose ):
+    if verbose:
+        from .io import print
+    else:
+        def print( *a, **kw ):
+            return None
+
+    obsoleted = oldlist.difference(newlist)
+    _remove_symlinks( [ os.path.join(destdir,linkname)
+                        for destdir,linkname,src in obsoleted ],
+                      verbose )
+    #create dirs:
+    for dd in set(d for d,_,_ in newlist):
+        mkdir_p(dd)
+    #create links:
+    for destdir,linkname,src in newlist:
+        fn = os.path.join( destdir, linkname )
+        if os.path.lexists(fn):
+            if os.path.samefile( fn, src ):
+                #Already in place
+                continue
+            else:
+                try:
+                    os.unlink(fn)
+                except FileNotFoundError:
+                    #Removed in race condition?
+                    pass
+        print("Installing symlink %s"%fn)
+        try:
+            os.symlink(src,fn)
+        except OSError as exc:
+            if exc.errno == errno.EEXIST:
+                pass#could have been created previously before an abort
+            else:
+                raise

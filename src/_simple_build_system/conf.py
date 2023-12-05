@@ -199,9 +199,14 @@ def deinstall_parts(instdir,pkgname,current_parts,disappeared_parts):
         elif d=='libsrc':
             rm_pattern(i/'lib','*PKG__%s.*'%pkgname)
         elif d.startswith('app_'):
-            rm_tree( ( i / 'bin' / '%s%s_%s' )%(runnable_prefix,pkgname.lower(),d[4:].lower()) )
+            _runnable_name='%s%s_%s' %( runnable_prefix,
+                                        pkgname.lower(),
+                                        d[4:].lower() )
+            rm_tree( i / 'bin' / _runnable_name )
         elif d=='symlink__scripts':
-            rm_pattern( i/'scripts','%s%s_*'%(runnable_prefix,pkgname.lower()))#FIXME: clashes (see fixme above)
+            #FIXME: Next line clashes (see FIXME above)
+            rm_pattern( i/'scripts',
+                        '%s%s_*'%(runnable_prefix,pkgname.lower()) )
             (pkgcache/'symlinks'/'scripts.pkl').touch()
             rm_file(pkgcache/'symlinks'/'scripts.pkl.old')
         elif d=='symlink__data':

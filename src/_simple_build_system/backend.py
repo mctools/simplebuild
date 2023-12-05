@@ -205,9 +205,13 @@ def perform_configuration(select_filter=None,
     for p in pl.enabled_pkgs_iter():
         mt=mtime.mtime_pkg(p)
         if not ( ts.get(p.name,None) == mt ):
+            if verbose:
+                print(f'Detected timestamp changes in {p.name}')
             p.set_files_in_pkg_changed()
             ts[p.name]=mt
         if rd.get(p.name,None)!=p.reldirname:
+            if verbose:
+                print(f'Detected location changes in {p.name}')
             p.set_files_in_pkg_changed()#added adhoc for safety
             #Make sure pkg symlink is in place (refering to the package in
             #symlinked location, potentially allows users to move pkgs around).
@@ -223,6 +227,8 @@ def perform_configuration(select_filter=None,
             rd[p.name]=p.reldirname#ok to update immediately?
 
     def nuke_pkg(pkgname):
+        if verbose:
+            print(f'Completely wiping cache for {pkgname}')
         conf.uninstall_package(pkgname)
         utils.rm_rf(dirs.pkg_cache_dir(pkgname))
         utils.rm_rf(dirs.pkg_dir(pkgname))#remove link to pkg
@@ -241,9 +247,12 @@ def perform_configuration(select_filter=None,
         if p.files_in_pkg_changed():
             #recreate pkg targets from scratch
             old_parts = db.db['pkg2parts'].get(p.name,set())
+            db.clear_pkg(p.name)
             db.db['pkg2parts'][p.name]=set()
             err_txt,unclean_exception = None,None
             try:
+                if verbose:
+                    print(f'Recreating pkg targets for {p.name}')
                 target_builder.create_pkg_targets(p)#this also dumps to pickle!
             except KeyboardInterrupt:
                 err_txt = "Halted by user interrupt (CTRL-C)"
@@ -338,7 +347,8 @@ def perform_configuration(select_filter=None,
     db.save_to_file()
 
 
-    dir_names = ('projdir','pkgsearchpath','blddir','installdir','testdir','envcache')
+    dir_names = ('projdir','pkgsearchpath','blddir',
+                 'installdir','testdir','envcache')
     dirdict = dict(((d, getattr(dirs, d)) for d in dir_names))
 
     #Update dynamic python module with information, if needed:
