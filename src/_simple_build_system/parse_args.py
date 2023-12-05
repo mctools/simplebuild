@@ -1,10 +1,10 @@
 def get_sb_argparse_obj():
     return parse_args(argv=['sb'],
-                      return_parser_for_sphinx=True)
+                      sphinx_mode=True)
 
 def parse_args( argv = None,
                 return_parser = False,
-                return_parser_for_sphinx = False ):
+                sphinx_mode = False ):
 
     import argparse
     import sys
@@ -144,12 +144,14 @@ $> {_p} --init core_val dgcode COMPACT DEBUG
     exclusive.add('grepc')
     group_query.add_argument("--find",action="store", dest="find",
                              default=None, metavar='PATTERN',
-                             help="Search for file and path names matching PATTERN")
+                             help=("Search for file and path names"
+                                   " matching PATTERN"))
     exclusive.add('find')
 
     group_init = parser.add_argument_group('New project initialisation options')
     group_init.add_argument('--init', action='store_true', dest='init',
-                            help=initmode_shorthelp)
+                            help=(initmode_longhelp
+                                  if sphinx_mode else initmode_shorthelp ))
     exclusive.add('init')
 
     group_test = parser.add_argument_group('Unit testing options')
@@ -202,7 +204,7 @@ $> {_p} --init core_val dgcode COMPACT DEBUG
                                    " any\nprevious --env-setup usage, then exit."))
     exclusive.add(('--env-unsetup','env_unsetup'))
 
-    if return_parser_for_sphinx:
+    if sphinx_mode:
         return parser
     args, args_unused = parser.parse_known_args(argv[1:])
     bad_unused=list(a for a in args_unused if a.startswith('-'))
