@@ -7,8 +7,9 @@ import contextlib
 import tempfile
 import atexit
 
-__all__ = [ 'quote', 'mkdir_p', 'chmod_x', 'rm_rf', 'rm_f', 'isemptydir', 'system',
-            'system_throw', 'which', 'quote_cmd', 'recursive_find', 'remove_atexit' ]
+__all__ = [ 'quote', 'mkdir_p', 'chmod_x', 'rm_rf', 'rm_f', 'isemptydir',
+            'system','system_throw', 'which', 'quote_cmd', 'recursive_find',
+            'remove_atexit' ]
 
 #NB: This module is still being imported by python2 in a few unit tests!!!
 
@@ -100,10 +101,12 @@ def quote_cmd(cmd):
     return cmd
 
 def system(cmd,catch_output=False,env=None):
-    """A better alternative to os.system which flushes stdout/stderr, makes sure the
-       shell is always bash, and wraps exit codes larger than 127 to 127. Set
-       catch_output to True to instead return both exit code and the output of the
-       command in a string."""
+    """A better alternative to os.system which flushes stdout/stderr, makes sure
+       the shell is always bash, and wraps exit codes larger than 127 to
+       127. Set catch_output to True to instead return both exit code and the
+       output of the command in a string.
+
+    """
     #flush output, to avoid confusing ordering in log-files:
     sys.stdout.flush()
     sys.stderr.flush()
@@ -116,7 +119,9 @@ def system(cmd,catch_output=False,env=None):
         return ec if (ec>=0 and ec<=127) else 127
     if catch_output:
         try:
-            p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,env=env)
+            p = subprocess.Popen(cmd,
+                                 stdout=subprocess.PIPE,
+                                 stderr=subprocess.PIPE,env=env)
             output = p.communicate()[0]
         except subprocess.CalledProcessError:
             #todo: in case of failure we should return the output as well!
@@ -129,7 +134,8 @@ def system(cmd,catch_output=False,env=None):
     return fixec(ec)
 
 def system_throw(cmd,catch_output=False,env=None):
-    """same as system except doesn't return exit code and throws RuntimeError in case of non-zero exit code"""
+    """same as system except doesn't return exit code and throws RuntimeError in
+    case of non-zero exit code"""
     out=None
     if catch_output:
         ec,out = system(cmd,catch_output,env=env)
@@ -160,24 +166,32 @@ def _filecleaner():
 atexit.register(_filecleaner)
 
 def exec_bash_and_updateenv(cmd):
-    """Execute a given bash command and update environment variables in current python process accordingly"""
+    """Execute a given bash command and update environment variables in current
+    python process accordingly
+
+    """
     import os
     import sys
     import subprocess
     import shlex
     import json
-    #Execute with /usr/bin/env bash and use python3+json to stream the resulting os.environ to stdout, using a well-defined encoding:
+    #Execute with /usr/bin/env bash and use python3+json to stream the resulting
+    #os.environ to stdout, using a well-defined encoding:
     import pathlib
     pyintrp = shlex.quote(str(pathlib.Path(sys.executable)))
-    pycmd='import os,sys,json;sys.stdout.buffer.write(json.dumps(dict(os.environ)).encode("utf8"))'
-    cmd=['/usr/bin/env','bash', '-c', '%s && %s -c %s'%(cmd,pyintrp,shlex.quote(pycmd))]
+    pycmd=( 'import os,sys,json;sys.stdout.buffer.write('
+            'json.dumps(dict(os.environ)).encode("utf8"))')
+    cmd=['/usr/bin/env','bash', '-c', '%s && %s -c %s'%(cmd,
+                                                        pyintrp,
+                                                        shlex.quote(pycmd))]
     pipe = subprocess.Popen(cmd, stdout=subprocess.PIPE)
     #Unpack the streamed os.environ, using the same encoding:
     env = json.loads(pipe.stdout.read().decode('utf8'))
     os.environ = env
 
 def source_bash_file(fn):
-    """Source a given bash file and update environment variables in current python process accordingly"""
+    """Source a given bash file and update environment variables in current
+    python process accordingly"""
     import pathlib
     import shlex
     exec_bash_and_updateenv('source %s'%shlex.quote(str(pathlib.Path(fn))))
@@ -194,7 +208,8 @@ def changedir(subdir):
 
 @contextlib.contextmanager
 def work_in_tmpdir():
-    """Context manager for working in a temporary directory (automatically created+cleaned) and then switching back"""
+    """Context manager for working in a temporary directory (automatically
+    created+cleaned) and then switching back"""
     the_cwd = os.getcwd()
     try:
         with tempfile.TemporaryDirectory() as tmpdir:

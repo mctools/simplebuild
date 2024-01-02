@@ -13,7 +13,8 @@ class _themodule:
     def _resolvepp(self,pp):
         return pp.resolve() if pp.exists() else None
     def _resolvepnfn(self,pn,fn):
-        return self._resolvepp(pathlib.Path(os.path.join(os.environ['SBLD_DATA_DIR'],pn,fn)))
+        _ = pathlib.Path(os.path.join(os.environ['SBLD_DATA_DIR'],pn,fn))
+        return self._resolvepp(_)
     def findData(self,pkg,filename=None):
         if filename is not None:
             return self._resolvepnfn(pkg,filename)

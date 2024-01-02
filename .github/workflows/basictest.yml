@@ -38,10 +38,13 @@ jobs:
       with:
         python-version: ${{ matrix.python }}
 
-    - name: Check versions
+    - name: Pip install cmake and pybind11
       run: |
+           python3 -m pip install pybind11
+           python3 -m pip install cmake
            which python3
            python3 --version
+           python3 -mpybind11 --version
            which cmake
            cmake --version
 
@@ -49,7 +52,7 @@ jobs:
       run: |
            python3 -m pip install ruff
            ruff --ignore E501,E741 ./src/src/_simple_build_system/*py
-           ruff --ignore E501,E741 ./src/src/_simple_build_system/data/pkgs-core/*/python/*py
+           ruff ./src/src/_simple_build_system/data/pkgs-core/*/python/*py
 
     - name: Install package
       run: |

@@ -1,4 +1,9 @@
-" (obsolete - use 'FindData3') Python module providing access to data files of the various packages"
+"""
+
+(obsolete - use 'FindData3') Python module providing access to data files of the
+various packages
+
+"""
 
 import os
 import sys
@@ -7,7 +12,8 @@ import sys
 #Core.FindData.findData(..)
 
 class _themodule:
-    _os = os#this workaround is needed for some weird python2-lxplus bug (DGSW-466)
+    _os = os#this workaround is needed for some weird python2-lxplus
+            #bug (DGSW-466)
     def findData(self,pkg,filename=None):
         if filename is None and not pkg.startswith('/'):
             fs=pkg.split('/')
@@ -17,7 +23,9 @@ class _themodule:
                     return ret
             ret = pkg
         else:
-            ret = self._os.path.join(self._os.environ['SBLD_DATA_DIR'],pkg,filename)
+            ret = self._os.path.join( self._os.environ['SBLD_DATA_DIR'],
+                                      pkg,
+                                      filename )
         return ret if self._os.path.exists(ret) else ""
     def __call__(self,pkg,filename=None):
         return self.findData(pkg,filename)

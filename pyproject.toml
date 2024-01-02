@@ -21,8 +21,15 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
     "Operating System :: Unix",
 ]
+#To avoid interference with e.g. conda-installed dependencies, we on purpose do
+#not specify cmake and pybind11 here:
 dependencies = [
     'tomli; python_version < "3.11"',
+]
+
+#We instead make an optional dependency list:
+[project.optional-dependencies]
+all = [
     'pybind11 >= 2.10.4',
     'cmake >= 3.24.2'
 ]
