@@ -48,8 +48,9 @@ def produce_build_summary( *, pkgloader, verbose ):
 
     pkg_src_info = []
     for basedir in dirs.pkgsearchpath:
-        pkg_nr = len([p.name for p in pkgloader.pkgs if p.dirname.startswith(str(basedir))])
-        pkg_enabled = len([p.name for p in pkgloader.pkgs if p.enabled and p.dirname.startswith(str(basedir))])
+        _pkgs_in_basedir = [p for p in pkgloader.pkgs if basedir in p.dirpath.parents]
+        pkg_nr = len(_pkgs_in_basedir)
+        pkg_enabled = sum(1 for p in _pkgs_in_basedir if p.enabled)
         pkg_src_info.append([basedir, pkg_enabled, (pkg_nr-pkg_enabled) ])
 
     def pkg_info_str(info):
@@ -58,11 +59,18 @@ def produce_build_summary( *, pkgloader, verbose ):
             descr='no pkgs'
         else:
             nbuilt = '%s%d%s'%(col_ok,info[1],col_end) if info[1]!=0 else '0'
-            nskipped = '%s%d%s'%(col_bad,info[2],col_end) if info[2]!=0 else '0'
-            descr='%s built, %s skipped'%(nbuilt, nskipped)
+            if info[2]==0:
+                #everything built
+                descr=f'{nbuilt} pkgs'
+            else:
+                nskipped = '%s%d%s'%(col_bad,info[2],col_end)
+                descr='%s built, %s skipped'%(nbuilt, nskipped)
         return "%s (%s)"%(p, descr)
 
-    print('  Package search path              : %s'%formatlist([pkg_info_str(info) for info in pkg_src_info],None))
+    psptxt = '  Package search path              : '
+    for idx,info in enumerate(pkg_src_info):
+        _= (' '*len(psptxt)) if idx else psptxt
+        print(f'{_}{pkg_info_str(info)}')
 
     nmax = 20
     pkg_enabled = sorted([p.name for p in pkgloader.pkgs if p.enabled])
@@ -101,8 +109,8 @@ def produce_build_summary( *, pkgloader, verbose ):
                                                                        col_ok))
     print('  Optional dependencies missing[*] : %s'%formatlist(extdeps_missing,col_bad))
     _pfilter = ( '<none>' if envcfg.var.pkg_filter.fully_open()
-                 else envcfg.var.pkg_filter.as_string() )
-    print(f"  Package filter[*]                : '{_pfilter}'")
+                 else "'%s'"%envcfg.var.pkg_filter.as_string() )
+    print(f"  Package filter[*]                : {_pfilter}")
     print('  Build mode                       : '
           + f'{envcfg.var.build_mode_summary_string}' )
 

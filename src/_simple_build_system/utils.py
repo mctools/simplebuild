@@ -140,22 +140,27 @@ def pkl_dump(data,fn_or_fh):
         return d
 
 def update_pkl_if_changed(pklcont,filename):
-    old=os.path.exists(filename)
+    old = os.path.exists(filename)
+    readold = False
+    oldcont = None
     changed = True
     if old:
         try:
             oldcont=pkl_load(filename)
+            readold = True
         except EOFError:
             from . import io as _io
             _io.print( "WARNING: Old pickle file %s ended unexpectedly"%filename)
-            oldcont=(None,'bad....')
-            pass
-        if oldcont==pklcont:
-            changed=False
-    if old and changed:
+            oldcont = None
+            readold = False
+        if readold and oldcont == pklcont:
+            changed = False
+    if not changed:
+        return oldcont
+    if old:
         os.rename(filename,str(filename)+'.old')
-    if changed:
-        pkl_dump(pklcont,filename)
+    pkl_dump(pklcont,filename)
+    return oldcont
 
 def shlex_split(s):
     try:

@@ -120,6 +120,7 @@ class Package:
 
     def __init__(self,basedir,reldirname,enabled):
         self.dirname = os.path.join(basedir,reldirname)
+        self.dirpath = basedir.joinpath(reldirname)
         self.__haslib=None
         self.reldirname = reldirname
         #self.reldirnamewithparent = os.path.relpath(dirname,basedir+'/..')
@@ -279,8 +280,8 @@ class Package:
                    'extraflags_link' : self.extraflags_link,
                    'extra_include_deps' : self.extra_include_deps,
                    'has_lib' : self.has_lib(),
-                   'clients' : [p.name for p in self.all_clients()],
-                   'clients_direct' : [p.name for p in self.direct_clients],
+                   'clients' : [p.name for p in sorted(self.all_clients())],
+                   'clients_direct' : [p.name for p in sorted(self.direct_clients)],
                    'runnables':db.db['pkg2runnables'].get(self.name,set()),
                    'reflogs':db.db['pkg2reflogs'].get(self.name,set()),
         })

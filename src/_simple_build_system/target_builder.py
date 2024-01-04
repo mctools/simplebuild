@@ -77,12 +77,19 @@ class TargetGlobalSysModules(target_base.Target):
         self.name='global__sysmods'
         self.pkgname = None
         self.deps = []
-        self.code = ['@if [ ${VERBOSE} -ge 0 ]; then echo "%sInstalling global system modules%s"; fi'%(col.bldcol('global'),col.bldend),
-                     'mkdir -p ${INST}/python/simplebuild',
-                     'touch ${INST}/python/simplebuild/__init__.py'
-                     ]
-        self.deps += [ '${BLD}/cfg.py' ]
-        self.code += ['cp -f ${BLD}/cfg.py ${INST}/python/simplebuild/cfg.py']#TODO: Add more info in cfg.py.
+        self.code = [
+            '@if [ ${VERBOSE} -ge 0 ]; then echo "%sInstalling global system modules%s"; fi'%(col.bldcol('global'),col.bldend),
+            'mkdir -p ${INST}/python/simplebuild',
+            'touch ${INST}/python/simplebuild/__init__.py'
+        ]
+        self.deps += [
+            '${BLD}/cfg.py',
+            '${BLD}/_cfg_data.pkl'
+        ]
+        self.code += [
+            'cp -f ${BLD}/cfg.py ${INST}/python/simplebuild/cfg.py',
+            'cp -f ${BLD}/_cfg_data.pkl ${INST}/python/simplebuild/_cfg_data.pkl'
+        ]
 
 
 def create_global_targets():
