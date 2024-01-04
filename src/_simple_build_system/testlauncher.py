@@ -16,9 +16,10 @@ def perform_tests(testdir,installdir,njobs,nexcerpts,filters,do_pycoverage,pkglo
 
     print = _io.print
 
-    col_ok = '\033[92m'
-    col_bad = '\033[91m'
-    col_end = '\033[0m'
+    from . import col as _col
+    col_ok = _col.ok
+    col_bad = _col.bad
+    col_end = _col.end
 
     print(f'Running tests in {testdir}:')
     print()
