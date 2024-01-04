@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# A simple test to exercise a bit of code:
+sb_core_extdeps
+sb_core_queryenv
