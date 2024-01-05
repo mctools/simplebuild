@@ -22,7 +22,7 @@ in software development, but packages in simplebuild are meant to be easy to
 create even for scientific users with little SW-engineering experience.
 
 At a technical level, the simplebuild system provides the user with a single
-command, `sb` which can be invoked in order to assemble a user's code files into
+command, ``sb`` which can be invoked in order to assemble a user's code files into
 final products: commands that the user then can invoke, python modules, data
 files, etc. A *package* is simply a directory in which code source and data
 files are placed in various subdirectories, depending on their type and intended
@@ -40,14 +40,14 @@ simplest case, the ``simplebuild.cfg`` file can be kept empty, but if desired
 users can modify it in order to customise aspects of their build, to name their
 bundle, or to add in dependencies on other bundles of packages. Many users will
 simply be told to check out a given Git repository, which already contain a
-package bundle and a `simplebuild.cfg` file. Otherwise, if the intention is to
+package bundle and a ``simplebuild.cfg`` file. Otherwise, if the intention is to
 start an entirely new bundle, one can simply run ``sb --init`` in an empty
 directory to create a skeleton ``simplebuild.cfg`` file which can be edited
 later as desired. More details are provided in the `dedicated section on
 simplebuild.cfg <./simplebuilddotcfg.html>`_.
 
-Upon launching the `sb` command inside the package root directory, simplebuild
-will then analyse `simplebuild.cfg` file and the files in all the packages, in
+Upon launching the ``sb`` command inside the package root directory, simplebuild
+will then analyse ``simplebuild.cfg`` file and the files in all the packages, in
 order to determine what is needed to be built and how to do it -- and it will
 then immediately build it and make it available. Behind the scenes, it will use
 `CMake` to inspect the system, and determine the appropriate flags for
@@ -67,5 +67,3 @@ using Geant4, with all the necessary domain specific tweaks and utilities. Code
 relating to the simulation of specific detector prototypes is then kept in
 separate bundles, some publically available in repositories on GitHUB, and some
 kept on private gitlab servers (mostly for historical reasons).
-
-FIXME: Remember --env-setup and bashrc snippets

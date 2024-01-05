@@ -13,9 +13,16 @@ author = 'Thomas Kittelmann'
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-extensions = []
-extensions += ['myst_parser']
-extensions += ['sphinxarg.ext']
+extensions = [
+    # 'myst_parser', #for parsing .md files?
+    'sphinxarg.ext',
+    'sphinx_toolbox.sidebar_links',
+    'sphinx_toolbox.github',
+    #'sphinx_licenseinfo',
+    ]
+
+github_username = 'mctools'
+github_repository = 'simplebuild'
 
 templates_path = ['_templates']
 exclude_patterns = []
@@ -32,9 +39,9 @@ html_favicon = 'icon/favicon-32x32.png'
 html_theme_options = {
     'logo_only': False,
 #    'collapse_navigation' : False,
-    'sticky_navigation': True,
-
-
+    'sticky_navigation': True, #sidebar stays in place while contents scrolls
+    'navigation_with_keys': True, #navigate with left/right arrow keys
+    #'github_url' : 'https://github.com/mctools/simplebuild',
 }
 
 #html_theme_options = {

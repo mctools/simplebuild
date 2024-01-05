@@ -60,7 +60,7 @@ Python interpreter and all the necessary build tools. For special use-cases,
 experts might simply want to add the simplebuild code itself into an environment
 where they otherwise have ensured that all of these third-party tools are
 already available. In such a case, one can simply install simplebuild itself via
-pip, either via a PyPI package::
+pip, either via a PyPI package (current version |pypistatus_simplebuildsystem|_)::
 
   python3 -mpip install simple-build-system
 
@@ -73,6 +73,8 @@ tag by appending ``@<gitid>`` to the URL in the last command. For instance::
 
   python3 -mpip install git+https://github.com/mctools/simplebuild@some_experimental_branch
 
+.. |pypistatus_simplebuildsystem| image:: https://img.shields.io/pypi/v/simple-build-system.svg
+.. _pypistatus_simplebuildsystem: https://pypi.org/project/simple-build-system
 
 Verifying an installation
 =========================
