@@ -80,7 +80,7 @@ would look like::
 Note: Even if not specified, all packages will implicitly depend on the package
 named `Core`, which is useful since most packages will need utilities found in
 that package (for instance, all Python modules written in C++ via pybind11 are
-assumed to include the C++ header file `"Core/Python.hh"`).
+assumed to include the C++ header file ``"Core/Python.hh"``).
 
 If the package needs one of the external optional dependencies (such as
 `Geant4`, `ROOT`, `HDF5`, `Fortran`, etc.), those are specified after a `USEEXT`
@@ -132,7 +132,7 @@ Header files (C++/C)
 --------------------
 
 If your package needs to provide public header files, they must be created in a
-subdirectory of your package called **libinc/**. Any header file,
+subdirectory of your package called ``libinc/``. Any header file,
 e.g. MyHeaderFile.hh, placed here can be included from your own packages or from
 other packages depending on your package by:
 
@@ -144,7 +144,7 @@ Shared libraries (C++/C)
 ------------------------
 
 If your package needs to provide a library written in either C++ or C, you must
-create a subdirectory of your package called **libsrc/** and place any files
+create a subdirectory of your package called ``libsrc/`` and place any files
 there. It will obviously mean at least one source file (.cc or .c), but also any
 associated header files (unless users of your library need to be able to include
 them, in which case they go in libinc/.
@@ -154,37 +154,37 @@ Binary applications (C++/C/Fortran)
 
 There is no limit to the number of compiled programs which can be provided by
 one package. Source and header files for each such program must be placed inside
-a directory whose name begins with "app\_" followed by a unique app name (unique
+a directory whose name begins with ``app_`` followed by a unique app name (unique
 within the package). To avoid clashes between applications in different
-packages, the final name of the binary will be prefixed with "sb\_<package name
-in lower case>\_<unique app name>". Thus, if files for an application is placed
-within a directory named "app_dosomething" in a package named MyPackage, then the
+packages, the final name of the binary will be prefixed with ``sb_<package name
+in lower case>_<unique app name>``. Thus, if files for an application is placed
+within a directory named ``app_dosomething`` in a package named MyPackage, then the
 actual name of the final program which can be launched by typing it at the
-command line will be "sb_mypackage_dosomething".
+command line will be ``sb_mypackage_dosomething``.
 
-Hint: After simplebuild is finished, you can type "sb\_" at the command line and
+Hint: After simplebuild is finished, you can type ``sb_`` at the command line and
 then hit the TAB key to get a list of all resulting applications you can run
 (this also includes scripts, see below).
 
 In order to have a program run as an automatic test, then either the unique part
-of the name of the directory must start with "test" (i.e. the directory must be
+of the name of the directory must start with ``test`` (i.e. the directory must be
 of the form app_testxxx/) or a reference log-file named test.log must be placed
 inside the directory (more about tests below).
 
 Pure python modules
 -------------------
 
-Pure Python modules (\*.py) must be placed inside a subdirectory of the package
-named **python**. Each file will correspond to a submodule of a module with the
-same name as your package. In other words, if you in the package "MyPackage"
-place a file "mystuff.py" inside the "python/" subdirectory, then clients in the
+Pure Python modules (``*.py``) must be placed inside a subdirectory of the package
+named ``python``. Each file will correspond to a submodule of a module with the
+same name as your package. In other words, if you in the package ``MyPackage``
+place a file ``mystuff.py`` inside the ``python/`` subdirectory, then clients in the
 form of python scripts or other python (sub)modules can import your code by:
 
 .. code-block:: python
 
   import MyPackage.mystuff
 
-Note that if you do not provide an "\__init\_\_.py" file yourself, one will be
+Note that if you do not provide an ``__init__.py`` file yourself, one will be
 created automatically.
 
 Compiled python modules
@@ -192,7 +192,7 @@ Compiled python modules
 
 If you wish to have python modules written in C++ (either for efficiency or
 because you wish to make C++ functionality accessible to Python scripts), you
-must create sub directories named pycpp\_<modulename> Inside you must have at
+must create sub directories named ``pycpp_<modulename>`` Inside you must have at
 least one C++ source file in which you `#include "Core/Python.hh"` and which contains
 a PYTHON_MODULE section. Here is a very basic example of how to make
 "somecppfunc" callable from python:
@@ -214,63 +214,71 @@ a PYTHON_MODULE section. Here is a very basic example of how to make
     mod.def("somecppfunc", &somecppfunc );
   }
 
-Each `pycpp\_<modulename>` sub directory will provide one python submodule. So if you for instance have a *pycpp_mymod/*
-subdir in a package MyPackage, then it will result in a python module
-`MyPackage.mymod` which can be imported in the usual fashion:
+Each ``pycpp_<modulename>`` sub directory will provide one python submodule. So
+if you for instance have a ``pycpp_mymod/`` subdir in a package MyPackage, then it
+will result in a python module ``MyPackage.mymod`` which can be imported in the
+usual fashion:
 
 .. code-block:: python
 
   import MyPackage.mymod
 
-Compiled \__init\_\_.py
------------------------
+These C++-Python bindings are in fact implemented with `pybind
+<https://pybind11.readthedocs.io/en/stable/basics.html>`_, with the
+``Core/Python.hh`` header mostly just defining the `PYTHON_MODULE` macro and
+introducing the convenience namespace alias `py=pybind11`.
 
-Python does not as such support compiled \__init\_\_.py files, but it is
+
+Compiled ``__init__.py``
+------------------------
+
+Python does not as such support compiled ``__init__.py`` files, but it is
 possible to achieve the same effect by creating a compiled submodule named
-"\_init" and in \__init\_\_.py have a line:
+``_init`` and in ``__init__.py`` have a line:
 
 .. code-block:: python
 
   from _init import *
 
-This is automatically done by simplebuild if it has to create a \__init\_\_.py
-(i.e. none is provided by the developer) and there is a compiled module named
-"\_init" (i.e. in a subdir named "pycpp\__init" - notice the double underscore).
+This is automatically done by simplebuild if it anyway has to create an
+``__init__.py`` file (i.e. no such file is provided by the users) and there is a
+compiled module named ``_init``, i.e. defined in a subdirectory named
+``pycpp__init`` (notice the double underscore in the subdirectory name).
 
 Scripts (Python/BASH)
 ---------------------
 
 Of course, applications do not have to be compiled from C++, C or Fortran, but
 can equally well just be a script written in for instance BASH or Python. Simply
-place such scripts inside a subdirectory named **scripts/**. Make sure that any
+place such scripts inside a subdirectory named ``scripts/``. Make sure that any
 BASH script starts with the line::
 
   #!/usr/bin/env bash
 
-and that any python scripts starts with (always refer to "python3" never just
-"python" since some systems still have "python" as an alias for "python2")::
+and that any python scripts starts with (always refer to ``python3`` never just
+``python`` since some systems still have ``python`` as an alias for ``python2``)::
 
   #!/usr/bin/env python3
 
 As for compiled programs, any scripts will after installation be prefixed with
-sb\_<package name in lowercase>. Likewise, scripts can be marked as being a
-test by either prefixing their names with "test" or by placing a reference log
-file next to them: If the script is placed in a file **script/myscript** in the
-package MyPackage, then it will be able to be invoked after build by typing
-sb_mypackage_myscript and any test reference log file must be placed in
-**script/myscript.log**.
+``sb_<package name in lowercase>``. Likewise, scripts can be marked as being a
+test by either prefixing their names with the word ``test`` or by placing a
+reference log file next to them: If the script is placed in a file
+``script/myscript`` in the package MyPackage, then it will be able to be invoked
+after build by typing sb_mypackage_myscript and any test reference log file must
+be placed in ``script/myscript.log``.
 
 Data files
 ----------
 
 In addition to code in the form of programs, scripts, header files and python
 modules, packages can make any kind of data file accessible to programs by
-placing data files in the **data/** sub directory.
+placing data files in the ``data/`` sub directory.
 
 This could for example be small data files to be used for input to various
 tests, but do note that Git repositories are **NOT** suitable for large files,
 especially not when binary. Thus, try to keep files in the data/ directory less
-than O(100 kilobytes).
+than O(100 kilobytes) if you are working in a shared Git repository.
 
 Data files will be available at a path given by:
 `$SBLD_DATA_DIR/<packagename>/<datafilename>`
@@ -343,16 +351,16 @@ In conclusion, tests ensure:
 -  Code of high quality
 -  Ability quickly validate installations on new platforms.
 
-Any application or script whose name (apart from the sb\_<packagename>\_ part)
-starts with "test" will be marked as a test, and so will any application or
-script who has a reference log-file provided (either a test.log file in the
-app_XXX/ directory or a scripts/myscript.log file for scripts/myscript). Tests
-consists of two parts: First of all, it must finish with an exit code of 0, and
-second of all those tests which have a reference log-file must give the same
-output as that given in the log-file. Thus, do not print out pointer addresses
-or absolute file-paths in a test with a reference log, since those will change
-spuriously between invocations and when your package code was checked out in
-different locations.
+Any application or script whose name (apart from the ``sb_<packagename>_`` part)
+starts with the word ``test`` will be marked as a test, and so will any
+application or script who has a reference log-file provided (either a test.log
+file in the app_XXX/ directory or a scripts/myscript.log file for
+scripts/myscript). Tests consists of two parts: First of all, it must finish
+with an exit code of 0, and second of all those tests which have a reference
+log-file must give the same output as that given in the log-file. Thus, do not
+print out pointer addresses or absolute file-paths in a test with a reference
+log, since those will change spuriously between invocations and when your
+package code was checked out in different locations.
 
 For now, tests are required to complete in "a few seconds" only, because
 otherwise people would not run them. In the future, we could imagine open up a

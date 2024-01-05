@@ -1,0 +1,3 @@
+# This package has no dependencies. It provides a few python modules, as well as
+# a single command-line application written in Python.
+package()

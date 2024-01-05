@@ -1,0 +1,4 @@
+# This package provides a commandline application implemented in Python. The
+# application uses Python modules implemented in another package (SomePkgA), so
+# we must list that package as a dependency here:
+ package( USEPKG SomePkgA )

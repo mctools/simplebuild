@@ -291,11 +291,15 @@ def decode_toml_textdata_to_dict( textdata : str, path = None ):
         cfg = tomllib.loads(textdata)
     except tomllib.TOMLDecodeError as e:
         error.error(f'Syntax error in {descr}: {e}')
-    if not cfg:
-        error.error(f'No data defined in {descr}')
+    #if not cfg:
+    #    error.error(f'No data defined in {descr}. If this is intentional, at least put a single line with the contents "[project]".')
     return cfg
 
-def decode_with_schema_and_apply_result_to_obj( cfg : dict, targetobj : SingleCfg, defaultdir, cfg_file : pathlib.Path, ignore_build : bool ):
+def decode_with_schema_and_apply_result_to_obj( cfg : dict,
+                                                targetobj : SingleCfg,
+                                                defaultdir,
+                                                cfg_file : pathlib.Path,
+                                                ignore_build : bool ):
     schema = get_toml_schema()
 
     ctx = DecodeContext( str(cfg_file), defaultdir )

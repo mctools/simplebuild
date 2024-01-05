@@ -1,0 +1,4 @@
+# This package provides a single commandline application implemented in C++. To
+# make it less trivial, the application builds against an external library
+# (zlib), so we must list that as dependency here:
+package( USEEXT ZLib )

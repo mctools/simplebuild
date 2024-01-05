@@ -1,0 +1,6 @@
+#!/usr/bin/env python3
+import SomePkgA.foo
+import SomePkgA.bar
+print("I am calling functions from python modules in another package:")
+SomePkgA.foo.somefunc()
+SomePkgA.bar.somecppfunc()

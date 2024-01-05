@@ -32,7 +32,7 @@ relevant parts of the documentation.
 
 .. toctree::
    :hidden:
-   :maxdepth: 2
+   :maxdepth: 3
 
    intro.rst
    install.rst

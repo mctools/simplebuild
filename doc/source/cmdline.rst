@@ -7,6 +7,8 @@ Invocation of the `sb` command is central to the usage of simplebuild. It has
 several option, all documented interactively by running `sb --help`. For
 completeness, that documentation is repeated here on this page.
 
+FIXME: sbenv + sbrun?
+
 ----
 
 

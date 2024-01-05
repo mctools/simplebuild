@@ -51,6 +51,7 @@ jobs:
     - name: Lint python
       run: |
            python3 -m pip install ruff
+           ruff ./src/doc/source/conf.py
            ruff --ignore E501,E741 ./src/src/_simple_build_system/*py
            ruff ./src/src/_simple_build_system/data/pkgs-core/*/python/*py
 
