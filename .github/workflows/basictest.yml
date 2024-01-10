@@ -58,7 +58,8 @@ jobs:
     - name: Install package
       run: |
            python3 -m pip install ./src
-           echo "sb --version: "$(sb --version)
+           echo "sb --version:"
+           sb --version
 
     - name: Build-and-test-release-mode
       run: |

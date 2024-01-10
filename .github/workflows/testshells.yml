@@ -1,0 +1,77 @@
+name: testshells
+on: push
+
+# Workflow which tests the portability of the shell snippet with the sb function.
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - { os: ubuntu-latest }
+          - { os: macos-latest }
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash -eux {0}
+
+    steps:
+    - name: Install more shells (Linux)
+      if: runner.os == 'Linux'
+      run: sudo apt install ksh ash zsh
+
+    - name: Show shell versions (Linux)
+      if: runner.os == 'Linux'
+      run: |
+           sudo apt list dash bash ksh zsh ash
+           bash --version
+           zsh --version
+           #ksh --version ends with non-zero exit code!
+           ksh --version || true
+
+    - name: Show shell versions (macOS)
+      if: runner.os == 'macOS'
+      run: |
+           bash --version
+           zsh --version
+
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        path: src
+
+    - name: Setup python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python }}
+
+    - name: Pip install cmake and pybind11
+      run: |
+           #For some reason adding a venv makes the later "pip install ./src"
+           #work correctly. But this is NOT needed in basictest.yml. Why ?!?!
+           python3 -mvenv myvenv
+           . ./myvenv/bin/activate
+           python3 -m pip install pybind11
+           python3 -m pip install cmake
+           which python3
+           python3 --version
+           python3 -mpybind11 --version
+           which cmake
+           cmake --version
+
+    - name: Install package
+      run: |
+           . ./myvenv/bin/activate
+           test -f ./src/pyproject.toml
+           test -f ./src/src/_simple_build_system/__init__.py
+           python3 -m pip install ./src
+           echo "sb --version:"
+           sb --version
+
+    - name: Test shell snippet
+      run: |
+           . ./myvenv/bin/activate
+           echo "sb --version:"
+           sb --version
+           ./src/devel/tests/test_envsetup_manyshells.x
