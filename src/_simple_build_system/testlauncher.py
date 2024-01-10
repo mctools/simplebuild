@@ -249,4 +249,5 @@ def perform_tests(testdir,installdir,njobs,nexcerpts,filters,do_pycoverage,pkglo
     else:
         print('  %sAll tests completed without failures!%s'%(col_ok,col_end))
         print()
-    return 0 if ec_global==0 else 1
+    #Used special exit code (73) to indicate test failures.
+    return 0 if ec_global==0 else 73
