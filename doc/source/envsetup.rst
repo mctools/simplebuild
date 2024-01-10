@@ -11,13 +11,13 @@ Activating environment
 bla ... `sb --envsetup`
 
 
-bashrc snippets
+shell snippets
 
 
-See :download:`bashrc_snippet.sh <../../resources/bashrc_snippet.sh>`.
+See :download:`shellrc_snippet.sh <../../resources/shellrc_snippet.sh>`.
 
 
-.. include:: ../../resources/bashrc_snippet.sh
+.. include:: ../../resources/shellrc_snippet.sh
   :literal:
 
 

@@ -93,16 +93,36 @@ def get_display_language(language):
         return language.upper()
     return language.capitalize()
 
-def generate_projectexample_rst():
+def prepare_projectexample_dir():
     import pathlib
+    import shutil
     confpydir = pathlib.Path(__file__).parent
-    root = confpydir.parent / 'example_project'
+    blddir = confpydir.parent / 'build'
+    assert blddir.exists()
+    root_src = confpydir.parent / 'example_project'
+    assert (root_src/'simplebuild.cfg').is_file()
+    root = blddir / 'autogen_copy' / root_src.name
+    already_done = root.is_dir()
+    if not already_done:
+        root.parent.mkdir()
+        shutil.copytree( root_src, root )
+    class dirs:
+        pass
+    d = dirs()
+    d.root = root
+    d.blddir = blddir
+    d.confpydir = confpydir
+    d.already_done = already_done
+    return d
 
+def generate_projectexample_rst( dirs ):
     #Get all files in the example, in a manner which puts
     #simplebuild.cfg/pkg.info files first, and ignores caches etc.:
-    files = [ root/'simplebuild.cfg' ]
+    if dirs.already_done:
+        return
+    files = [ dirs.root/'simplebuild.cfg' ]
     pkginfo_files = []
-    for rd in sorted(root.iterdir()):
+    for rd in sorted(dirs.root.iterdir()):
         if rd.is_dir() and rd.name!='simplebuild_cache':
             pkginfo_files += list(sorted(rd.glob('**/pkg.info')))
     def ignorefile(f):
@@ -125,7 +145,7 @@ def generate_projectexample_rst():
         display_language = get_display_language(language)
         if display_language:
             display_language = f' ({display_language})'
-        fn = f.relative_to(root.parent)
+        fn = f.relative_to(dirs.root.parent)
         #trick to highlight comments in pkg.info:
         syntaxhl_language = 'sh' if language=='pkginfo' else language
         res += f'''
@@ -145,23 +165,16 @@ def generate_projectexample_rst():
 
 
 '''
-    (confpydir.parent / 'build'
+    (dirs.confpydir.parent / 'build'
      / 'autogen_projectexample_files.rst').write_text(res)
 
-def fixuptext( txt ):
-    import pathlib
-    confpydir = pathlib.Path(__file__).parent
-    blddir = confpydir.parent / 'build'
-    assert blddir.exists()
-    root = confpydir.parent / 'example_project'
-
-    txt = txt.replace( str(root.parent.absolute())+'/', '/some/where/' )
-
+def fixuptext( dirs, txt ):
     import _simple_build_system
+    import pathlib
+    import os
+    txt = txt.replace( str(dirs.root.parent.absolute())+'/', '/some/where/' )
     sbsdir = pathlib.Path(_simple_build_system.__file__).parent
     txt = txt.replace( str(sbsdir.parent.absolute())+'/', '/some/where/else/' )
-
-    import os
     cp = os.environ.get('CONDA_PREFIX')
     if cp:
         cp = pathlib.Path(cp).absolute()
@@ -169,7 +182,8 @@ def fixuptext( txt ):
 
     return txt
 
-def invoke_cmd(cmd,
+def invoke_cmd(dirs,
+               cmd,
                cwd,
                outfile,
                hidden_sbenv=False,
@@ -202,7 +216,7 @@ def invoke_cmd(cmd,
         raise RuntimeError(f'Command "{cmd}" in dir {cwd} failed!')
     print(f'Done running cmd {cmd}')
     assert not p.stderr
-    txt = fixuptext( p.stdout.decode() )
+    txt = fixuptext( dirs, p.stdout.decode() )
     txt = f'$> {cmd}\n' + txt
     if timings:
         txt += f'[last command took {dt:.2f} seconds to complete] $>\n'
@@ -212,53 +226,50 @@ def invoke_cmd(cmd,
 
     outfile.write_text(txt)
 
-def generate_projectexample_command_outputs():
-    import pathlib
-    import shutil
-    confpydir = pathlib.Path(__file__).parent
-    blddir = confpydir.parent / 'build'
-    assert blddir.exists()
-    root = confpydir.parent / 'example_project'
-    shutil.rmtree( root / 'simplebuild_cache',
-                   ignore_errors = True )
-    newfile = root / 'SomePkgB'/'scripts'/'newcmd'
+def generate_projectexample_command_outputs( dirs ):
+    if dirs.already_done:
+        return
+    assert not ( dirs.root / 'simplebuild_cache' ).exists()
+    #shutil.rmtree( root / 'simplebuild_cache',
+    #               ignore_errors = True )
+    newfile = dirs.root / 'SomePkgB'/'scripts'/'newcmd'
     assert newfile.parent.is_dir()
     newfile.unlink(missing_ok=True)
 
-    invoke_cmd( 'sb',
-                root,
-                blddir / 'autogen_projectexample_cmdout_sb.txt',
+    invoke_cmd( dirs,
+                'sb',
+                dirs.root,
+                dirs.blddir / 'autogen_projectexample_cmdout_sb.txt',
                 timings = True )
 
-    invoke_cmd( 'sb',
-                root,
-                blddir / 'autogen_projectexample_cmdout_sb2.txt',
+    invoke_cmd( dirs,
+                'sb',
+                dirs.root,
+                dirs.blddir / 'autogen_projectexample_cmdout_sb2.txt',
                 timings = True )
 
 
-    filetotouch = root / 'SomePkgC'/'app_foobar'/'main.cc'
+    filetotouch = dirs.root / 'SomePkgC'/'app_foobar'/'main.cc'
     assert filetotouch.is_file()
     filetotouch.touch()
 
-    newfilecontent = ( confpydir.parent
+    newfilecontent = ( dirs.confpydir.parent
                        / 'example_project_newcmd_content').read_text()
     assert newfile.parent.is_dir()
     newfile.write_text( newfilecontent )
     import stat
     newfile.chmod(newfile.stat().st_mode | stat.S_IEXEC)
 
-    invoke_cmd( 'sb',
-                root,
-                blddir / 'autogen_projectexample_cmdout_sb3.txt',
+    invoke_cmd( dirs,
+                'sb',
+                dirs.root,
+                dirs.blddir / 'autogen_projectexample_cmdout_sb3.txt',
                 timings = True )
 
-    #invoke_cmd( 'sbenv sb_somepkgc_foobar',
-    #            root,
-    #            blddir / 'autogen_projectexample_cmdout_sbenv_foobar.txt' ),
-
-    invoke_cmd( 'sb_somepkgc_foobar',
-                root,
-                blddir / 'autogen_projectexample_cmdout_foobar.txt',
+    invoke_cmd( dirs,
+                'sb_somepkgc_foobar',
+                dirs.root,
+                dirs.blddir / 'autogen_projectexample_cmdout_foobar.txt',
                 fake_add_eval_envsetup = True )
 
     othercmds = [
@@ -269,10 +280,12 @@ def generate_projectexample_command_outputs():
         "sb_somepkgb_newcmd",
         ]
     for i,c in enumerate(othercmds):
-        invoke_cmd( c,
-                    root,
-                    blddir / f'autogen_projectexample_cmdout_other{i}.txt',
+        invoke_cmd( dirs,
+                    c,
+                    dirs.root,
+                    dirs.blddir / f'autogen_projectexample_cmdout_other{i}.txt',
                     hidden_sbenv = True )
 
-generate_projectexample_rst()
-generate_projectexample_command_outputs()
+_pe_dirs = prepare_projectexample_dir()
+generate_projectexample_rst( _pe_dirs)
+generate_projectexample_command_outputs( _pe_dirs )

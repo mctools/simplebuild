@@ -10,7 +10,7 @@ Packages
 Technically speaking, a simplebuild *package* is a directory with various code
 and data files. The name of the package is defined by the actual name of the
 directory, and should usually be CamelCased. At minimum a package directory
-should contain a `pkg.info` file, with information about which (if any) other
+should contain a ``pkg.info`` file, with information about which (if any) other
 packages and external software (e.g. Geant4, ZLib, Numpy, ...) is needed by the
 package. In practice, most packages additionally contain some sort of code or
 data files. The content and layout of packages is governed by some rules, which
@@ -33,22 +33,22 @@ instance, common package bundles are:
 FIXME: Table:
 
 Bundle name notes
-core        Provides a single package `Core`. This special bundle is always enabled.
+core        Provides a single package ``Core``. This special bundle is always enabled.
 core_val    Provides packages with common unit tests.
 dgcode      Provides packages for the `dgcode framework <LINK FIXME>`_.
 dgcode_val  Provides packages with unit tests for the `dgcode framework <LINK FIXME>`_.
 
-Note that the `core` bundle provides a single package named `Core`. This special
+Note that the ``core`` bundle provides a single package named ``Core``. This special
 bundle is always enabled, and all packages will automatically get a dependency
-on the `Core` package. Additionally note that the `dgcode` bundles mentioned
-above, are only available if `simplebuild-dgcode` has been installed on the
+on the ``Core`` package. Additionally note that the ``dgcode`` bundles mentioned
+above, are only available if ``simplebuild-dgcode`` has been installed on the
 system (FIXME link).
 
 Format of the pkg.info file
 ===========================
 
 The name of the package is given by the name of the directory in which it is
-located, and at the very least it must contain one file called `pkg.info`, which
+located, and at the very least it must contain one file called ``pkg.info``, which
 in the first line contains information about which optional externals (ROOT,
 Geant4, Fortran, ...) the package needs and which other packages it depends on,
 if any. The latter is important for proper build order and link-time
@@ -70,35 +70,35 @@ contents of the pkg.info file will be very simple::
 
 Everything after the package() statement is optional free-form text, which is
 only used for documentation purposes. If the package depends on other packages,
-the name of those must be given after the keyword `USEPKG` inside the
-`package()` declaration. So if for example the package for example depends on
-other packages named `SomeOtherPkg` and `AnotherPkg`, the first line of pkg.info
+the name of those must be given after the keyword ``USEPKG`` inside the
+``package()`` declaration. So if for example the package for example depends on
+other packages named ``SomeOtherPkg`` and ``AnotherPkg``, the first line of pkg.info
 would look like::
 
   package(USEPKG SomeOtherPkg AnotherPkg)
 
 Note: Even if not specified, all packages will implicitly depend on the package
-named `Core`, which is useful since most packages will need utilities found in
+named ``Core``, which is useful since most packages will need utilities found in
 that package (for instance, all Python modules written in C++ via pybind11 are
 assumed to include the C++ header file ``"Core/Python.hh"``).
 
 If the package needs one of the external optional dependencies (such as
-`Geant4`, `ROOT`, `HDF5`, `Fortran`, etc.), those are specified after a `USEEXT`
+``Geant4``, ``ROOT``, ``HDF5``, ``Fortran``, etc.), those are specified after a ``USEEXT``
 keyword::
 
   package(USEEXT ROOT Fortran)
 
-Naturally, `USEPKG` and `USEEXT` can be combined::
+Naturally, ``USEPKG`` and ``USEEXT`` can be combined::
 
   package(USEPKG CoolPackage Utils USEEXT Geant4)
 
-In this example, the package needs `Geant4` and depends on two other packages,
-`CoolPackage` and `Utils`.
+In this example, the package needs ``Geant4`` and depends on two other packages,
+``CoolPackage`` and ``Utils``.
 
 To see a graphical representation of all available packages and the dependencies
-between them, type `sb --pkggraph` (requires the *dot* command from the
+between them, type ``sb --pkggraph`` (requires the *dot* command from the
 *graphviz* bundle which must be installed on your system). To focus just on
-enabled pkgs, instead do `sb --activegraph`.
+enabled pkgs, instead do ``sb --activegraph``.
 
 Note that the author(s) of the code indicated in this file is to be contacted
 for proper acknowledgement in case the package is used to produce new scientific
@@ -193,7 +193,7 @@ Compiled python modules
 If you wish to have python modules written in C++ (either for efficiency or
 because you wish to make C++ functionality accessible to Python scripts), you
 must create sub directories named ``pycpp_<modulename>`` Inside you must have at
-least one C++ source file in which you `#include "Core/Python.hh"` and which contains
+least one C++ source file in which you ``#include "Core/Python.hh"`` and which contains
 a PYTHON_MODULE section. Here is a very basic example of how to make
 "somecppfunc" callable from python:
 
@@ -225,8 +225,8 @@ usual fashion:
 
 These C++-Python bindings are in fact implemented with `pybind
 <https://pybind11.readthedocs.io/en/stable/basics.html>`_, with the
-``Core/Python.hh`` header mostly just defining the `PYTHON_MODULE` macro and
-introducing the convenience namespace alias `py=pybind11`.
+``Core/Python.hh`` header mostly just defining the ``PYTHON_MODULE`` macro and
+introducing the convenience namespace alias ``py=pybind11``.
 
 
 Compiled ``__init__.py``
@@ -281,11 +281,11 @@ especially not when binary. Thus, try to keep files in the data/ directory less
 than O(100 kilobytes) if you are working in a shared Git repository.
 
 Data files will be available at a path given by:
-`$SBLD_DATA_DIR/<packagename>/<datafilename>`
+``$SBLD_DATA_DIR/<packagename>/<datafilename>``
 
 Utilities are also provided by the Core package for constructing such file paths
 from C++, Python or BASH as the following examples of how to find the file
-`somefile.mcpl` from the package `MyPackage` show:
+``somefile.mcpl`` from the package ``MyPackage`` show:
 
 * **Locating data files from C++**:
 
