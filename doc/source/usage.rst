@@ -23,7 +23,7 @@ the dependencies of the given package.
 
 .. include:: ../build/autogen_projectexample_files.rst
 
-Building the example
+Building the project
 ====================
 
 To build our example project, we simply step into the project directory where we
@@ -88,13 +88,13 @@ symlinking mentioned above. Now, let us see this in practice. So let us pretend
 we have edited the file ``example_project/SomePkgC/app_foobar/main.cc``
 (e.g. open it, add a blank line, close it - or merely use the unix ``touch``
 command). We have also added a new file,
-``example_project/SomePkgB/scripts/newcmd`` with the content
+``example_project/SomePkgB/scripts/newcmd`` with the content:
 
 .. literalinclude:: ../example_project_newcmd_content
   :language: python
 
-Since it is a script, we have made the new file executable (``chmod + x
-SomePkgB/scripts/newcmd``). If we had forgotten, ``sb`` would tell us.
+Since it is a script, we have made the new file executable (``chmod +x
+SomePkgB/scripts/newcmd``). If we had forgotten, ``sb`` would tell us later.
 
 With these changes, we now invoke ``sb`` once again:
 
@@ -104,7 +104,7 @@ With these changes, we now invoke ``sb`` once again:
 As we can see, only parts of the build related to our changes actually had to be
 redone, and accordingly it was blazingly fast.
 
-Using the example
+Using the project
 =================
 
 Having build our example project, let us now try to actually *use* it! As a
@@ -151,4 +151,33 @@ For completeness, here are some more examples of us using our project:
   :literal:
 
 .. include:: ../build/autogen_projectexample_cmdout_other4.txt
+  :literal:
+
+Adding tests
+============
+
+As is discussed in more details :ref:`in a dedicated section <sbtests>`, it is
+possible to mark certain applications or scripts as being a *test*. Launching
+``sb --tests`` (or ``sb -t`` for short) will then not only build the project,
+but will also launch all the tests. Any command that fails (i.e. exits with
+non-zero exit code) will be marked as a test failure. Additionally, it is
+possible to add text files containing the expected output of a given command. If
+the actual output fails to match such a *reference log file*, it will also
+result in a test failure.
+
+Having such tests to perform a quick validation that everything still works is
+tremendously useful, and here we will simply show a quick example of this in
+practice. Specifically, we would like a unit test that verifies the output of
+the ``mysquarefunc`` that is already a part of the `SomePkgA.foo` module of our
+example project. Thus, we add a new file
+``example_project/SomePkgA/scripts/testfoo`` with the content:
+
+.. literalinclude:: ../example_project_newtestcmd_content
+  :language: python
+
+Again, since it is a script, we have made the new file executable (``chmod +x
+SomePkgA/scripts/testfoo``). If we had forgotten, ``sb`` would tell us later.
+Having added this new script, we now launch ``sb --tests``:
+
+.. include:: ../build/autogen_projectexample_cmdout_sbtests.txt
   :literal:

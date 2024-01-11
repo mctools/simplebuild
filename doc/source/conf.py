@@ -13,6 +13,7 @@ author = 'Thomas Kittelmann'
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
+nitpicky = True
 extensions = [
     # 'myst_parser', #for parsing .md files?
     'sphinxarg.ext',
@@ -92,6 +93,21 @@ def get_display_language(language):
     if language in ('toml','bash'):
         return language.upper()
     return language.capitalize()
+
+def generate_sbinit_in_empty_dir():
+    import pathlib
+    confpydir = pathlib.Path(__file__).parent
+    blddir = confpydir.parent / 'build'
+    sbinitdir = blddir / 'autogen_freshsbinit'
+    if sbinitdir.is_dir():
+        return#already done
+    sbinitdir.mkdir()
+    import subprocess
+    print(' ---> Launching command sb --init ')
+    subprocess.run( ['sb','--init'],
+                    cwd = sbinitdir,
+                    check = True )
+    assert ( sbinitdir / 'simplebuild.cfg' ).is_file()
 
 def prepare_projectexample_dir():
     import pathlib
@@ -226,6 +242,18 @@ def invoke_cmd(dirs,
 
     outfile.write_text(txt)
 
+def check_output_contains( textfile, pattern, must_contain = True ):
+    if (pattern in textfile.read_text()) == must_contain:
+        return
+    issue = 'does not contain' if must_contain else 'contains forbidden'
+    print(f'\n\n\nERROR: File {textfile} {issue} pattern "{pattern}":\n')
+    for e in textfile.read_text().splitlines(keepends=True):
+        print(f'>>>{e}',end='')
+    raise SystemExit(1)
+
+def check_output_not_contains( textfile, pattern ):
+    check_output_contains( textfile, pattern, must_contain = False )
+
 def generate_projectexample_command_outputs( dirs ):
     if dirs.already_done:
         return
@@ -234,20 +262,31 @@ def generate_projectexample_command_outputs( dirs ):
     #               ignore_errors = True )
     newfile = dirs.root / 'SomePkgB'/'scripts'/'newcmd'
     assert newfile.parent.is_dir()
-    newfile.unlink(missing_ok=True)
+    assert not newfile.exists()
 
+    newtestfile = dirs.root / 'SomePkgA'/'scripts'/'testfoo'
+    assert newtestfile.parent.is_dir()
+    assert not newtestfile.exists()
+
+    of = dirs.blddir / 'autogen_projectexample_cmdout_sb.txt'
     invoke_cmd( dirs,
                 'sb',
                 dirs.root,
-                dirs.blddir / 'autogen_projectexample_cmdout_sb.txt',
+                of,
                 timings = True )
+    msg_envsetup = 'sb --env-setup'
+    msg_cmake = 'Inspecting environment via CMake'
+    check_output_contains( of, msg_envsetup )
+    check_output_contains( of, msg_cmake )
 
+    of = dirs.blddir / 'autogen_projectexample_cmdout_sb2.txt'
     invoke_cmd( dirs,
                 'sb',
                 dirs.root,
-                dirs.blddir / 'autogen_projectexample_cmdout_sb2.txt',
+                of,
                 timings = True )
-
+    check_output_contains( of, msg_envsetup )
+    check_output_not_contains( of, msg_cmake )
 
     filetotouch = dirs.root / 'SomePkgC'/'app_foobar'/'main.cc'
     assert filetotouch.is_file()
@@ -260,17 +299,24 @@ def generate_projectexample_command_outputs( dirs ):
     import stat
     newfile.chmod(newfile.stat().st_mode | stat.S_IEXEC)
 
+    of = dirs.blddir / 'autogen_projectexample_cmdout_sb3.txt'
     invoke_cmd( dirs,
                 'sb',
                 dirs.root,
-                dirs.blddir / 'autogen_projectexample_cmdout_sb3.txt',
+                of,
                 timings = True )
+    check_output_contains( of, msg_envsetup )
+    check_output_not_contains( of, msg_cmake )
 
+    of = dirs.blddir / 'autogen_projectexample_cmdout_foobar.txt'
     invoke_cmd( dirs,
                 'sb_somepkgc_foobar',
                 dirs.root,
-                dirs.blddir / 'autogen_projectexample_cmdout_foobar.txt',
+                of,
                 fake_add_eval_envsetup = True )
+
+    check_output_contains( of, msg_envsetup )
+    check_output_not_contains( of, msg_cmake )
 
     othercmds = [
         "sb_somepkga_mycmd",
@@ -286,6 +332,38 @@ def generate_projectexample_command_outputs( dirs ):
                     dirs.blddir / f'autogen_projectexample_cmdout_other{i}.txt',
                     hidden_sbenv = True )
 
+
+    newtestfilecontent = ( dirs.confpydir.parent
+                       / 'example_project_newtestcmd_content').read_text()
+    assert newtestfile.parent.is_dir()
+    newtestfile.write_text( newtestfilecontent )
+    import stat
+    newtestfile.chmod(newtestfile.stat().st_mode | stat.S_IEXEC)
+
+    of = dirs.blddir / 'autogen_projectexample_cmdout_sbtests.txt'
+    invoke_cmd( dirs,
+                'sb --tests',
+                dirs.root,
+                of,
+                timings = True,
+                hidden_sbenv = True )
+    check_output_not_contains( of, msg_envsetup )
+    check_output_not_contains( of, msg_cmake )
+
+
+    #FIXME: assert 'Inspecting environment via CMake' not in of.read_text()
+
+    #not related to the project example, but we need their output as well:
+    invoke_cmd( dirs,
+                'sbenv --help',
+                dirs.root,
+                dirs.blddir / 'autogen_sbenv_help.txt' )
+    invoke_cmd( dirs,
+                'sbrun --help',
+                dirs.root,
+                dirs.blddir / 'autogen_sbrun_help.txt' )
+
 _pe_dirs = prepare_projectexample_dir()
 generate_projectexample_rst( _pe_dirs)
 generate_projectexample_command_outputs( _pe_dirs )
+generate_sbinit_in_empty_dir()

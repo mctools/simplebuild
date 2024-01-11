@@ -1,0 +1,5 @@
+#!/usr/bin/env python3
+import SomePkgA.foo
+for x in [ -1, 0, 1, 3, 5 ]:
+    if SomePkgA.foo.mysquarefunc( x ) != x**2:
+        raise SystemExit(f'SomePkgA.foo.mysquarefunc({x}) != { x**2 }')

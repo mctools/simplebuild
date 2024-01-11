@@ -25,5 +25,6 @@ jobs:
       run: python3 -mpip install .
 
     - name: Build documentation
-      run: make html
+      #NB: -W to turn warnings into errors:
+      run: make html SPHINXOPTS="-W"
       working-directory: ./doc/

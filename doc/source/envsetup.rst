@@ -1,6 +1,6 @@
-**********************
-Activating environment
-**********************
+*******************************
+Using the installed environment
+*******************************
 
 ..
   Note do NOT change the above section title without updating the internal links

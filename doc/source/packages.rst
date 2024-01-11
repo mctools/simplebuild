@@ -166,10 +166,11 @@ Hint: After simplebuild is finished, you can type ``sb_`` at the command line an
 then hit the TAB key to get a list of all resulting applications you can run
 (this also includes scripts, see below).
 
-In order to have a program run as an automatic test, then either the unique part
-of the name of the directory must start with ``test`` (i.e. the directory must be
-of the form app_testxxx/) or a reference log-file named test.log must be placed
-inside the directory (more about tests below).
+In order to have a program run as an automatic test (when ``sb -t`` is invoked),
+then either the unique part of the name of the directory must start with
+``test`` (i.e. the directory must be of the form app_testxxx/) or a reference
+log-file named test.log must be placed inside the directory (more about tests
+below).
 
 Pure python modules
 -------------------
@@ -262,11 +263,11 @@ and that any python scripts starts with (always refer to ``python3`` never just
 
 As for compiled programs, any scripts will after installation be prefixed with
 ``sb_<package name in lowercase>``. Likewise, scripts can be marked as being a
-test by either prefixing their names with the word ``test`` or by placing a
-reference log file next to them: If the script is placed in a file
-``script/myscript`` in the package MyPackage, then it will be able to be invoked
-after build by typing sb_mypackage_myscript and any test reference log file must
-be placed in ``script/myscript.log``.
+test (to run when ``sb -t`` is invoked) by either prefixing their names with the
+word ``test`` or by placing a reference log file next to them: If the script is
+placed in a file ``script/myscript`` in the package MyPackage, then it will be
+able to be invoked after build by typing sb_mypackage_myscript and any test
+reference log file must be placed in ``script/myscript.log``.
 
 Data files
 ----------
@@ -315,6 +316,8 @@ from C++, Python or BASH as the following examples of how to find the file
     #option B:
     DATAFILE=$(sb_core_finddata MyPackage somefile.mcpl)
 
+.. _sbtests:
+
 Tests
 -----
 
@@ -338,30 +341,29 @@ anyway have created small scripts and programs during development of a
 package. Simply tidy them up a bit and mark them as a test.
 
 If you do **not** provide a test, then you can't really complain if someone else
-makes some changes which negatively influences the behaviour of your code. Their
-changes might after all have been done somewhere which seems to be unrelated,
-and they might not even have considered to double-check that your code still
-works afterwards. Heck, they might not even know the purpose of your code well
-enough to test it.
+working on the same project makes some changes which negatively influences the
+behaviour of your code. Their changes might after all have been done somewhere
+which seems to be unrelated, and they might not even have considered to
+double-check that your code still works afterwards. Heck, they might not even
+know the purpose of your code well enough to test it.
 
 In conclusion, tests ensure:
 
--  Manpower savings
+-  Code quality, efficient use of manpower.
 -  Ability for many people to work together without friction
--  Code of high quality
--  Ability quickly validate installations on new platforms.
+-  Ability to quickly validate installations on new platforms.
 
-Any application or script whose name (apart from the ``sb_<packagename>_`` part)
-starts with the word ``test`` will be marked as a test, and so will any
-application or script who has a reference log-file provided (either a test.log
-file in the app_XXX/ directory or a scripts/myscript.log file for
-scripts/myscript). Tests consists of two parts: First of all, it must finish
-with an exit code of 0, and second of all those tests which have a reference
-log-file must give the same output as that given in the log-file. Thus, do not
-print out pointer addresses or absolute file-paths in a test with a reference
-log, since those will change spuriously between invocations and when your
-package code was checked out in different locations.
+Any application or script whose invokable name (apart from the
+``sb_<packagename>_`` part) starts with the word ``test`` will be marked as a
+test, and so will any application or script who has a reference log-file
+provided (either a ``test.log`` file in the ``app_XXX/`` directory or a
+``scripts/myscript.log`` file for a script named ``scripts/myscript``). Tests
+consists of two parts: First of all, it must finish with an exit code of 0, and
+second of all those tests which have a reference log-file must give the same
+output as that given in the log-file. Thus, do not print out pointer addresses
+or absolute file-paths in a test with a reference log, since those will change
+spuriously between invocations and when your package code was checked out in
+different locations.
 
-For now, tests are required to complete in "a few seconds" only, because
-otherwise people would not run them. In the future, we could imagine open up a
-new category of "long-tests", if deemed necessary and useful.
+Ideally, tests should run in "a few seconds", to keep the combined running time
+within a practical and comfortable range.
