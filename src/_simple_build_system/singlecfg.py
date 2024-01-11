@@ -260,14 +260,14 @@ def _generate_toml_schema():
                                    search_path = (decode_list_of_search_paths,[])
                                   ),
                  build     = dict( mode = ( lambda a,b : decode_str_enum(a,b,('debug','release')), 'release' ),
-                                   njobs = (decode_nonneg_int, 0),
+                                   #njobs = (decode_nonneg_int, 0),
                                    cachedir = (decode_dir, './simplebuild_cache'),
                                    pkg_filter = (decode_is_list_of_nonempty_str,[]),
-                                   extdep_ignore = (decode_is_list_of_valid_identifier_string,[]),
-                                   cmake_flags = (decode_is_list_of_nonempty_str,[]),
-                                   extra_cflags = (decode_is_list_of_nonempty_str,[]),
-                                   extra_linkflags = (decode_is_list_of_nonempty_str,[]),
-                                   relaxed_compilation = (decode_is_bool,False),
+                                   #extdep_ignore = (decode_is_list_of_valid_identifier_string,[]),
+                                   #cmake_flags = (decode_is_list_of_nonempty_str,[]),
+                                   #extra_cflags = (decode_is_list_of_nonempty_str,[]),
+                                   #extra_linkflags = (decode_is_list_of_nonempty_str,[]),
+                                   #relaxed_compilation = (decode_is_bool,False),
                                   ),
                 )
 

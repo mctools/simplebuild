@@ -148,6 +148,8 @@ $> {_p} --init core_val dgcode COMPACT DEBUG
                                    " matching PATTERN"))
     exclusive.add('find')
 
+    #NB: Do not change the title in title in the next line without updating its
+    #usage as anchor name in the sphinx documentation:
     group_init = parser.add_argument_group('New project initialisation options')
     group_init.add_argument('--init', action='store_true', dest='init',
                             help=(initmode_longhelp

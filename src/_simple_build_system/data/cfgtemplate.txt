@@ -14,8 +14,7 @@
 
 [project]
   # If you wish to let other projects use your bundle of packages, you must give
-  # it a name (so they can specify it in their list of their depend.projects
-  # list):
+  # it a name (so they can specify it in their list depend.projects list):
   #
   #  name = 'myprojectname'
   #
@@ -69,7 +68,7 @@
   #
   #   mode = 'debug'
   #
-  # If you have many package, and would like to only consider a subset of them,
+  # If you have many packages, and would like to only consider a subset of them,
   # you can set one or more package filters. Note that this concerns packages
   # *explicitly* enabled. Any package needed by those, will be *implicitly*
   # enabled. Thus, to build a package 'MyPkg', you only need to add 'MyPkg' to
@@ -99,16 +98,16 @@
   #
   #   pkg_filter = ['some/where/*']
   #
-  # Filters can use regular expressions, simple prefix them with 'RE::'. Here is
+  # Filters can use regular expressions, simply prefix them with 'RE::'. Here is
   # an example with both a positive and a negative filter, selecting packages
   # whose names include the word 'Util', but does not include the word
-  # 'test'. The '(?i)' makes the latter case-insensitive, so 'MyUtilsTests' and
-  # 'MyUtils_tests'would both be excluded. 'MyUtils' would be accepted, but
-  # 'My_utils' would not:
+  # 'test'. The '(?i)' makes the second filter case-insensitive, so
+  # 'MyUtilsTests' and 'MyUtils_tests' would both be excluded by it. 'MyUtils'
+  # would be accepted, but 'My_utils' would not:
   #
-  #   pkg_filter = ['!RE::(?i).*test.*','RE::.*Util.*']
+  #   pkg_filter = ['RE::.*Util.*','!RE::(?i).*test.*']
   #
-  # Commas (m) can not be used in filters, but serve to separate filter
+  # Commas (,) can not be used in filters, but serve to separate filter
   # items. In fact, the two following pkg filters are identical:
   #
   #   pkg_filter = [ 'My*','!MyBrokenPkg' ]

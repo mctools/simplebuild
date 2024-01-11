@@ -27,10 +27,10 @@ class CfgBuilder:
         self.__print = lambda *a,**kw: _io.print_no_prefix(print_prefix,*a,**kw)
         self.__is_verbose = _io.is_verbose
         self.__build_mode = master_cfg.build_mode
-        self.__build_njobs = master_cfg.build_njobs
+        #self.__build_njobs = master_cfg.build_njobs
         self.__build_cachedir = master_cfg.build_cachedir
         self.__build_pkg_filter = master_cfg.build_pkg_filter
-        self.__build_extdep_ignore = master_cfg.build_extdep_ignore
+        #self.__build_extdep_ignore = master_cfg.build_extdep_ignore
 
         #Build up everything else recursively, starting from the master_cfg:
         self.__pkg_path = []#result 1
@@ -74,9 +74,9 @@ class CfgBuilder:
     def build_mode( self ):
         return self.__build_mode
 
-    @property
-    def build_njobs( self ):
-        return self.__build_njobs
+    #@property
+    #def build_njobs( self ):
+    #    return self.__build_njobs
 
     @property
     def build_cachedir( self ):
@@ -86,9 +86,9 @@ class CfgBuilder:
     def build_pkg_filter( self ):
         return self.__build_pkg_filter
 
-    @property
-    def build_extdep_ignore( self ):
-        return self.__build_extdep_ignore
+    #@property
+    #def build_extdep_ignore( self ):
+    #    return self.__build_extdep_ignore
 
     @property
     def pkg_path(self):
