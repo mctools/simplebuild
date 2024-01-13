@@ -42,16 +42,17 @@ def sbenv_main( args = None):
     if args is None:
         import sys
         args = sys.argv[1:]
-    if not args:
+    request_help = ( len(args)==1 and args[0] in ('-h','--help') )
+    if request_help or not args:
         print("""Usage:
 
 sbenv <program> [args]
 
-Runs <program> within the simplebuild runtime environment. Note that if you wish to
-make sure the codebase has been built first (with simplebuild) you should use sbrun
-rather than sbenv.
+Runs <program> within the simplebuild runtime environment. Note that if you wish
+to make sure the codebase has been built first (with simplebuild) you should use
+sbrun rather than sbenv.
 """)
-        raise SystemExit(111)
+        raise SystemExit(0 if request_help else 111)
         return
     from .envsetup import create_install_env_clone
     run_env = create_install_env_clone()
@@ -64,15 +65,16 @@ rather than sbenv.
 def sbrun_main():
     import sys
     args = sys.argv[1:]
-    if not args:
+    request_help = ( len(args)==1 and args[0] in ('-h','--help') )
+    if request_help or not args:
         print("""Usage:
 
 sbrun <program> [args]
 
-Runs simplebuild (quietly) and if it finishes successfully, then proceeds to launch
-<program> within the simplebuild runtime environment.
+Runs the simplebuild 'sb' command (quietly) and if it finishes successfully,
+then proceeds to launch <program> within the simplebuild runtime environment.
 """)
-        raise SystemExit(111)
+        raise SystemExit(0 if request_help else 111)
         return
     from . import frontend
     frontend.simplebuild_main( argv = ['sb',
