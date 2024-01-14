@@ -1,9 +1,9 @@
-def perform_configuration(select_filter=None,
-                          force_reconf=False,
-                          load_all_pkgs=False,
-                          quiet=False,
-                          verbose=False
-                      ):
+def perform_configuration( select_filter=None,
+                           force_reconf=False,
+                           load_all_pkgs=False,
+                           quiet=False,
+                           verbose=False
+                          ):
     import os
     import sys
     import glob

@@ -123,8 +123,7 @@ def pkl_load(fn_or_fh):
     else:
         #argument is filename:
         with pathlib.Path(fn_or_fh).open('rb') as fh:
-            d=pickle.load(fh)
-        return d
+            return pickle.load(fh)
 
 def pkl_dump(data,fn_or_fh):
     import pickle

@@ -53,13 +53,29 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
         emit_env_unsetup()
         raise SystemExit
 
-    if opt.summary:
-        print("FIXME: summary mode is not yet implemented!")
-        raise SystemExit
-
     if opt.init is not None:
         from . import init_project
         init_project.init_project( depbundles = opt.init )
+        raise SystemExit
+
+    # Now undo the effect of --env-setup on the current environment, so
+    # subsequent cmake/make invocations run in a clean environment, not poluted
+    # by our own build folder (this also solves
+    # https://github.com/mctools/simplebuild/issues/8). But first we note if we
+    # need to later on warn the user about their environment needing sb
+    # --env-setup:
+
+    if not opt.quiet and not prevent_env_setup_msg:
+        from .envsetup import calculate_env_setup
+        needs_env_setup = bool(calculate_env_setup())
+    else:
+        needs_env_setup = False
+
+    from .envsetup import apply_envunsetup_to_dict
+    apply_envunsetup_to_dict( os.environ )
+
+    if opt.summary:
+        print("FIXME: summary mode is not yet implemented!")
         raise SystemExit
 
     #setup lockfile:
@@ -383,6 +399,7 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
         extramakeopts=''
 
     assert dirs.makefiledir.is_dir()
+
     ec = utils.system(f'cd {dirs.makefiledir} && '
                       'make --warn-undefined-variables -f Makefile'
                       f' -j{opt.njobs}{extramakeopts}')
@@ -425,9 +442,7 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
             sys.exit(ec)
 
     if not opt.quiet:
-        from .envsetup import calculate_env_setup
-        needs_env_setup = bool(calculate_env_setup())
-        if not prevent_env_setup_msg and needs_env_setup:
+        if needs_env_setup:
             from . import col
             print(f'{col.warnenvsetup}Build done. To use the resulting environment you must first enable it!{col.end}')
             print()
