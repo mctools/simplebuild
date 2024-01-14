@@ -10,6 +10,7 @@ set -u
 set -x
 
 test -f "${SBTEST_SHELLSNIPPET}"
+test -f "${SBTEST_SHELLSNIPPET_DEACTIVATE}"
 WORKDIR="$PWD/sbproj"
 test ! -f "$WORKDIR"
 test ! -d "$WORKDIR"
@@ -21,6 +22,38 @@ testnoleaks()
         test -z "${_sb_ec:-}"
     fi
 }
+testisfunction()
+{
+    pn="$1"
+    if [ $SBTEST_HAS_TYPESETMINUSF -eq 1 ]; then
+        EC=0
+        typeset -f "$pn" > /dev/null || EC=$?
+        return $EC
+    else
+        aa="$(type $pn)"
+        bb="$pn is a shell function"
+        if [ "x${aa}" = "x${bb}" ]; then
+            return 0
+        else
+            return 1
+        fi
+    fi
+}
+testisnotfunction()
+{
+    EC=0
+    testisfunction $1 || EC=$?
+    if [ $EC -ne 0 ]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+
+. "${SBTEST_SHELLSNIPPET_DEACTIVATE}"
+testisnotfunction sb
+
 testnoleaks
 mkdir -p "$WORKDIR"
 cd "$WORKDIR"
@@ -48,4 +81,12 @@ sb || EC=$?
 testnoleaks
 test $EC -ne 0
 test $EC -ne 73
+
+
+#test sb is a function:
+testisfunction sb
+#deactivation should remove the function again:
+. "${SBTEST_SHELLSNIPPET_DEACTIVATE}"
+testisnotfunction sb
+
 echo "All good"

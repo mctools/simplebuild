@@ -2,7 +2,9 @@
 set -eu
 REPOROOT_DIR="$( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && cd ../../ && pwd )"
 export SBTEST_SHELLSNIPPET="${REPOROOT_DIR}/resources/shellrc_snippet.sh"
+export SBTEST_SHELLSNIPPET_DEACTIVATE="${REPOROOT_DIR}/resources/shellrc_snippet_deactivate.sh"
 test -f "${SBTEST_SHELLSNIPPET}"
+test -f "${SBTEST_SHELLSNIPPET_DEACTIVATE}"
 TEST_SHELL_SNIPPET="${REPOROOT_DIR}/devel/tests/test_envsetup.sh"
 test -f "${TEST_SHELL_SNIPPET}"
 
@@ -24,8 +26,12 @@ export tested=''
 #  tcsh ?? freebsd
 for i in bash dash zsh ksh ash; do
     export SBTEST_ALLOW_VAR_LEAK=0
+    export SBTEST_HAS_TYPESETMINUSF=1
     if [ "$i" == "ksh" ]; then
         export SBTEST_ALLOW_VAR_LEAK=1
+    fi
+    if [ "$i" == "dash" -o "$i" == "ash" ]; then
+        export SBTEST_HAS_TYPESETMINUSF=0
     fi
     echo
     echo
