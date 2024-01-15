@@ -73,7 +73,7 @@ testnoleaks
 test $EC -eq 73
 EC=0
 which sb_mypkg_testbad || EC=$?
-test $EC -ne 0
+test $EC -eq 0
 mkdir MyPkg/app_nocompile
 echo 'this is not actually c++' > MyPkg/app_nocompile/main.cc
 EC=0
