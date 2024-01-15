@@ -1,8 +1,6 @@
-************
-Introduction
-************
-
-.. include:: wipwarning.rst
+****************************
+Introduction and terminology
+****************************
 
 The simplebuild system is intended to allow individuals or groups of users to
 keep track of an ever-growing collection of loosely connected files, written in
@@ -47,12 +45,12 @@ later as desired. More details are provided in the `dedicated section on
 simplebuild.cfg <./simplebuilddotcfg.html>`_.
 
 Upon launching the ``sb`` command inside the package root directory, simplebuild
-will then analyse ``simplebuild.cfg`` file and the files in all the packages, in
-order to determine what is needed to be built and how to do it -- and it will
-then immediately build it and make it available. Behind the scenes, it will use
-`CMake` to inspect the system, and determine the appropriate flags for
+will then analyse the ``simplebuild.cfg`` file and the files in all the
+packages, in order to determine what is needed to be built and how to do it --
+and it will then immediately build it and make it available. Behind the scenes,
+it will use CMake to inspect the system, and determine the appropriate flags for
 compilation and linking where appropriate. One noteworthy feature is that this
-also facilitates the creation of python modules written in C++ via pybind11,
+also facilitates the creation of Python modules written in C++ via pybind11,
 making it particularly convenient to work in a mixed-language environment.
 
 The end result is an environment in which the user can easily run their
@@ -62,8 +60,8 @@ additionally allow domain specific experts to provide software for easy usage by
 other users. One example of such a scenario is "dgcode", a bundle of simplebuild
 packages intended to simplify the Geant4-based simulation work of the ESS
 Detector Group (for more details about dgcode, refer to the website AT
-XXXXXXXXXXX). The dgcode bundle itself provides utilities for configuring and
-using Geant4, with all the necessary domain specific tweaks and utilities. Code
+FIXME). The dgcode bundle itself provides utilities for configuring and using
+Geant4, with all the necessary domain specific tweaks and utilities. Code
 relating to the simulation of specific detector prototypes is then kept in
 separate bundles, some publically available in repositories on GitHUB, and some
 kept on private gitlab servers (mostly for historical reasons).

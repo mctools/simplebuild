@@ -2,8 +2,6 @@
 About
 *****
 
-.. include:: wipwarning.rst
-
 .. admonition:: Recommended publications for citing
   :class: tip
 

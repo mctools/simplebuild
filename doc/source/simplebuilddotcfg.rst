@@ -2,8 +2,6 @@
 The simplebuild.cfg file
 ************************
 
-.. include:: wipwarning.rst
-
 Each simplebuild bundle of packages is defined by a single ``simplebuild.cfg``
 file, usually located at the root directory under which all the packages are
 located. It serves a few different purposes:

@@ -3,8 +3,6 @@
 Welcome to the simplebuild documentation!
 *****************************************
 
-.. include:: wipwarning.rst
-
 ..  figure:: images/simplebuild_example_buildsummary.png
     :figwidth: 60%
     :align: right
@@ -36,7 +34,6 @@ relevant parts of the documentation.
    usage.rst
    packages.rst
    simplebuilddotcfg.rst
-   envsetup.rst
    cmdline.rst
    about.rst
    contact.rst
@@ -48,5 +45,6 @@ relevant parts of the documentation.
    :github:
    :pypi: simple-build-system
 
+   Conda <https://anaconda.org/conda-forge/simple-build-system>
    Issue tracker <https://github.com/mctools/simplebuild/issues>
    license.rst

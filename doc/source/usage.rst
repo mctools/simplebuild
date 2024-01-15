@@ -2,8 +2,6 @@
 Usage example
 *************
 
-.. include:: wipwarning.rst
-
 Before diving into all the details in later sections, we will in the following
 go through a small usage example. The code in this example will not do anything
 useful in itself, and is merely meant to illustrate how one might lay out files
@@ -27,9 +25,9 @@ Building the project
 ====================
 
 To build our example project, we simply step into the project directory where we
-have the `simplebuild.cfg` file with a command like ``cd
+have the ``simplebuild.cfg`` file by issuing a command like ``cd
 /some/where/example_project`` (it is also OK to step into any sub-directory
-under that directory). Then we simply invoke `sb` with no arguments to perform
+under that directory). Then we simply invoke ``sb`` with no arguments to perform
 the build (this includes both configuration, build, and installation steps of
 more traditional setups):
 
@@ -40,14 +38,14 @@ Several things happened above:
 
 1. simplebuild searched the directory tree under ``/some/where/example_project``
    for ``pkg.info`` files to determine which simplebuild packages to
-   consider. It also added the `Core` package from a different location, since
-   that particular package is always required (for instance because it provides
-   the ``"Core/Python.hh"`` header file).
+   consider. It also added the ``Core`` package (defined elsewhere in the
+   ``core`` bundle), since that particular package is always required (for
+   instance because it provides the ``"Core/Python.hh"`` header file).
 2. It investigated each package to determine what kind of code and data files it
    provided, and established dependency relationships and other configuration
    details concerning the various pieces.
 3. Behind the scenes it created a cache directory in
-   ``/some/where/simplebuild_cache``, to use for any sort of temporary files
+   ``/some/where/example_project/simplebuild_cache``, to use for any sort of temporary files
    needed for the following steps. Note that if you ever wish to clean up the
    cache files, you can simply invoke ``sb -c``.
 4. It launched CMake to inspect the environment, to learn about compilers,
@@ -64,12 +62,17 @@ Several things happened above:
    without any need for another ``sb`` invocation.  The build step was actually
    a bit slow, taking many seconds. This is mostly due to compilation of the
    (pybind11-based) C++-Python bindings. One side-effect of symlinking, is that
-   all script files must be exectuable (e.g. ``chmod +x <pathtofile>``).
+   all script files must be executable (e.g. ``chmod +x <pathtofile>``).
 6. It produced a little summary of all the operations.
-7. It gave us a little warning about needing to invoke ``eval "$(sb
-   --env-setup)"`` to setup our environment. This is because the installation
-   folders where our final build output was placed, are not currently activated
-   in our environment. We will get back to that shortly.
+
+.. admonition:: Environment setup for non-conda installations.
+  :class: tip
+
+   If you did not install simplebuild via the conda package, the output above
+   might have included a warning about needing to invoke ``eval "$(sb
+   --env-setup)"`` to setup your environment. One solution is then to simply run
+   that command, or you can refer to :ref:`the relevant documentation
+   <sbmanualenvsetup>` for how to address this in general.
 
 Although the entire build process took a bit of time, the cache usage means that
 if we go ahead and invoke ``sb`` once again, it will this time more or less skip
@@ -118,23 +121,29 @@ where in this case ``<appname>`` is ``foobar`` and ``<pgname>`` lowercased is
 filename. The reason for this naming policy is one of name-spacing: by prefixing
 all commands are with ``sb_<pkgname>_``, there should be almost no chance of any
 name-clashes between applications in different packages, or even with other
-commands on your unix system. However, if we try to simply invoke
-``sb_somepkgc_foobar`` we get an error::
+commands on your unix system. We can try to run it:
 
-  $> sb_somepkgc_foobar
-  sb_somepkgc_foobar: command not found
+..
+   However, if we try to simply invoke
+   ``sb_somepkgc_foobar`` we get an error::
 
-In this case, the reason for the error is that the installation folder in which the
-``sb_somepkgc_foobar`` file was placed has not added to the ``PATH`` variable of
-the unix shell. To fix this, we should do as instructed and invoke ``eval "$(sb
---env-setup)"`` first:
+     $> sb_somepkgc_foobar
+     sb_somepkgc_foobar: command not found
+
+   In this case, the reason for the error is that the installation folder in which the
+   ``sb_somepkgc_foobar`` file was placed has not added to the ``PATH`` variable of
+   the unix shell. To fix this, we should do as instructed and invoke ``eval "$(sb
+   --env-setup)"`` first:
 
 .. include:: ../build/autogen_projectexample_cmdout_foobar.txt
   :literal:
 
-It is possible to make this simplebuild-environment activation automatic, or to
-avoid it altogther. For details, refer to the `detailed instructions concerning
-this <./envsetup.html>`_.
+.. admonition:: Environment setup for non-conda installations.
+  :class: tip
+
+   if you got a ``sb_somepkgc_foobar: command not found`` you most likely did
+   not install simplebuild via conda. Refer to :ref:`the relevant documentation
+   <sbmanualenvsetup>` for how to deal with this.
 
 For completeness, here are some more examples of us using our project:
 
@@ -168,7 +177,7 @@ result in a test failure.
 Having such tests to perform a quick validation that everything still works is
 tremendously useful, and here we will simply show a quick example of this in
 practice. Specifically, we would like a unit test that verifies the output of
-the ``mysquarefunc`` that is already a part of the `SomePkgA.foo` module of our
+the ``mysquarefunc`` that is already a part of the ``SomePkgA.foo`` module of our
 example project. Thus, we add a new file
 ``example_project/SomePkgA/scripts/testfoo`` with the content:
 
@@ -181,3 +190,10 @@ Having added this new script, we now launch ``sb --tests``:
 
 .. include:: ../build/autogen_projectexample_cmdout_sbtests.txt
   :literal:
+
+All went well in this case! If you had issues, you could go and look in the
+directory listed in the output (the ``Trouble info`` column) for clues as to
+what went wrong. If there was a problem with a reference log (the ``Log-diff``
+column), you could also use the ``sb_core_reflogupdate`` command to check what
+was wrong (just don't actually update the log files unless you are the developer
+maintaining them).

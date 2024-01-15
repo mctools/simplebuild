@@ -1,4 +1,4 @@
-# Configuration file for the Sphinx documentation builder.
+ # Configuration file for the Sphinx documentation builder.
 #
 # For the full list of built-in configuration values, see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
@@ -55,15 +55,12 @@ html_theme_options = {
 #html_sidebars = { '**': ['globaltoc.html', 'relations.html',
 #                         'sourcelink.html', 'searchbox.html'] }
 
-
-
 #html_theme_options = {
 #    ...
 #    "home_page_in_toc": True
 #    ...
 #}
 #
-
 
 def guess_language( path ):
     if path.name=='pkg.info':
@@ -202,9 +199,14 @@ def invoke_cmd(dirs,
                cmd,
                cwd,
                outfile,
-               hidden_sbenv=False,
-               fake_add_eval_envsetup=False,
-               timings=False):
+               timings=False,
+               hidden_sbenv = False ):
+    import pathlib
+    cmdlauncher = ( pathlib.Path(__file__).parent.parent
+                    / 'cmdlauncherwithshellsnippet.x' ).absolute()
+    print(cmdlauncher)
+    assert cmdlauncher.is_file()
+
     import subprocess
     import shlex
     import os
@@ -217,8 +219,9 @@ def invoke_cmd(dirs,
     import time
     t0 = time.time()
     cmdlist = shlex.split(cmd)
-    if fake_add_eval_envsetup or hidden_sbenv:
+    if hidden_sbenv:
         cmdlist = ['sbenv'] + cmdlist
+    cmdlist = [str(cmdlauncher)] + cmdlist
     env = os.environ.copy()
     env['PYTHONUNBUFFERED']='1'
     p = subprocess.run( cmdlist,
@@ -236,9 +239,6 @@ def invoke_cmd(dirs,
     txt = f'$> {cmd}\n' + txt
     if timings:
         txt += f'[last command took {dt:.2f} seconds to complete] $>\n'
-
-    if fake_add_eval_envsetup:
-        txt = '$> eval "$(sb --env-setup)"\n'+ txt
 
     outfile.write_text(txt)
 
@@ -276,7 +276,7 @@ def generate_projectexample_command_outputs( dirs ):
                 timings = True )
     msg_envsetup = 'sb --env-setup'
     msg_cmake = 'Inspecting environment via CMake'
-    check_output_contains( of, msg_envsetup )
+    check_output_not_contains( of, msg_envsetup )
     check_output_contains( of, msg_cmake )
 
     of = dirs.blddir / 'autogen_projectexample_cmdout_sb2.txt'
@@ -285,7 +285,7 @@ def generate_projectexample_command_outputs( dirs ):
                 dirs.root,
                 of,
                 timings = True )
-    check_output_contains( of, msg_envsetup )
+    check_output_not_contains( of, msg_envsetup )
     check_output_not_contains( of, msg_cmake )
 
     filetotouch = dirs.root / 'SomePkgC'/'app_foobar'/'main.cc'
@@ -305,17 +305,19 @@ def generate_projectexample_command_outputs( dirs ):
                 dirs.root,
                 of,
                 timings = True )
-    check_output_contains( of, msg_envsetup )
+    check_output_not_contains( of, msg_envsetup )
     check_output_not_contains( of, msg_cmake )
+
+    check_output_contains( of, 'Creating application sb_somepkgc_foobar' )
 
     of = dirs.blddir / 'autogen_projectexample_cmdout_foobar.txt'
     invoke_cmd( dirs,
                 'sb_somepkgc_foobar',
                 dirs.root,
                 of,
-                fake_add_eval_envsetup = True )
+                hidden_sbenv = True )
 
-    check_output_contains( of, msg_envsetup )
+    check_output_not_contains( of, msg_envsetup )
     check_output_not_contains( of, msg_cmake )
 
     othercmds = [
@@ -349,7 +351,7 @@ def generate_projectexample_command_outputs( dirs ):
                 hidden_sbenv = True )
     check_output_not_contains( of, msg_envsetup )
     check_output_not_contains( of, msg_cmake )
-
+    check_output_contains( of, 'All tests completed without failures!')
 
     #FIXME: assert 'Inspecting environment via CMake' not in of.read_text()
 
@@ -363,7 +365,63 @@ def generate_projectexample_command_outputs( dirs ):
                 dirs.root,
                 dirs.blddir / 'autogen_sbrun_help.txt' )
 
+#    invoke_cmd( dirs,
+#                'sb --init core_val',
+#                sbverify_dir,
+#                dirs.blddir / 'autogen_sbverify1.txt' )
+#    invoke_cmd( dirs,
+#                'sb --tests',
+#                sbverify_dir,
+#                dirs.blddir / 'autogen_sbverify2.txt' )
+#
+#
+#
+#    sbverify_dir = dirs.blddir / 'autogen_sbverify'
+#    sbverify_dir.mkdir()
+
+
+def generate_sbverify():
+    import pathlib
+    confpydir = pathlib.Path(__file__).parent
+    script = confpydir.parent / 'cmdlauncher_sbverify.x'
+    assert script.is_file()
+    blddir = confpydir.parent / 'build'
+    outfile = blddir / 'autogen_sbverify_cmdout.txt'
+    workdir = blddir / 'autogen_sbverify'
+    if workdir.is_dir():
+        return#already done
+    workdir.mkdir()
+    import subprocess
+    cmd=str(script.absolute())
+    print(f' ---> Launching command {cmd}')
+    import os
+    env = os.environ.copy()
+    env['PYTHONUNBUFFERED']='1'
+    p = subprocess.run( [cmd],
+                        cwd = workdir,
+                        check = True,
+                        capture_output = True )
+    class dirs:
+        pass
+    dirs = dirs()
+    dirs.root = workdir / 'sbverify'
+    assert ( dirs.root / 'simplebuild.cfg' ).is_file()
+    assert not p.stderr
+    txt = fixuptext( dirs, p.stdout.decode() )
+    txt = '\n'.join( e.replace('CMDPROMPT>','(sbenv) $> ')
+                     for e in txt.splitlines() )
+    txt = '$> conda activate sbenv\n' + txt
+    outfile.write_text(txt)
+    check_output_contains( outfile, 'All tests completed without failures!')
+
+#(sbenv) (bob@bobsmachine ~/)> conda activate sbenv
+#(sbenv) (bob@bobsmachine ~/)> mkdir sbverify
+#(sbenv) (bob@bobsmachine ~/)> cd sbverify
+#(sbenv) (bob@bobsmachine ~/sbverify)> sb --init core_val
+#(sbenv) (bob@bobsmachine ~/sbverify)> sb --tests
+
 _pe_dirs = prepare_projectexample_dir()
 generate_projectexample_rst( _pe_dirs)
 generate_projectexample_command_outputs( _pe_dirs )
 generate_sbinit_in_empty_dir()
+generate_sbverify()

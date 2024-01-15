@@ -5,8 +5,6 @@ Packages
   Note do NOT change the above section title without updating the internal links
   to it as well!
 
-.. include:: wipwarning.rst
-
 Technically speaking, a simplebuild *package* is a directory with various code
 and data files. The name of the package is defined by the actual name of the
 directory, and should usually be CamelCased. At minimum a package directory
