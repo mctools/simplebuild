@@ -176,11 +176,16 @@ def modify_path_var( varname, *,
         res = []
     from .utils import path_is_relative_to
     for e in (env_dict.get(varname,'') or '').split(':'):
-        if e and ( blockpath is None
-                   or not path_is_relative_to( pathlib.Path(e), blockpath ) ):
-            res.append(str(e))
-    return ':'.join(unique_list(str(e) for e in res))
+        #NB: Keeping empty entries, to make setup->unsetup more likely to give
+        #consistent results:
+        if ( blockpath is None
+             or not path_is_relative_to( pathlib.Path(e), blockpath ) ):
+            res.append(str(e or ''))
+    #NB: keeping duplicate entries, to make setup->unsetup more likely to
+    #give consistent results:
+    #return ':'.join(unique_list(str(e) for e in res))
+    return ':'.join(str(e) for e in res)
 
-def unique_list(seq):
-    seen = set()
-    return [x for x in seq if not (x in seen or seen.add(x))]
+#def unique_list(seq):
+#    seen = set()
+#    return [x for x in seq if not (x in seen or seen.add(x))]
