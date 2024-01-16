@@ -25,7 +25,7 @@ final products: commands that the user then can invoke, python modules, data
 files, etc. A *package* is simply a directory in which code source and data
 files are placed in various subdirectories, depending on their type and intended
 usage. The details of how files are organised in packages are provided in the
-`Packages <./packages.html>`_ section.
+:ref:`Packages <sbpackages>` section.
 
 A collection of related packages is referred to as a package *bundle*. A given
 bundle would perhaps contain all the packages related to the investigation of a
@@ -41,8 +41,8 @@ simply be told to check out a given Git repository, which already contain a
 package bundle and a ``simplebuild.cfg`` file. Otherwise, if the intention is to
 start an entirely new bundle, one can simply run ``sb --init`` in an empty
 directory to create a skeleton ``simplebuild.cfg`` file which can be edited
-later as desired. More details are provided in the `dedicated section on
-simplebuild.cfg <./simplebuilddotcfg.html>`_.
+later as desired. More details are provided in the :ref:`dedicated section on
+simplebuild.cfg <sbdotcfg>`.
 
 Upon launching the ``sb`` command inside the package root directory, simplebuild
 will then analyse the ``simplebuild.cfg`` file and the files in all the

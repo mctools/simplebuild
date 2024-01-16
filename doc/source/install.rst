@@ -15,7 +15,7 @@ with such command line interfaces.
    instead follow the instructions for how to install both simplebuild and
    "dgcode" on:
 
-   https://some/where/else/fixme/
+   FIXMEUPDATELINKLATER
 
 Install via conda
 =================
@@ -28,9 +28,9 @@ Install via conda
 .. |sbcondaplatforms| image:: https://img.shields.io/conda/pn/conda-forge/simple-build-system.svg
 .. _sbcondaplatforms: https://anaconda.org/conda-forge/simple-build-system
 
-The recommended and way to install simplebuild, is by installing the conda-forge
-package ``simple-build-system`` (plus at least ``compilers``), using a conda
-environment ``.yml`` file like:
+The recommended and easiest way to install simplebuild, is by installing the
+conda-forge package ``simple-build-system`` (plus at least ``compilers``), using
+a conda environment ``.yml`` file like:
 
 .. include:: ../../resources/conda_sbenv.yml
   :literal:

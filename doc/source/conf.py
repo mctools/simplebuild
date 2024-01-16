@@ -95,6 +95,7 @@ def generate_sbinit_in_empty_dir():
     import pathlib
     confpydir = pathlib.Path(__file__).parent
     blddir = confpydir.parent / 'build'
+    blddir.mkdir(exist_ok=True)
     sbinitdir = blddir / 'autogen_freshsbinit'
     if sbinitdir.is_dir():
         return#already done
@@ -111,6 +112,7 @@ def prepare_projectexample_dir():
     import shutil
     confpydir = pathlib.Path(__file__).parent
     blddir = confpydir.parent / 'build'
+    blddir.mkdir(exist_ok=True)
     assert blddir.exists()
     root_src = confpydir.parent / 'example_project'
     assert (root_src/'simplebuild.cfg').is_file()
@@ -386,6 +388,7 @@ def generate_sbverify():
     script = confpydir.parent / 'cmdlauncher_sbverify.x'
     assert script.is_file()
     blddir = confpydir.parent / 'build'
+    blddir.mkdir(exist_ok=True)
     outfile = blddir / 'autogen_sbverify_cmdout.txt'
     workdir = blddir / 'autogen_sbverify'
     if workdir.is_dir():

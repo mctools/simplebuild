@@ -1,3 +1,5 @@
+.. _sbpackages:
+
 ********
 Packages
 ********
@@ -20,27 +22,26 @@ Package bundles
 
 All packages belong to a given *bundle*, which normally is defined by all the
 files under a given directory (a *package root*) in which a *simplebuild.cfg*
-file is located (more about such files `here
-<./simplebuilddotcfg.html>`_). Typically, users will have their own working
-directories (normally a GIT repository) which contains a *simplebuild.cfg* file,
-and under which various subdirectories define the actual *packages*. Other
-package bundles might be available on the system, and through settings in the
-*simplebuild.cfg* file, packages in such bundles can be enabled as well. For
-instance, common package bundles are:
+file is located (more about such files :ref:`here <sbdotcfg>`). Typically, users
+will have their own working directories (normally a GIT repository) which
+contains a *simplebuild.cfg* file, and under which various subdirectories define
+the actual *packages*. Other package bundles might be available on the system,
+and through settings in the *simplebuild.cfg* file, packages in such bundles can
+be enabled as well. For instance, common package bundles are:
 
 FIXME: Table:
 
 Bundle name notes
 core        Provides a single package ``Core``. This special bundle is always enabled.
 core_val    Provides packages with common unit tests.
-dgcode      Provides packages for the `dgcode framework <LINK FIXME>`_.
-dgcode_val  Provides packages with unit tests for the `dgcode framework <LINK FIXME>`_.
+dgcode      Provides packages for the `dgcode framework <LINKFIXME>`_.
+dgcode_val  Provides packages with unit tests for the `dgcode framework <LINKFIXME>`_.
 
-Note that the ``core`` bundle provides a single package named ``Core``. This special
-bundle is always enabled, and all packages will automatically get a dependency
-on the ``Core`` package. Additionally note that the ``dgcode`` bundles mentioned
-above, are only available if ``simplebuild-dgcode`` has been installed on the
-system (FIXME link).
+Note that the ``core`` bundle provides a single package named ``Core``. This
+special bundle is always enabled, and all packages will automatically get a
+dependency on the ``Core`` package. Additionally note that the ``dgcode``
+bundles mentioned above, are only available if the `simple-build-dgcode
+<LINKFIXME>`_ package has been installed on the system.
 
 Format of the pkg.info file
 ===========================
