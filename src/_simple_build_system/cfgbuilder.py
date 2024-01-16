@@ -156,7 +156,11 @@ class CfgBuilder:
             name
             for finder, name, ispkg
             in pkgutil.iter_modules()
-            if ( name != own_pkg_name and name.startswith('simplebuild-') )
+            if ( name != own_pkg_name and
+                 ( name.startswith('simplebuild_')
+                   or name.startswith('_simplebuild_')
+                  )
+                )
         )
 
         #Load their cfgs:

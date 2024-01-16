@@ -235,12 +235,12 @@ easily available for all users without requiring them to edit their
 bundles, if the ``simple-build-dgcode`` package has been installed).
 
 Specifically, simplebuild will look for Python modules whose names follow the
-pattern ``simplebuild-[anything].simplebuild_bundle_list``. Inside that module
+pattern ``[_]simplebuild_[anything].simplebuild_bundle_list``. Inside that module
 there must be a function called ``simplebuild_bundle_list()`` which returns a
 list of pathlib.Path objects, each being an absolute path to a
 ``simplebuild.cfg`` file. As an example, installing the ``simple-build-dgcode``
 package, results in a new Python module becoming available in the environment:
-``simplebuild-dgcode.simplebuild_bundle_list``, with a
+``simplebuild_dgcode.simplebuild_bundle_list``, with a
 ``simplebuild_bundle_list()`` returning the full path to two ``simplebuild.cfg``
 files: one for the ``dgcode`` bundle, and one for the ``dgcode_val`` bundle.
 
