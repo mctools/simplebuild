@@ -48,6 +48,7 @@ def calculate_env_unsetup( oldenv = None ):
     env_dict = undo_previous_pathvar_changes( oldenv )
     for e in [ 'SBLD_INSTALL_PREFIX','SBLD_DATA_DIR','SBLD_LIB_DIR',
                'SBLD_TESTREF_DIR','SBLD_INCLUDE_DIR',
+               '_SIMPLEBUILD_CURRENT_ENV',
               ]:
         if e in env_dict or e in oldenv:
             env_dict[e] = None
@@ -113,7 +114,7 @@ def calculate_env_setup( oldenv = None ):
     for k in list(_ for _ in env_dict.keys()):
         v = env_dict[k]
         if v is None:
-            if v not in oldenv:
+            if k not in oldenv:
                 #already not there
                 del env_dict[k]
             continue

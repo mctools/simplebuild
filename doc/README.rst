@@ -3,7 +3,8 @@ Simplebuild documentation
 =========================
 
 To build and view the documentation locally, type `make html` in this doc/
-directory, and direct your browser at doc/build/html/index.html
+directory, and direct your browser at doc/build/html/index.html. You can also
+use the ../devel/bld_doc.x script to use sphinx-autobuild for convenience.
 
 ================
 Reading material

@@ -1,28 +1,38 @@
 
+def _fast_handle_env_setup( args ):
+    def _check_nargs():
+        if len(args)>1:
+            raise SystemExit('Error: Do not use --env-setup or'
+                             ' --env-unsetup with other arguments!')
+    if any(a.startswith('--env-u') for a in args):
+        _check_nargs()
+        #Enable --env-unsetup usage, even outside a simplebuild project:
+        from . import io as _io
+        _io.make_quiet()
+        from .envsetup import emit_envunsetup
+        emit_envunsetup()
+        raise SystemExit
+    if any(a.startswith('--env-s') for a in args):
+        _check_nargs()
+        #Short-circuit to efficiently enable --env-setup call:
+        from . import io as _io
+        _io.make_quiet()
+        from .envsetup import emit_envsetup
+        emit_envsetup()
+        raise SystemExit
+
 def main( prevent_env_setup_msg = False ):
     import sys
-    if any( e.startswith('--env-') for e in sys.argv[1:] ):
+    _args = sys.argv[1:]
+    if any( e.startswith('--env-') for e in _args ):
         #Special short-circuit to efficiently enable standard --env-setup usage:
-        if '--env-u' in sys.argv[1:]:
-            #Enable --env-unsetup usage, even outside a simplebuild project:
-            from . import io as _io
-            _io.make_quiet()
-            from .envsetup import emit_envunsetup
-            emit_envunsetup()
-            raise SystemExit
-        if any(a.startswith('--env-s') for a in sys.argv[1:]):
-            #Short-circuit to efficiently enable --env-setup call:
-            from . import io as _io
-            _io.make_quiet()
-            from .envsetup import emit_envsetup
-            emit_envsetup()
-            raise SystemExit
+        _fast_handle_env_setup(_args)
     from . import frontend
     frontend.simplebuild_main( prevent_env_setup_msg = prevent_env_setup_msg )
 
 def unwrapped_main():
     #For the unwrapped_simplebuild entry point, presumably only called from a
-    #shell function taking care of the --env-setup-silent-fail.
+    #shell function which might provide a special --env-setup-silent-fail.
     import sys
     if len(sys.argv)==2 and sys.argv[1]=='--env-setup-silent-fail':
         #Quietly check if we are in a simplebuild project, and abort if not.
@@ -34,7 +44,6 @@ def unwrapped_main():
             from .envsetup import emit_envsetup
             emit_envsetup()
         raise SystemExit
-
     sys.argv[0] = 'sb'
     main( prevent_env_setup_msg = True )
 

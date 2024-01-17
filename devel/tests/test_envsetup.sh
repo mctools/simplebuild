@@ -3,6 +3,10 @@
 
 #Testing https://github.com/mctools/simplebuild/issues/33
 
+export SIMPLEBUILD_CFG=
+unset SIMPLEBUILD_CFG
+export SIMPLEBUILD_CFG
+
 eval "$(sb --env-unsetup)"
 #set -eux in one go works in bash+dash but not zsh:
 set -e
