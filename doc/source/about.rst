@@ -36,5 +36,5 @@ The main active developers are currently:
 
 Historically several other people also contributed to the development of the
 code. Of particular note is the work and support by Kalliopi Kanaki (former ESS
-ERIC, now IAEA), and Xiao Xiao Cai (former DTU, now CSNS) and Richard
-Hall-Wilton (former ESS ERIC, now FDK-SD).
+ERIC, now IAEA), Xiao Xiao Cai (former DTU, now CSNS) and Richard Hall-Wilton
+(former ESS ERIC, now FDK-SD).

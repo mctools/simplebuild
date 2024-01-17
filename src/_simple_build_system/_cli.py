@@ -9,8 +9,8 @@ def _fast_handle_env_setup( args ):
         #Enable --env-unsetup usage, even outside a simplebuild project:
         from . import io as _io
         _io.make_quiet()
-        from .envsetup import emit_envunsetup
-        emit_envunsetup()
+        from .envsetup import emit_env_unsetup
+        emit_env_unsetup()
         raise SystemExit
     if any(a.startswith('--env-s') for a in args):
         _check_nargs()
