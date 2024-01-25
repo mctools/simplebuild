@@ -4,16 +4,7 @@ from . import dirs
 from . import langs
 from . import conf
 from . import error
-import re
 join=os.path.join
-ignore_dirs=set(['install'])
-forbidden_names = set([s for s in ignore_dirs]+['simplebuildbuild'])#forbid simplebuild, to avoid conflict with "simplebuild" python module
-_nameval_pattern='^[a-zA-Z][a-zA-Z0-9_]{2,24}$'
-_nameval=re.compile(_nameval_pattern).match
-_nameval_descr='Valid names follow pattern %s, contain no duplicate underscores and is not one of "%s"'%(_nameval_pattern,
-                                                                                                       '", "'.join(forbidden_names))
-def pkgname_valid(n):
-    return _nameval(n) and '__' not in n and n not in forbidden_names
 
 def parse_depfile(pkgdir):
     filename=os.path.join(pkgdir,conf.package_cfg_file)
@@ -65,46 +56,13 @@ def _check_case_insensitive_duplication(path_str):
                     ' not allowed, due to being a potential source of error'
                     ' for different file systems. \nProblem occured with %s'%(path_str))
 
-def check_dir_case_insensitive_duplication(dircontent, path):
-    ''' Check if dircontent contains elements differing only in casing'''
-    if not len(dircontent) == len({d.lower() for d in dircontent}):
-        seen = set()
-        for d in [d.lower() for d in dircontent]:
-            if d in seen:
-                from . import error
-                error.error('Directory (and file) names differing only in casing are not allowed, '
-                            'due to being a potential source of error on some file systems. \n'
-                            'Problem occured with %s in the directory %s'%(d,path))
-        else:
-          seen.add(d)
-
-def _find_pkg_dirs_under_basedir(dirname):
-    #Ignore simplebuild's own cache dirs:
-    if os.path.exists(os.path.join(dirname,'.sbinstalldir')):
-        return []
-    if os.path.exists(os.path.join(dirname,'.sbbuilddir')):
-        return []
-    if os.path.exists(os.path.join(dirname,conf.package_cfg_file)):
-        #dir is itself a pkg dir
-        return [os.path.realpath(dirname)]
-    #dir is not a pkg dir so check sub-dirs:
-    pkg_dirs=[]
-    dircontent = os.listdir(dirname)
-    check_dir_case_insensitive_duplication(dircontent, dirname)
-    for item in dircontent:
-        if not item or item[0]=='.':
-            continue#always ignore hidden dirs
-        d=os.path.join(dirname, item)
-        if os.path.isdir(d):
-            if item not in ignore_dirs:
-                pkg_dirs+=_find_pkg_dirs_under_basedir(d)
-    return pkg_dirs
-
 def find_pkg_dirs( basedir_list ):
     pkgdirs={}
+    from .pkgutils import _find_pkg_dirs_under_basedir as _findpkgs
     for basedir in basedir_list:
       _check_case_insensitive_duplication(basedir)
-      tmp_dirs = _find_pkg_dirs_under_basedir(basedir)
+      tmp_dirs = _findpkgs( basedir,
+                            cfgfilename = conf.package_cfg_file )
       if tmp_dirs:
         pkgdirs.update({d:basedir for d in tmp_dirs})
       elif not basedir==dirs.projdir:
@@ -351,7 +309,8 @@ class PackageLoader:
         #variables at the same time. Leaving here in case we encounter
         #unexpected side-effects:
         #if select_pkg_filter and exclude_pkg_filter:
-        #    error.error("Can't exclude packages when simultaneously requesting to enable only certain packages")
+        #    error.error("Can't exclude packages when simultaneously "
+        #                "requesting to enable only certain packages")
 
         #2) Construct Package objects and name->object maps:
         default_enabled = pkg_filter_obj is None
@@ -359,6 +318,7 @@ class PackageLoader:
         n2p={}
         lowercased_pkgs=set()
         pkgs=[]
+        from .pkgutils import pkgname_valid_or_errmsg
         for pd,basedir in pkgdirs.items():
             pkg_reldir = os.path.relpath(pd,basedir)
             pkg_name = os.path.basename(pd)
@@ -370,10 +330,12 @@ class PackageLoader:
                 error.error('Duplicate package name: "%s"'%p.name)
             if ln in lowercased_pkgs:
                 clashes='" "'.join(p.name for p in pkgs if p.name.lower()==ln)
-                error.error('Package names clash when lowercased: "%s" '%clashes)
+                error.error('Package names clash when'
+                            ' lowercased: "%s" '%clashes)
             lowercased_pkgs.add(ln)
-            if not pkgname_valid(p.name):
-                error.error('Invalid package name: "%s". %s.'%(p.name,_nameval_descr))
+            pkgnameerrmsg = pkgname_valid_or_errmsg(p.name)
+            if pkgnameerrmsg is not None:
+                error.error(pkgnameerrmsg)
             n2p[p.name]=p
         self.pkgs=pkgs
         self.name2pkg=n2p
@@ -385,7 +347,8 @@ class PackageLoader:
         if pkg_filter_obj:
             for p in pkgs:
                 if pkg_filter_obj.passes( p.name, p.reldirname ):
-                    p.setup(pkg_name2obj,autodeps,enable_and_recurse_to_deps=True)
+                    p.setup(pkg_name2obj,
+                            autodeps,enable_and_recurse_to_deps=True)
         if load_all or not pkg_filter_obj:
             for p in pkgs:
                 p.setup(pkg_name2obj,autodeps)
