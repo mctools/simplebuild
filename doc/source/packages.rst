@@ -112,10 +112,10 @@ here.
 
 Note in general, simplebuild requires the following convention for file formats:
 
-- C++ : .hh (headers) .icc (inline definitions) .cc (source)
-- C : .h (headers) .c (source)
-- Fortran : .f
-- Python : .py
+- C++: ``.hh`` (headers) ``.icc`` (inline definitions) ``.cc`` (source)
+- C: ``.h`` (headers) ``.c`` (source)
+- Fortran: ``.f``
+- Python: ``.py``
 
 Even if you are used to using other extensions, it is important that you use the
 ones mentioned above, because otherwise the configuration and build mechanics

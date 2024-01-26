@@ -62,35 +62,6 @@ html_theme_options = {
 #}
 #
 
-def guess_language( path ):
-    if path.name=='pkg.info':
-        return 'pkginfo'
-    if path.name=='simplebuild.cfg':
-        return 'toml'
-    suf = path.suffix
-    if suf in ('.cc','hh','icc'):
-        return 'c++'
-    if suf in ('.f',):
-        return 'fortran'
-    if suf in ('.c','h'):
-        return 'c'
-    if suf in ('.py',):
-        return 'python'
-    if not suf:
-        lines = path.read_text().splitlines()
-        if lines and lines[0].startswith('#!/'):
-            return {
-                '#!/usr/bin/env python3' : 'python',
-                '#!/usr/bin/env bash' : 'bash',
-            }.get(lines[0])
-
-def get_display_language(language):
-    if language == 'pkginfo':
-        return ''
-    if language in ('toml','bash'):
-        return language.upper()
-    return language.capitalize()
-
 def generate_sbinit_in_empty_dir():
     import pathlib
     confpydir = pathlib.Path(__file__).parent
@@ -135,6 +106,9 @@ def generate_projectexample_rst( dirs ):
     #simplebuild.cfg/pkg.info files first, and ignores caches etc.:
     if dirs.already_done:
         return
+
+    from _simple_build_system._sphinxutils import  ( guess_language,
+                                                     get_display_language )
     files = [ dirs.root/'simplebuild.cfg' ]
     pkginfo_files = []
     for rd in sorted(dirs.root.iterdir()):
@@ -183,21 +157,8 @@ def generate_projectexample_rst( dirs ):
     (dirs.confpydir.parent / 'build'
      / 'autogen_projectexample_files.rst').write_text(res)
 
-def fixuptext( dirs, txt ):
-    import _simple_build_system
-    import pathlib
-    import os
-    txt = txt.replace( str(dirs.root.parent.absolute())+'/', '/some/where/' )
-    sbsdir = pathlib.Path(_simple_build_system.__file__).parent
-    txt = txt.replace( str(sbsdir.parent.absolute())+'/', '/some/where/else/' )
-    cp = os.environ.get('CONDA_PREFIX')
-    if cp:
-        cp = pathlib.Path(cp).absolute()
-        txt = txt.replace( str(cp)+'/', '/conda/envs/sbenv/' )
 
-    return txt
-
-def invoke_cmd(dirs,
+def invoke_cmd(pkgroot,
                cmd,
                cwd,
                outfile,
@@ -206,7 +167,6 @@ def invoke_cmd(dirs,
     import pathlib
     cmdlauncher = ( pathlib.Path(__file__).parent.parent
                     / 'cmdlauncherwithshellsnippet.x' ).absolute()
-    print(cmdlauncher)
     assert cmdlauncher.is_file()
 
     import subprocess
@@ -237,28 +197,21 @@ def invoke_cmd(dirs,
         raise RuntimeError(f'Command "{cmd}" in dir {cwd} failed!')
     print(f'Done running cmd {cmd}')
     assert not p.stderr
-    txt = fixuptext( dirs, p.stdout.decode() )
+    from _simple_build_system._sphinxutils import fixuptext
+    txt = fixuptext( pkgroot, p.stdout.decode() )
     txt = f'$> {cmd}\n' + txt
     if timings:
         txt += f'[last command took {dt:.2f} seconds to complete] $>\n'
 
     outfile.write_text(txt)
 
-def check_output_contains( textfile, pattern, must_contain = True ):
-    if (pattern in textfile.read_text()) == must_contain:
-        return
-    issue = 'does not contain' if must_contain else 'contains forbidden'
-    print(f'\n\n\nERROR: File {textfile} {issue} pattern "{pattern}":\n')
-    for e in textfile.read_text().splitlines(keepends=True):
-        print(f'>>>{e}',end='')
-    raise SystemExit(1)
-
-def check_output_not_contains( textfile, pattern ):
-    check_output_contains( textfile, pattern, must_contain = False )
-
 def generate_projectexample_command_outputs( dirs ):
     if dirs.already_done:
         return
+    from _simple_build_system._sphinxutils import ( check_output_not_contains,
+                                                    check_output_contains )
+
+
     assert not ( dirs.root / 'simplebuild_cache' ).exists()
     #shutil.rmtree( root / 'simplebuild_cache',
     #               ignore_errors = True )
@@ -271,7 +224,7 @@ def generate_projectexample_command_outputs( dirs ):
     assert not newtestfile.exists()
 
     of = dirs.blddir / 'autogen_projectexample_cmdout_sb.txt'
-    invoke_cmd( dirs,
+    invoke_cmd( dirs.root,
                 'sb',
                 dirs.root,
                 of,
@@ -282,7 +235,7 @@ def generate_projectexample_command_outputs( dirs ):
     check_output_contains( of, msg_cmake )
 
     of = dirs.blddir / 'autogen_projectexample_cmdout_sb2.txt'
-    invoke_cmd( dirs,
+    invoke_cmd( dirs.root,
                 'sb',
                 dirs.root,
                 of,
@@ -302,7 +255,7 @@ def generate_projectexample_command_outputs( dirs ):
     newfile.chmod(newfile.stat().st_mode | stat.S_IEXEC)
 
     of = dirs.blddir / 'autogen_projectexample_cmdout_sb3.txt'
-    invoke_cmd( dirs,
+    invoke_cmd( dirs.root,
                 'sb',
                 dirs.root,
                 of,
@@ -313,7 +266,7 @@ def generate_projectexample_command_outputs( dirs ):
     check_output_contains( of, 'Creating application sb_somepkgc_foobar' )
 
     of = dirs.blddir / 'autogen_projectexample_cmdout_foobar.txt'
-    invoke_cmd( dirs,
+    invoke_cmd( dirs.root,
                 'sb_somepkgc_foobar',
                 dirs.root,
                 of,
@@ -330,7 +283,7 @@ def generate_projectexample_command_outputs( dirs ):
         "sb_somepkgb_newcmd",
         ]
     for i,c in enumerate(othercmds):
-        invoke_cmd( dirs,
+        invoke_cmd( dirs.root,
                     c,
                     dirs.root,
                     dirs.blddir / f'autogen_projectexample_cmdout_other{i}.txt',
@@ -345,7 +298,7 @@ def generate_projectexample_command_outputs( dirs ):
     newtestfile.chmod(newtestfile.stat().st_mode | stat.S_IEXEC)
 
     of = dirs.blddir / 'autogen_projectexample_cmdout_sbtests.txt'
-    invoke_cmd( dirs,
+    invoke_cmd( dirs.root,
                 'sb --tests',
                 dirs.root,
                 of,
@@ -355,23 +308,21 @@ def generate_projectexample_command_outputs( dirs ):
     check_output_not_contains( of, msg_cmake )
     check_output_contains( of, 'All tests completed without failures!')
 
-    #FIXME: assert 'Inspecting environment via CMake' not in of.read_text()
-
     #not related to the project example, but we need their output as well:
-    invoke_cmd( dirs,
+    invoke_cmd( dirs.root,
                 'sbenv --help',
                 dirs.root,
                 dirs.blddir / 'autogen_sbenv_help.txt' )
-    invoke_cmd( dirs,
+    invoke_cmd( dirs.root,
                 'sbrun --help',
                 dirs.root,
                 dirs.blddir / 'autogen_sbrun_help.txt' )
 
-#    invoke_cmd( dirs,
+#    invoke_cmd( dirs.root,
 #                'sb --init core_val',
 #                sbverify_dir,
 #                dirs.blddir / 'autogen_sbverify1.txt' )
-#    invoke_cmd( dirs,
+#    invoke_cmd( dirs.root,
 #                'sb --tests',
 #                sbverify_dir,
 #                dirs.blddir / 'autogen_sbverify2.txt' )
@@ -410,18 +361,14 @@ def generate_sbverify():
     dirs.root = workdir / 'sbverify'
     assert ( dirs.root / 'simplebuild.cfg' ).is_file()
     assert not p.stderr
-    txt = fixuptext( dirs, p.stdout.decode() )
+    from _simple_build_system._sphinxutils import ( fixuptext,
+                                                    check_output_contains )
+    txt = fixuptext( dirs.root, p.stdout.decode() )
     txt = '\n'.join( e.replace('CMDPROMPT>','(sbenv) $> ')
                      for e in txt.splitlines() )
     txt = '$> conda activate sbenv\n' + txt
     outfile.write_text(txt)
     check_output_contains( outfile, 'All tests completed without failures!')
-
-#(sbenv) (bob@bobsmachine ~/)> conda activate sbenv
-#(sbenv) (bob@bobsmachine ~/)> mkdir sbverify
-#(sbenv) (bob@bobsmachine ~/)> cd sbverify
-#(sbenv) (bob@bobsmachine ~/sbverify)> sb --init core_val
-#(sbenv) (bob@bobsmachine ~/sbverify)> sb --tests
 
 _pe_dirs = prepare_projectexample_dir()
 generate_projectexample_rst( _pe_dirs)
