@@ -87,7 +87,6 @@ def _actual_load_sbpkgs( app ):
     def _errfct( msg ):
         errors.append( msg )
     for n,( pkgroot, urlbase ) in bundles.items():
-        print (pkgroot)
         assert ( pkgroot / 'simplebuild.cfg' ).is_file()
         for p in _findpkgs( pkgroot, error_fct = _errfct ):
             if errors:

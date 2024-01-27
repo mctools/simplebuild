@@ -6,6 +6,16 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
+import os
+import pathlib
+import subprocess
+import shutil
+import shlex
+import time
+import stat
+from _simple_build_system._sphinxutils import _get_gitversion
+
+
 project = 'simplebuild'
 copyright = '2013-2024, ESS ERIC and simplebuild developers'
 author = 'Thomas Kittelmann'
@@ -62,8 +72,17 @@ html_theme_options = {
 #}
 #
 
+if 'SIMPLEBUILD_CFG' in os.environ:
+    del os.environ['SIMPLEBUILD_CFG']
+
+def _reporoot():
+    p=pathlib.Path(__file__).parent.parent.parent
+    assert ( p / 'src' / '_simple_build_system'/ '__init__.py' ).is_file()
+    return p.absolute()
+
+version = _get_gitversion( _reporoot() )
+
 def generate_sbinit_in_empty_dir():
-    import pathlib
     confpydir = pathlib.Path(__file__).parent
     blddir = confpydir.parent / 'build'
     blddir.mkdir(exist_ok=True)
@@ -71,7 +90,6 @@ def generate_sbinit_in_empty_dir():
     if sbinitdir.is_dir():
         return#already done
     sbinitdir.mkdir()
-    import subprocess
     print(' ---> Launching command sb --init ')
     subprocess.run( ['sb','--init'],
                     cwd = sbinitdir,
@@ -79,8 +97,6 @@ def generate_sbinit_in_empty_dir():
     assert ( sbinitdir / 'simplebuild.cfg' ).is_file()
 
 def prepare_projectexample_dir():
-    import pathlib
-    import shutil
     confpydir = pathlib.Path(__file__).parent
     blddir = confpydir.parent / 'build'
     blddir.mkdir(exist_ok=True)
@@ -164,21 +180,16 @@ def invoke_cmd(pkgroot,
                outfile,
                timings=False,
                hidden_sbenv = False ):
-    import pathlib
     cmdlauncher = ( pathlib.Path(__file__).parent.parent
                     / 'cmdlauncherwithshellsnippet.x' ).absolute()
     assert cmdlauncher.is_file()
 
-    import subprocess
-    import shlex
-    import os
     if outfile.exists():
         print(f' ---> Skipping command "{cmd}" '
               f'since {outfile.name} was found.')
         return
 
     print(f' ---> Launching command "{cmd}" ')
-    import time
     t0 = time.time()
     cmdlist = shlex.split(cmd)
     if hidden_sbenv:
@@ -251,7 +262,6 @@ def generate_projectexample_command_outputs( dirs ):
                        / 'example_project_newcmd_content').read_text()
     assert newfile.parent.is_dir()
     newfile.write_text( newfilecontent )
-    import stat
     newfile.chmod(newfile.stat().st_mode | stat.S_IEXEC)
 
     of = dirs.blddir / 'autogen_projectexample_cmdout_sb3.txt'
@@ -294,7 +304,6 @@ def generate_projectexample_command_outputs( dirs ):
                        / 'example_project_newtestcmd_content').read_text()
     assert newtestfile.parent.is_dir()
     newtestfile.write_text( newtestfilecontent )
-    import stat
     newtestfile.chmod(newtestfile.stat().st_mode | stat.S_IEXEC)
 
     of = dirs.blddir / 'autogen_projectexample_cmdout_sbtests.txt'
@@ -334,7 +343,6 @@ def generate_projectexample_command_outputs( dirs ):
 
 
 def generate_sbverify():
-    import pathlib
     confpydir = pathlib.Path(__file__).parent
     script = confpydir.parent / 'cmdlauncher_sbverify.x'
     assert script.is_file()
@@ -345,10 +353,8 @@ def generate_sbverify():
     if workdir.is_dir():
         return#already done
     workdir.mkdir()
-    import subprocess
     cmd=str(script.absolute())
     print(f' ---> Launching command {cmd}')
-    import os
     env = os.environ.copy()
     env['PYTHONUNBUFFERED']='1'
     p = subprocess.run( [cmd],

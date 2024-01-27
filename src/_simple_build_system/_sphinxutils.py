@@ -1,6 +1,23 @@
 
 # Various utility functions to be used in the sphinx doc conf.py in both
 # simplebuild itself, but also related projects.
+
+def _get_gitversion( reporoot ):
+    import subprocess
+    #---always to not fail in a shallow clone:
+    cmd=['git','describe','--tags','--always']
+    p = subprocess.run( cmd,
+                        cwd = reporoot,
+                        capture_output = True )
+    if p.returncode != 0:
+        print(p.stderr.decode())
+        print(p.stdout.decode())
+        raise RuntimeError( f'Command "{" ".join(cmd)}" '
+                            f'in dir {reporoot} failed!' )
+
+    assert not p.stderr
+    return p.stdout.decode()
+
 def guess_language( path ):
     if path.name=='pkg.info':
         return 'pkginfo'
