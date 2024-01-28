@@ -4,8 +4,12 @@
 
 def _get_gitversion( reporoot ):
     import subprocess
-    #---always to not fail in a shallow clone:
-    cmd=['git','describe','--tags','--always']
+    #--always to not fail in a shallow clone:
+    cmd=[ 'git','describe','--tags','--always',
+          '--match','v[0-9]*.[0-9]*.[0-9]*' ]
+    import os
+    if os.environ.get('SIMPLEBUILD_GITVERSION_USE_LATEST_VTAG'):
+        cmd += [ '--abbrev=0' ]
     p = subprocess.run( cmd,
                         cwd = reporoot,
                         capture_output = True )

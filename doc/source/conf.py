@@ -72,6 +72,8 @@ html_theme_options = {
 #}
 #
 
+#Fix env:
+os.environ['PYTHONUNBUFFERED'] = '1'
 if 'SIMPLEBUILD_CFG' in os.environ:
     del os.environ['SIMPLEBUILD_CFG']
 
