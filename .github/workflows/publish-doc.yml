@@ -35,10 +35,10 @@ jobs:
     steps:
     - name: Checkout main repository
       uses: actions/checkout@v3
-
-    - name: Get git tags
-      #Also get the tags, to get proper version in docs:
-      run: git fetch --tags origin
+      #Note: We get all history and tags, so the version detection will always
+      #be able to yield vx.y.z for the main website:
+      with:
+        fetch-depth: 0
 
     - name: Setup conda environment
       uses: conda-incubator/setup-miniconda@v2
