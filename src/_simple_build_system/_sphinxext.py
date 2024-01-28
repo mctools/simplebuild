@@ -49,7 +49,7 @@ def sbpkg_role(name, rawtext, text, lineno, inliner, options={}, content=[]):
     linktext = pkgname
     if subpath:
         _=pkginfo['pkgdir_local'] / subpath
-        if not _.is_file():
+        if not _.exists():
             return _err(f'File not found in package: {_}')
         url += '/%s'%subpath
         linktext += '/%s'%subpath
