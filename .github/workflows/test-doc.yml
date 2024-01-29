@@ -30,3 +30,7 @@ jobs:
       #NB: -W to turn warnings into errors:
       run: make html SPHINXOPTS="-W"
       working-directory: ./doc/
+
+    - name: Check HTML links
+      run: make linkcheck
+      working-directory: ./doc/
