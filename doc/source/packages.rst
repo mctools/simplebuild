@@ -120,7 +120,7 @@ Note in general, simplebuild requires the following convention for file formats:
 Even if you are used to using other extensions, it is important that you use the
 ones mentioned above, because otherwise the configuration and build mechanics
 will not work. Note that any directory is only allowed to contain files from one
-language.
+of the languages above.
 
 Note that the C++ and C code will by default be compiled with the formats C++17
 and C99, respectively. Also note that in order to benefit maximally from the
@@ -260,13 +260,16 @@ and that any python scripts starts with (always refer to ``python3`` never just
 
   #!/usr/bin/env python3
 
-As for compiled programs, any scripts will after installation be prefixed with
-``sb_<package name in lowercase>_``. Likewise, scripts can be marked as being a
-test (to run when ``sb -t`` is invoked) by either prefixing their names with the
-word ``test`` or by placing a reference log file next to them. If the script is
-placed in a file ``scripts/myscript`` in the package MyPackage, then it will be
-able to be invoked after build by typing ``sb_mypackage_myscript`` and any test
-reference log file must be placed in ``scripts/myscript.log``.
+As is the case for compiled programs, any scripts will after installation be
+prefixed with ``sb_<package name in lowercase>_``.
+
+As is also the case for compiled programs, any scripts can be marked as being a
+test (to run when ``sb -t`` is invoked) by either prefixing their file names
+with the word ``test`` or by placing a reference log file next to them. For
+example if the script is placed in a file ``scripts/myscript`` in the package
+MyPkg, then it will be able to be invoked after build by typing
+``sb_mypkg_myscript`` and any test reference log file must be placed in
+``scripts/myscript.log``.
 
 Data files
 ----------
