@@ -47,14 +47,29 @@ def sbpkg_role(name, rawtext, text, lineno, inliner, options={}, content=[]):
         return _err('Could not find package named "%s"'%pkgname)
     url = pkginfo['pkgdir_url']
     linktext = pkgname
+
+    #Note: github links should use /blob/ for files and /tree/ for dirs, so
+    #allow input cfg to specify '[blob|tree]' in the relevant location by
+    #performing the relevant .replace's below:
+
     if subpath:
         _=pkginfo['pkgdir_local'] / subpath
-        if not _.exists():
+        _is_file = _.is_file()
+        _is_dir = _.is_dir()
+        if not (_is_file or _is_dir):
             return _err(f'File not found in package: {_}')
+        if _is_file:
+            _gh_blobortree = 'blob'
+        url = url.replace('[blob|tree]',
+                          'blob' if _is_file else 'tree')
         url += '/%s'%subpath
         linktext += '/%s'%subpath
+    else:
+        url = url.replace('[blob|tree]','tree')
+
     if override_text:
         linktext = override_text
+
     node = _create_link_node(rawtext, app, linktext, url, options)
     return [node], []
 

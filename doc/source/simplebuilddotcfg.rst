@@ -94,7 +94,7 @@ The ``[depend]`` section
 Information about which other bundles the current package bundle depends on.
 
 * ``projects`` (array of strings): Names of other bundles on which the bundle
-  depends. The ``core`` bundle (with the ``Core`` package) is always an implicit
+  depends. The ``core`` bundle (with the :sbpkg:`Core` package) is always an implicit
   dependency and does not need to be listed.
 * ``search_path`` (array of strings): Local paths to ``simplebuild.cfg`` files
   (or the directories in which they reside). This advanced variable will help

@@ -38,7 +38,7 @@ Several things happened above:
 
 1. simplebuild searched the directory tree under ``/some/where/example_project``
    for ``pkg.info`` files to determine which simplebuild packages to
-   consider. It also added the ``Core`` package (defined elsewhere in the
+   consider. It also added the :sbpkg:`Core` package (defined elsewhere in the
    ``core`` bundle), since that particular package is always required (for
    instance because it provides the ``"Core/Python.hh"`` header file).
 2. It investigated each package to determine what kind of code and data files it

@@ -21,27 +21,39 @@ Package bundles
 ===============
 
 All packages belong to a given *bundle*, which normally is defined by all the
-files under a given directory (a *package root*) in which a *simplebuild.cfg*
+files under a given directory (a *package root*) in which a ``simplebuild.cfg``
 file is located (more about such files :ref:`here <sbdotcfg>`). Typically, users
 will have their own working directories (normally a Git repository) which
-contains a *simplebuild.cfg* file, and under which various subdirectories define
+contains a ``simplebuild.cfg`` file, and under which various subdirectories define
 the actual *packages*. Other package bundles might be available on the system,
-and through settings in the *simplebuild.cfg* file, packages in such bundles can
+and through settings in the ``simplebuild.cfg`` file, packages in such bundles can
 be enabled as well. For instance, common package bundles are:
 
-FIXME: Table:
+.. list-table::
+   :header-rows: 1
 
-Bundle name notes
-core        Provides a single package ``Core``. This special bundle is always enabled.
-core_val    Provides packages with common unit tests.
-dgcode      Provides packages for the `dgcode framework <LINKFIXME>`_.
-dgcode_val  Provides packages with unit tests for the `dgcode framework <LINKFIXME>`_.
+   * - Bundle name
+     - Notes
+   * - ``core``
+     - Provides a single package :sbpkg:`Core`.
 
-Note that the ``core`` bundle provides a single package named ``Core``. This
-special bundle is always enabled, and all packages will automatically get a
-dependency on the ``Core`` package. Additionally note that the ``dgcode``
-bundles mentioned above, are only available if the `simple-build-dgcode
-<LINKFIXME>`_ package has been installed on the system.
+       This bundle is always available and always enabled.
+   * - ``core_val``
+     - Provides packages with common unit tests.
+
+       This bundle is always available but not enabled by default.
+   * - ``dgcode``
+     - Provides packages for the `dgcode framework <https://mctools.github.io/simplebuild-dgcode/>`__.
+   * - ``dgcode_val``
+     - Provides packages with unit tests for the `dgcode framework <https://mctools.github.io/simplebuild-dgcode/>`__.
+
+Note that the ``core`` bundle provides a single package named
+:sbpkg:`Core`. This special bundle is always enabled, and all packages will
+automatically get a dependency on the :sbpkg:`Core` package. Additionally note
+that the ``dgcode`` and ``dgcode_val`` bundles mentioned above, are only
+available if the `simple-build-dgcode
+<https://mctools.github.io/simplebuild-dgcode/>`__ conda or Python package has
+been installed on the system.
 
 Format of the pkg.info file
 ===========================
@@ -77,9 +89,10 @@ would look like::
   package(USEPKG SomeOtherPkg AnotherPkg)
 
 Note: Even if not specified, all packages will implicitly depend on the package
-named ``Core``, which is useful since most packages will need utilities found in
-that package (for instance, all Python modules written in C++ via pybind11 are
-assumed to include the C++ header file ``"Core/Python.hh"``).
+named :sbpkg:`Core`, which is useful since most packages will need utilities
+found in that package (for instance, all Python modules written in C++ via
+pybind11 are assumed to include the C++ header file
+:sbpkg:`"Core/Python.hh"<Core/libinc/Python.hh>`).
 
 If the package needs one of the external optional dependencies (such as
 ``Geant4``, ``ROOT``, ``HDF5``, ``Fortran``, etc.), those are specified after a ``USEEXT``
@@ -171,14 +184,14 @@ then either the unique part of the name of the directory must start with
 log-file named test.log must be placed inside the directory (more about tests
 below).
 
-Pure python modules
+Pure Python modules
 -------------------
 
 Pure Python modules (``*.py``) must be placed inside a subdirectory of the package
 named ``python``. Each file will correspond to a submodule of a module with the
 same name as your package. In other words, if you in the package ``MyPackage``
 place a file ``mystuff.py`` inside the ``python/`` subdirectory, then clients in the
-form of python scripts or other python (sub)modules can import your code by:
+form of Python scripts or other Python (sub)modules can import your code by:
 
 .. code-block:: python
 
@@ -187,15 +200,15 @@ form of python scripts or other python (sub)modules can import your code by:
 Note that if you do not provide an ``__init__.py`` file yourself, one will be
 created automatically.
 
-Compiled python modules
+Compiled Python modules
 -----------------------
 
-If you wish to have python modules written in C++ (either for efficiency or
+If you wish to have Python modules written in C++ (either for efficiency or
 because you wish to make C++ functionality accessible to Python scripts), you
 must create sub directories named ``pycpp_<modulename>`` Inside you must have at
 least one C++ source file in which you ``#include "Core/Python.hh"`` and which contains
 a PYTHON_MODULE section. Here is a very basic example of how to make
-"somecppfunc" callable from python:
+"somecppfunc" callable from Python:
 
 .. code-block:: C++
 
@@ -205,7 +218,7 @@ a PYTHON_MODULE section. Here is a very basic example of how to make
   namespace {
     void somecppfunc()
     {
-     std::cout<<"in somecppfunc in a python module"<<std::endl;
+     std::cout<<"in somecppfunc in a Python module"<<std::endl;
     }
   }
 
@@ -214,9 +227,9 @@ a PYTHON_MODULE section. Here is a very basic example of how to make
     mod.def("somecppfunc", &somecppfunc );
   }
 
-Each ``pycpp_<modulename>`` subdirectory will provide one python submodule. So
+Each ``pycpp_<modulename>`` subdirectory will provide one Python submodule. So
 if you for instance have a ``pycpp_mymod/`` subdir in a package MyPackage, then it
-will result in a python module ``MyPackage.mymod`` which can be imported in the
+will result in a Python module ``MyPackage.mymod`` which can be imported in the
 usual fashion:
 
 .. code-block:: python
@@ -225,8 +238,9 @@ usual fashion:
 
 These C++-Python bindings are in fact implemented with `pybind
 <https://pybind11.readthedocs.io/en/stable/basics.html>`_, with the
-``Core/Python.hh`` header mostly just defining the ``PYTHON_MODULE`` macro and
-introducing the convenience namespace alias ``py=pybind11``.
+:sbpkg:`Core/Python.hh<Core/libinc/Python.hh>` header mostly just defining the
+``PYTHON_MODULE`` macro and introducing the convenience namespace alias
+``py=pybind11``.
 
 
 Compiled ``__init__.py``
@@ -255,7 +269,7 @@ BASH script starts with the line::
 
   #!/usr/bin/env bash
 
-and that any python scripts starts with (always refer to ``python3`` never just
+and that any Python scripts starts with (always refer to ``python3`` never just
 ``python`` since some systems still have ``python`` as an alias for ``python2``)::
 
   #!/usr/bin/env python3
@@ -274,7 +288,7 @@ MyPkg, then it will be able to be invoked after build by typing
 Data files
 ----------
 
-In addition to code in the form of programs, scripts, header files and python
+In addition to code in the form of programs, scripts, header files and Python
 modules, packages can make any kind of data file accessible to programs by
 placing data files in the ``data/`` subdirectory.
 
@@ -286,9 +300,9 @@ less than O(100 kilobytes) if you are working in a shared Git repository.
 Data files will be available at a path given by:
 ``$SBLD_DATA_DIR/<packagename>/<datafilename>``
 
-Utilities are also provided by the Core package for constructing such file paths
-from C++, Python or BASH as the following examples of how to find the file
-``somefile.mcpl`` from the package ``MyPackage`` show:
+Utilities are also provided by the sbpkg:`Core` package for constructing such
+file paths from C++, Python or BASH as the following examples of how to find the
+file ``somefile.mcpl`` from the package ``MyPackage`` show:
 
 * **Locating data files from C++**:
 
@@ -298,7 +312,7 @@ from C++, Python or BASH as the following examples of how to find the file
     //...
     std::string datafile = Core::findData("MyPackage","somefile.mcpl");
 
-* **Locating data files from python**:
+* **Locating data files from Python**:
 
   .. code-block:: python
 

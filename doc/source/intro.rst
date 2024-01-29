@@ -14,14 +14,14 @@ domain. Packages are allowed to depend on and use software from other packages,
 which gives a natural way for multiple developers to collaborate on software
 together while avoiding duplication of work and (hopefully) ensuring more tested
 and bug-free code overall. For instance, if files in PkgB needs something (like
-a header file, a library, or a python module) from PkgA, PkgB is said to
+a header file, a library, or a Python module) from PkgA, PkgB is said to
 *depend* on PkgA. Such concept of interdependent packages are of course common
 in software development, but packages in simplebuild are meant to be easy to
 create even for scientific users with little SW-engineering experience.
 
 At a technical level, the simplebuild system provides the user with a single
 command, ``sb`` which can be invoked in order to assemble a user's code files into
-final products: commands that the user can then invoke, python modules, data
+final products: commands that the user can then invoke, Python modules, data
 files, etc. A *package* is simply a directory in which code source and data
 files are placed in various subdirectories, depending on their type and intended
 usage. The details of how files are organised in packages are provided in the
@@ -59,9 +59,10 @@ to have code in separate packages, and even under separate package roots,
 additionally allow domain specific experts to provide software for easy usage by
 other users. One example of such a scenario is "dgcode", a bundle of simplebuild
 packages intended to simplify the Geant4-based simulation work of the ESS
-Detector Group (for more details about dgcode, refer to the website AT
-FIXME). The dgcode bundle itself provides utilities for configuring and using
-Geant4, with all the necessary domain specific tweaks and utilities. Code
-relating to the simulation of specific detector prototypes is then kept in
-separate bundles, some publically available in repositories on GitHub, and some
-kept on private GitLab servers (mostly for historical reasons).
+Detector Group (for more details about dgcode, refer to the website
+https://mctools.github.io/simplebuild-dgcode/). The dgcode bundle itself
+provides utilities for configuring and using Geant4, with all the necessary
+domain specific tweaks and utilities. Code relating to the simulation of
+specific detector prototypes is then kept in separate bundles, some publically
+available in repositories on GitHub, and some kept on private GitLab servers
+(mostly for historical reasons).

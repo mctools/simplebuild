@@ -13,9 +13,7 @@ with such command line interfaces.
    system. Users who will be using simplebuild with the Geant4-based framework
    in the "dgcode" set of packages, should simply skip the instructions here and
    instead follow the instructions for how to install both simplebuild and
-   "dgcode" on:
-
-   FIXMEUPDATELINKLATER
+   "dgcode" on https://mctools.github.io/simplebuild-dgcode/install.html.
 
 Install via conda
 =================
