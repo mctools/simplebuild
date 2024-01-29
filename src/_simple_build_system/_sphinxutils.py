@@ -20,7 +20,7 @@ def _get_gitversion( reporoot ):
                             f'in dir {reporoot} failed!' )
 
     assert not p.stderr
-    return p.stdout.decode()
+    return p.stdout.decode().strip()
 
 def guess_language( path ):
     if path.name=='pkg.info':
