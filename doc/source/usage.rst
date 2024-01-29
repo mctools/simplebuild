@@ -5,7 +5,7 @@ Usage example
 Before diving into all the details in later sections, we will in the following
 go through a small usage example. The code in this example will not do anything
 useful in itself, and is merely meant to illustrate how one might lay out files
-for a given project, use the main simplebuild command `sb` to configure and
+for a given project, use the main simplebuild command ``sb`` to configure and
 build everything, and finally invoke a few of the resulting commands.
 
 Example project files
@@ -110,14 +110,14 @@ redone, and accordingly it was blazingly fast.
 Using the project
 =================
 
-Having build our example project, let us now try to actually *use* it! As a
+Having built our example project, let us now try to actually *use* it! As a
 first example, let us try to invoke the commandline application defined in our
 file ``SomePkgC/app_foobar/main.cc``. If we look carefully in the output above,
-we would have noticed a line saying ``Creating application
+we can notice a line saying ``Creating application
 sb_somepkgc_foobar``. In general this is how it works, all commandline
 applications will end up with a name ``sb_<pkgname>_<appname>`` (lowercased)
-where in this case ``<appname>`` is ``foobar`` and ``<pgname>`` lowercased is
-``somepkgc``. For scripts, ``<appname>`` instead becomes the actual
+where in this case ``<pkgname>`` lowercased is ``somepkgc`` and ``<appname>``
+is ``foobar``. For scripts, ``<appname>`` instead becomes the actual
 filename. The reason for this naming policy is one of name-spacing: by prefixing
 all commands are with ``sb_<pkgname>_``, there should be almost no chance of any
 name-clashes between applications in different packages, or even with other

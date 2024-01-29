@@ -23,7 +23,7 @@ Package bundles
 All packages belong to a given *bundle*, which normally is defined by all the
 files under a given directory (a *package root*) in which a *simplebuild.cfg*
 file is located (more about such files :ref:`here <sbdotcfg>`). Typically, users
-will have their own working directories (normally a GIT repository) which
+will have their own working directories (normally a Git repository) which
 contains a *simplebuild.cfg* file, and under which various subdirectories define
 the actual *packages*. Other package bundles might be available on the system,
 and through settings in the *simplebuild.cfg* file, packages in such bundles can
@@ -53,10 +53,10 @@ Geant4, Fortran, ...) the package needs and which other packages it depends on,
 if any. The latter is important for proper build order and link-time
 dependencies, so if for example PkgA depends on PkgB, then binaries and
 libraries in PkgA will be linked against the library (if any) from PkgB, and any
-public header files of PkgB will be available for inclusion in files in PkgA. In
-the following lines it can (should) provide brief description of the purpose of
-the package and information about who is the principal contact person for the
-package.
+public header files of PkgB will be available for inclusion in files in PkgA.
+The following lines of the ``pkg.info`` file can (should) provide brief
+description of the purpose of the package and information about who is the
+principal contact person for the package.
 
 In the simplest case where a package does not depend on other packages, the
 contents of the pkg.info file will be very simple::
@@ -70,8 +70,8 @@ contents of the pkg.info file will be very simple::
 Everything after the package() statement is optional free-form text, which is
 only used for documentation purposes. If the package depends on other packages,
 the name of those must be given after the keyword ``USEPKG`` inside the
-``package()`` declaration. So if for example the package for example depends on
-other packages named ``SomeOtherPkg`` and ``AnotherPkg``, the first line of pkg.info
+``package()`` declaration. So if for example the package depends on other
+packages named ``SomeOtherPkg`` and ``AnotherPkg``, the first line of pkg.info
 would look like::
 
   package(USEPKG SomeOtherPkg AnotherPkg)
@@ -156,7 +156,7 @@ one package. Source and header files for each such program must be placed inside
 a directory whose name begins with ``app_`` followed by a unique app name (unique
 within the package). To avoid clashes between applications in different
 packages, the final name of the binary will be prefixed with ``sb_<package name
-in lower case>_<unique app name>``. Thus, if files for an application is placed
+in lower case>_<unique app name>``. Thus, if files for an application are placed
 within a directory named ``app_dosomething`` in a package named MyPackage, then the
 actual name of the final program which can be launched by typing it at the
 command line will be ``sb_mypackage_dosomething``.
@@ -214,7 +214,7 @@ a PYTHON_MODULE section. Here is a very basic example of how to make
     mod.def("somecppfunc", &somecppfunc );
   }
 
-Each ``pycpp_<modulename>`` sub directory will provide one python submodule. So
+Each ``pycpp_<modulename>`` subdirectory will provide one python submodule. So
 if you for instance have a ``pycpp_mymod/`` subdir in a package MyPackage, then it
 will result in a python module ``MyPackage.mymod`` which can be imported in the
 usual fashion:
@@ -261,24 +261,24 @@ and that any python scripts starts with (always refer to ``python3`` never just
   #!/usr/bin/env python3
 
 As for compiled programs, any scripts will after installation be prefixed with
-``sb_<package name in lowercase>``. Likewise, scripts can be marked as being a
+``sb_<package name in lowercase>_``. Likewise, scripts can be marked as being a
 test (to run when ``sb -t`` is invoked) by either prefixing their names with the
-word ``test`` or by placing a reference log file next to them: If the script is
-placed in a file ``script/myscript`` in the package MyPackage, then it will be
-able to be invoked after build by typing sb_mypackage_myscript and any test
-reference log file must be placed in ``script/myscript.log``.
+word ``test`` or by placing a reference log file next to them. If the script is
+placed in a file ``scripts/myscript`` in the package MyPackage, then it will be
+able to be invoked after build by typing ``sb_mypackage_myscript`` and any test
+reference log file must be placed in ``scripts/myscript.log``.
 
 Data files
 ----------
 
 In addition to code in the form of programs, scripts, header files and python
 modules, packages can make any kind of data file accessible to programs by
-placing data files in the ``data/`` sub directory.
+placing data files in the ``data/`` subdirectory.
 
 This could for example be small data files to be used for input to various
 tests, but do note that Git repositories are **NOT** suitable for large files,
-especially not when binary. Thus, try to keep files in the data/ directory less
-than O(100 kilobytes) if you are working in a shared Git repository.
+especially not when binary. Thus, try to keep files in the ``data/`` directory
+less than O(100 kilobytes) if you are working in a shared Git repository.
 
 Data files will be available at a path given by:
 ``$SBLD_DATA_DIR/<packagename>/<datafilename>``
@@ -349,7 +349,7 @@ know the purpose of your code well enough to test it.
 In conclusion, tests ensure:
 
 -  Code quality, efficient use of manpower.
--  Ability for many people to work together without friction
+-  Ability for many people to work together without friction.
 -  Ability to quickly validate installations on new platforms.
 
 Any application or script whose invokable name (apart from the
@@ -357,7 +357,7 @@ Any application or script whose invokable name (apart from the
 test, and so will any application or script who has a reference log-file
 provided (either a ``test.log`` file in the ``app_XXX/`` directory or a
 ``scripts/myscript.log`` file for a script named ``scripts/myscript``). Tests
-consists of two parts: First of all, it must finish with an exit code of 0, and
+consists of two parts: first of all, it must finish with an exit code of 0, and
 second of all those tests which have a reference log-file must give the same
 output as that given in the log-file. Thus, do not print out pointer addresses
 or absolute file-paths in a test with a reference log, since those will change

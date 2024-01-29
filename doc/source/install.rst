@@ -39,7 +39,7 @@ You can download the above recipe file here: :download:`conda_sbenv.yml <../../r
 
 To use it, you must first install conda. Instructions for how to do that is
 beyond the scope of the present documentation, but in general this can be done
-in a variety of ways, (installing Miniforge, Miniconda, Anaconda, or even via
+in a variety of ways (installing Miniforge, Miniconda, Anaconda, or even via
 Homebrew). If you don't have conda installed already and do not have any other
 reason for a preference, we would recommend to use `Miniforge
 <https://github.com/conda-forge/miniforge>`_ since it is light-weight and
@@ -70,7 +70,7 @@ itself via ``pip``, either via a PyPI package (current version
 
   python3 -mpip install simple-build-system
 
-Or, directly from the latest simplebuild sources at github::
+Or, directly from the latest simplebuild sources at GitHub::
 
   python3 -mpip install git+https://github.com/mctools/simplebuild
 
@@ -84,15 +84,15 @@ tag by appending ``@<gitid>`` to the URL in the last command. For instance::
 
 .. _sbmanualenvsetup:
 
-Note about the installed simplebuild environment: When installing via ``pip``
+Note about the installed simplebuild environment: when installing via ``pip``,
 one downside of not using the conda packages is the lack of automatic activation
-of projects build with ``sb`` (i.e. commands ``sb_mypkg_mycmd`` will not be in
+of projects built with ``sb`` (i.e. commands ``sb_mypkg_mycmd`` will not be in
 your ``PATH``, and so on). In conda, this is handled by automatically injecting
 a sneaky shell function named ``sb`` into your shell session when you activate
 the conda environment. When not using the conda ``simple-build-system`` package,
 you have two options:
 
-1. Do not do anything done automatic, and resort to either running ``eval "$(sb
+1. Do not get anything done automatically, and resort to either running ``eval "$(sb
    --env-setup)"`` when needed or prefixing all of your commands with ``sbenv``
    (i.e. run ``sbenv sb_mypkg_mycmd``).
 2. Download :download:`this shell snippet <../../resources/shellrc_snippet.sh>`
