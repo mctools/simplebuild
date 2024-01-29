@@ -1,5 +1,7 @@
 name: testshells
-on: push
+on:
+  push:
+  pull_request:
 
 # Workflow which tests the portability of the shell snippet with the sb function.
 
