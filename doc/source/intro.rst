@@ -21,7 +21,7 @@ create even for scientific users with little SW-engineering experience.
 
 At a technical level, the simplebuild system provides the user with a single
 command, ``sb`` which can be invoked in order to assemble a user's code files into
-final products: commands that the user then can invoke, python modules, data
+final products: commands that the user can then invoke, python modules, data
 files, etc. A *package* is simply a directory in which code source and data
 files are placed in various subdirectories, depending on their type and intended
 usage. The details of how files are organised in packages are provided in the
@@ -34,7 +34,7 @@ particular group of users. Technically, the directories of all packages in a
 given package bundle will be organised under a single top-level directory which
 is called the *package root* of the bundle. This top-level directory of a bundle
 will contain a single configuration file named ``simplebuild.cfg``. In the
-simplest case, the ``simplebuild.cfg`` file can be kept empty, but if desired
+simplest case, the ``simplebuild.cfg`` file can be kept empty, but if desired,
 users can modify it in order to customise aspects of their build, to name their
 bundle, or to add in dependencies on other bundles of packages. Many users will
 simply be told to check out a given Git repository, which already contain a
@@ -63,5 +63,5 @@ Detector Group (for more details about dgcode, refer to the website AT
 FIXME). The dgcode bundle itself provides utilities for configuring and using
 Geant4, with all the necessary domain specific tweaks and utilities. Code
 relating to the simulation of specific detector prototypes is then kept in
-separate bundles, some publically available in repositories on GitHUB, and some
-kept on private gitlab servers (mostly for historical reasons).
+separate bundles, some publically available in repositories on GitHub, and some
+kept on private GitLab servers (mostly for historical reasons).

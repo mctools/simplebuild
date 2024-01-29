@@ -32,7 +32,7 @@ Geant4-based simulation framework implemented as a set of simplebuild packages
 The main active developers are currently:
 
 * Thomas Kittelmann (DMSC, European Spallation Source ERIC). Main developer.
-* Milan Klausz (Centre for Energy Research, MTA EK). Developer and CI expert.
+* Milan Klausz (HUN-REN Centre for Energy Research). Developer and CI expert.
 
 Historically several other people also contributed to the development of the
 code. Of particular note is the work and support by Kalliopi Kanaki (former ESS

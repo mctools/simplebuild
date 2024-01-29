@@ -35,7 +35,7 @@ Thus running ``sbenv mycmd arg1 arg2`` is similar to running ``eval "$(sb
 The ``sbrun`` command
 =====================
 
-The ``sbenv`` command can be used to prefix any other command, causing both a
+The ``sbrun`` command can be used to prefix any other command, causing both a
 build and (if successful) the command to be invoked. This is convenient when
 one is repeatedly running the same command while editing C or C++ code that
 needs to be recompiled each time.
