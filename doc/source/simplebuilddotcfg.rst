@@ -74,11 +74,12 @@ Information about the associated package bundle.
   bundle. Defaults to ``"."``, i.e. the same directory as the one containing the
   ``simplebuild.cfg``.
 
-* ``env_paths`` (array of strings): An advanced setting, allowing bundles to modify
-  environment paths to inject simplebuild installation folders as
-  appropriate. As the ``core`` bundle already modifies ``PATH`` and ``PYTHONPATH``,
-  most users should NOT need to use this parameter. The following example (from
-  the ``core`` bundle) illustrates the syntax:
+* ``env_paths`` (array of strings): An advanced setting, allowing bundles to
+  modify environment paths to inject simplebuild installation folders as
+  appropriate. As the :sbpkg:`bundleroot::core` bundle already modifies ``PATH``
+  and ``PYTHONPATH``, most users should NOT need to use this parameter. The
+  following example (from the :sbpkg:`bundleroot::core` bundle's
+  ``simplebuild.cfg`` file) illustrates the syntax:
 
   .. code-block:: toml
 
@@ -94,17 +95,18 @@ The ``[depend]`` section
 Information about which other bundles the current package bundle depends on.
 
 * ``projects`` (array of strings): Names of other bundles on which the bundle
-  depends. The ``core`` bundle (with the :sbpkg:`Core` package) is always an implicit
+  depends. The :sbpkg:`bundleroot::core` bundle (with the :sbpkg:`Core` package) is always an implicit
   dependency and does not need to be listed.
 * ``search_path`` (array of strings): Local paths to ``simplebuild.cfg`` files
   (or the directories in which they reside). This advanced variable will help
   simplebuild to actually locate the package bundles that are specified as
   dependencies in the ``projects`` key. Any dependency not found via these
   search paths will be attempted to be located via the python-module-search
-  mechanism (see :ref:`below <sbpymodsearchpath>`). The ``core`` and
-  ``core_val`` bundles are always available via this latter mechanism (the same
-  goes for the ``dgcode`` and ``dgcode_val`` bundles, if the
-  ``simple-build-dgcode`` Python or Conda package has been installed).
+  mechanism (see :ref:`below <sbpymodsearchpath>`). The :sbpkg:`bundleroot::core` and
+  :sbpkg:`bundleroot::core_val` bundles are always available via this latter mechanism (the same
+  goes for the :sbpkg:`bundleroot::dgcode` and :sbpkg:`bundleroot::dgcode_val`
+  bundles, if the ``simple-build-dgcode`` Python or Conda package has been
+  installed).
 
 
 The ``[build]`` section
@@ -229,21 +231,22 @@ In addition to the ``project.search_path`` key in the ``simplebuild.cfg`` file
 above, simplebuild is also able to discover local bundles through a `Python
 plugin
 <https://packaging.python.org/en/latest/guides/creating-and-discovering-plugins/>`_
-mechanism. This is in fact how bundles like ``core`` and ``core_val`` are made
-easily available for all users without requiring them to edit their
-``project.search_path`` (the same goes for the ``dgcode`` and ``dgcode_val``
-bundles, if the ``simple-build-dgcode`` Python or Conda package has been
-installed).
+mechanism. This is in fact how bundles like :sbpkg:`bundleroot::core` and
+:sbpkg:`bundleroot::core_val` are made easily available for all users without
+requiring them to edit their ``project.search_path`` (the same goes for the
+:sbpkg:`bundleroot::dgcode` and :sbpkg:`bundleroot::dgcode_val` bundles, if the
+``simple-build-dgcode`` Python or Conda package has been installed).
 
 Specifically, simplebuild will look for Python modules whose names follow the
-pattern ``[_]simplebuild_[anything].simplebuild_bundle_list``. Inside that module
-there must be a function called ``simplebuild_bundle_list()`` which returns a
-list of pathlib.Path objects, each being an absolute path to a
+pattern ``[_]simplebuild_[anything].simplebuild_bundle_list``. Inside that
+module there must be a function called ``simplebuild_bundle_list()`` which
+returns a list of pathlib.Path objects, each being an absolute path to a
 ``simplebuild.cfg`` file. As an example, installing the ``simple-build-dgcode``
 Python or Conda package, results in a new Python module becoming available in
 the environment: ``simplebuild_dgcode.simplebuild_bundle_list``, with a
 ``simplebuild_bundle_list()`` returning the full path to two ``simplebuild.cfg``
-files: one for the ``dgcode`` bundle, and one for the ``dgcode_val`` bundle.
+files: one for the :sbpkg:`bundleroot::dgcode` bundle, and one for the
+:sbpkg:`bundleroot::dgcode_val` bundle.
 
 Search path redirection
 -----------------------

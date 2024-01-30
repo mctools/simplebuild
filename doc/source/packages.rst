@@ -34,25 +34,25 @@ be enabled as well. For instance, common package bundles are:
 
    * - Bundle name
      - Notes
-   * - ``core``
+   * - :sbpkg:`bundleroot::core`
      - Provides a single package :sbpkg:`Core`.
 
        This bundle is always available and always enabled.
-   * - ``core_val``
+   * - :sbpkg:`bundleroot::core_val`
      - Provides packages with common unit tests.
 
        This bundle is always available but not enabled by default.
-   * - ``dgcode``
+   * - :sbpkg:`bundleroot::dgcode`
      - Provides packages for the `dgcode framework <https://mctools.github.io/simplebuild-dgcode/>`__.
-   * - ``dgcode_val``
+   * - :sbpkg:`bundleroot::dgcode_val`
      - Provides packages with unit tests for the `dgcode framework <https://mctools.github.io/simplebuild-dgcode/>`__.
 
-Note that the ``core`` bundle provides a single package named
+Note that the :sbpkg:`bundleroot::core` bundle provides a single package named
 :sbpkg:`Core`. This special bundle is always enabled, and all packages will
 automatically get a dependency on the :sbpkg:`Core` package. Additionally note
-that the ``dgcode`` and ``dgcode_val`` bundles mentioned above, are only
-available if the `simple-build-dgcode
-<https://mctools.github.io/simplebuild-dgcode/>`__ conda or Python package has
+that the :sbpkg:`bundleroot::dgcode` and :sbpkg:`bundleroot::dgcode_val` bundles
+mentioned above, are only available if the `simple-build-dgcode
+<https://mctools.github.io/simplebuild-dgcode/>`__ Conda or Python package has
 been installed on the system.
 
 Format of the pkg.info file
@@ -109,7 +109,7 @@ In this example, the package needs ``Geant4`` and depends on two other packages,
 
 To see a graphical representation of all available packages and the dependencies
 between them, type ``sb --pkggraph`` (requires the *dot* command from the
-*graphviz* bundle which must be installed on your system). To focus just on
+*graphviz* software  packge which must be installed on your system). To focus just on
 enabled pkgs, instead do ``sb --activegraph``.
 
 Note that the author(s) of the code indicated in this file is to be contacted

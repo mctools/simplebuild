@@ -104,8 +104,8 @@ Verifying an installation
 
 As a very basic verification of a simplebuild installation, one can create a
 simple simplebuild project and launch a few basic unit tests from the
-``core_val`` bundle (you can remove the leftover ``sbverify`` directory
-afterwards):
+:sbpkg:`bundleroot::core_val` bundle (you can remove the leftover ``sbverify``
+directory afterwards):
 
 .. literalinclude:: ../build/autogen_sbverify_cmdout.txt
 

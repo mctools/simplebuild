@@ -8,8 +8,6 @@ def setup(app):
     app.add_config_value('simplebuild_pkgbundles', None, 'env')
     return { 'version' : version }
 
-#FIXME: optional url-exists checking? For the CI mainly I guess.
-
 def sbpkg_role(name, rawtext, text, lineno, inliner, options={}, content=[]):
     """Link to the source code of a given simplebuild package."""
     from .pkgutils import pkgname_valid_or_errmsg
@@ -19,7 +17,6 @@ def sbpkg_role(name, rawtext, text, lineno, inliner, options={}, content=[]):
                                        line = lineno)
         return ( [inliner.problematic(rawtext, rawtext, _msg)],
                  [_msg] )
-
     linkinput = text.strip()
     override_text = None
     if '<' in linkinput:
@@ -31,6 +28,21 @@ def sbpkg_role(name, rawtext, text, lineno, inliner, options={}, content=[]):
         if len(_parts)!=2 or not all( (e and '>' not in e) for e in _parts ):
             return _err()
         override_text, linkinput = _parts
+
+    def _ret( linktext, url ):
+        node = _create_link_node(rawtext, app, linktext, url, options)
+        return [node], []
+
+    if linkinput.startswith('bundleroot::'):
+        bundlename = linkinput[len('bundleroot::'):].strip()
+        if not bundlename:
+            return _err()
+        bundleinfo = _get_bundles( app ).get(bundlename)
+        if not bundleinfo:
+            return _err('Could not find bundle named "%s"'%bundlename)
+        linktext = override_text or bundlename
+        url = bundleinfo[1].replace('[blob|tree]','tree')
+        return _ret( linktext, url )
 
     _parts = [p.strip() for p in linkinput.split('/',1) if p.strip()]
     if len(_parts) not in (1,2):
@@ -67,11 +79,7 @@ def sbpkg_role(name, rawtext, text, lineno, inliner, options={}, content=[]):
     else:
         url = url.replace('[blob|tree]','tree')
 
-    if override_text:
-        linktext = override_text
-
-    node = _create_link_node(rawtext, app, linktext, url, options)
-    return [node], []
+    return _ret( override_text or linktext, url )
 
 def _create_link_node(rawtext, app, linktext, linkurl, options):
     from docutils import nodes as _du_nodes
@@ -79,6 +87,16 @@ def _create_link_node(rawtext, app, linktext, linkurl, options):
     _du_set_classes(options)
     return _du_nodes.reference(rawtext, linktext, refuri=linkurl,
                                **options)
+
+def _get_bundles( app ):
+    try:
+        bundles = app.config.simplebuild_pkgbundles
+        if not bundles:
+            raise AttributeError
+    except AttributeError as e:
+        raise ValueError('simplebuild_pkgbundles configuration value'
+                         ' is not set (%s)' % str(e))
+    return bundles
 
 _cache = [False,None]
 def load_sbpkgs( app ):
@@ -88,13 +106,7 @@ def load_sbpkgs( app ):
     return _cache[1]
 
 def _actual_load_sbpkgs( app ):
-    try:
-        bundles = app.config.simplebuild_pkgbundles
-        if not bundles:
-            raise AttributeError
-    except AttributeError as e:
-        raise ValueError('simplebuild_pkgbundles configuration value'
-                         ' is not set (%s)' % str(e))
+    bundles = _get_bundles( app )
 
     from .pkgutils import find_pkg_dirs_under_basedir as _findpkgs
     errors = []
@@ -102,6 +114,9 @@ def _actual_load_sbpkgs( app ):
     def _errfct( msg ):
         errors.append( msg )
     for n,( pkgroot, urlbase ) in bundles.items():
+        if pkgroot is None:
+            #for online linking only
+            continue
         assert ( pkgroot / 'simplebuild.cfg' ).is_file()
         for p in _findpkgs( pkgroot, error_fct = _errfct ):
             if errors:
@@ -118,4 +133,3 @@ def _actual_load_sbpkgs( app ):
             break
     return dict( error_msg = errors[0] if errors else None,
                  pkgs = None if errors else pkgs )
-
