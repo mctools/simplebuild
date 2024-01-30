@@ -16,14 +16,14 @@
   # If you wish to let other projects use your bundle of packages, you must give
   # it a name (so they can specify it in their list depend.projects list):
   #
-  #  name = 'myprojectname'
+  #   name = 'myprojectname'
   #
   # If the directory below which you keep your simplebuild packages (i.e. "the
   # package root") is not meant to be the same directory as the directory
   # containing this cfg-file, you can modify it here. If for instance, all the
   # packages are below a subdirectory called 'mypkgs', you could specify:
   #
-  # pkg_root = './mypkgs' #default is '.'
+  #   pkg_root = './mypkgs' #default is '.'
   #
 
 [depend]
