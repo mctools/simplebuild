@@ -91,15 +91,15 @@ $> {_p} --init core_val dgcode COMPACT DEBUG
     group_build.add_argument(
         "-j", "--jobs",
         type=int, dest="njobs", default=0, metavar="N",
-        help="Use up to N parallel processes (default: auto)")
+        help="Use up to N parallel processes (default: auto).")
     group_build.add_argument(
         "-e", "--examine",
         action='store_true', dest="examine",
-        help="Force (re)examination of environment")
+        help="Force (re)examination of environment.")
     group_build.add_argument(
         "-i", "--insist",
         action="store_true", dest="insist",
-        help="Insist on reconf/rebuild/reinstall from scratch")
+        help="Insist on reconf/rebuild/reinstall from scratch.")
 
     group_query_g = parser.add_argument_group('Query options')
     group_query = group_query_g.add_mutually_exclusive_group()
@@ -116,7 +116,7 @@ $> {_p} --init core_val dgcode COMPACT DEBUG
 
     group_query.add_argument("--pkginfo",
                              action="store", dest="pkginfo", default='',metavar='PKG',
-                             help="Print information about package PKG")
+                             help="Print information about package PKG.")
     exclusive.add('pkginfo')
     group_query.add_argument("--incinfo",action="store", dest="incinfo",
                              default='',metavar='CFILE',
@@ -126,26 +126,26 @@ $> {_p} --init core_val dgcode COMPACT DEBUG
     exclusive.add('incinfo')
     group_query.add_argument("--pkggraph",
                              action="store_true", dest="pkggraph",
-                             help="Create graph of package dependencies")
+                             help="Create graph of package dependencies.")
     exclusive.add('pkggraph')
 
     group_query.add_argument("--activegraph",
                              action="store_true", dest="pkggraph_activeonly",
-                             help="Create graph for enabled packages only")
+                             help="Create graph for enabled packages only.")
     exclusive.add(('--activegraph','pkggraph_activeonly'))
 
     group_query.add_argument("--grep",action="store", dest="grep",
                              default='',metavar='PATTERN',
-                             help="Grep files in packages for PATTERN")
+                             help="Grep files in packages for PATTERN.")
     exclusive.add('grep')
     group_query.add_argument("--grepc",action="store", dest="grepc",
                              default='',metavar='PATTERN',
-                             help="Like --grep but show only count per package")
+                             help="Like --grep but show only count per package.")
     exclusive.add('grepc')
     group_query.add_argument("--find",action="store", dest="find",
                              default=None, metavar='PATTERN',
                              help=("Search for file and path names"
-                                   " matching PATTERN"))
+                                   " matching PATTERN."))
     exclusive.add('find')
 
     #NB: Do not change the title in title in the next line without updating its
@@ -160,7 +160,7 @@ $> {_p} --init core_val dgcode COMPACT DEBUG
 
     group_test.add_argument("-t", "--tests",
                            action="store_true", dest="runtests",
-                           help="Run unit tests after the build")
+                           help="Run unit tests after the build.")
     exclusive.add(('--tests','runtests'))
     group_test.add_argument("--testexcerpts", type=int, dest="nexcerpts",
                             default=0,metavar="N",
@@ -186,12 +186,12 @@ $> {_p} --init core_val dgcode COMPACT DEBUG
                              default=None, metavar='PATTERN',
                              help=("Global search and replace in packages via"
                                    " pattern\nlike '/OLDCONT/NEWCONT/' (use "
-                                   "with care!)"))
+                                   "with care!)."))
     exclusive.add('replace')
 
     group_other.add_argument("--removelock",
                            action='store_true', dest="removelock",
-                           help="Force removal of lockfile")
+                           help="Force removal of lockfile.")
 
     group_other.add_argument("--env-setup",
                              action="store_true", dest="env_setup",

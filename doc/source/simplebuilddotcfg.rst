@@ -104,7 +104,7 @@ Information about which other bundles the current package bundle depends on.
   mechanism (see :ref:`below <sbpymodsearchpath>`). The ``core`` and
   ``core_val`` bundles are always available via this latter mechanism (the same
   goes for the ``dgcode`` and ``dgcode_val`` bundles, if the
-  ``simple-build-dgcode`` package has been installed).
+  ``simple-build-dgcode`` Python or Conda package has been installed).
 
 
 The ``[build]`` section
@@ -232,15 +232,16 @@ plugin
 mechanism. This is in fact how bundles like ``core`` and ``core_val`` are made
 easily available for all users without requiring them to edit their
 ``project.search_path`` (the same goes for the ``dgcode`` and ``dgcode_val``
-bundles, if the ``simple-build-dgcode`` package has been installed).
+bundles, if the ``simple-build-dgcode`` Python or Conda package has been
+installed).
 
 Specifically, simplebuild will look for Python modules whose names follow the
 pattern ``[_]simplebuild_[anything].simplebuild_bundle_list``. Inside that module
 there must be a function called ``simplebuild_bundle_list()`` which returns a
 list of pathlib.Path objects, each being an absolute path to a
 ``simplebuild.cfg`` file. As an example, installing the ``simple-build-dgcode``
-package, results in a new Python module becoming available in the environment:
-``simplebuild_dgcode.simplebuild_bundle_list``, with a
+Python or Conda package, results in a new Python module becoming available in
+the environment: ``simplebuild_dgcode.simplebuild_bundle_list``, with a
 ``simplebuild_bundle_list()`` returning the full path to two ``simplebuild.cfg``
 files: one for the ``dgcode`` bundle, and one for the ``dgcode_val`` bundle.
 
