@@ -40,7 +40,7 @@ beyond the scope of the present documentation, but in general this can be done
 in a variety of ways (installing Miniforge, Miniconda, Anaconda, or even via
 Homebrew). If you don't have conda installed already and do not have any other
 reason for a preference, we would recommend to use `Miniforge
-<https://github.com/conda-forge/miniforge>`_ since it is light-weight and
+<https://github.com/conda-forge/miniforge>`__ since it is light-weight and
 supposedly has the fewest legal concerns.
 
 After you have conda installed, download :download:`conda_sbenv.yml

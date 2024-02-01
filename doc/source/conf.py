@@ -97,7 +97,7 @@ def _sbbundles():
     sbdata = _reporoot() / 'src' / '_simple_build_system' / 'data'
     sbdata_online = f'https://github.com/mctools/simplebuild/[blob|tree]/{sblinkversion}/src/_simple_build_system/data'
     #dgcode bundles, just refer to main branch:
-    sbdgdata_online = 'https://github.com/mctools/simplebuild-dgcode/[blob|tree]/main/src/simplebuild-dgcode/data' #FIXME - to _
+    sbdgdata_online = 'https://github.com/mctools/simplebuild-dgcode/[blob|tree]/main/src/simplebuild_dgcode/data'
 
     bundles = { 'core' :  ( sbdata / 'pkgs-core', sbdata_online + '/pkgs-core' ),
                 'core_val' : ( sbdata / 'pkgs-core_val', sbdata_online + '/pkgs-core_val' ),
