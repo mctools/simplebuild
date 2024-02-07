@@ -14,7 +14,7 @@ jobs:
 
     steps:
     - name: Checkout main repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Setup conda environment
       uses: conda-incubator/setup-miniconda@v3
