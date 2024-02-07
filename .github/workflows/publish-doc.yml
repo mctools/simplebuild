@@ -45,7 +45,7 @@ jobs:
         fetch-depth: 0
 
     - name: Setup conda environment
-      uses: conda-incubator/setup-miniconda@v2
+      uses: conda-incubator/setup-miniconda@v3
       with:
         activate-environment: publish-doc-condaenv
         environment-file: .github/resources/publish-doc-condaenv.yml
