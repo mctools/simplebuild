@@ -48,4 +48,4 @@ relevant parts of the documentation.
    Conda <https://anaconda.org/conda-forge/simple-build-system>
    Issue tracker <https://github.com/mctools/simplebuild/issues>
    license.rst
-   dgcode <https://mctools.github.com/simplebuild-dgcode>
+   dgcode <https://mctools.github.io/simplebuild-dgcode>
