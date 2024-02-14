@@ -4,6 +4,8 @@ def main():
     from . import utils
     fn=sys.argv[1]
     verbose=int(sys.argv[2]) if len(sys.argv)>=3 else 0
+    #verbose flag: -1 quiet, 0 normal, 1 verbose.
+    do_print = verbose > 0
     needed=utils.pkl_load(fn)
     ofn='%s.old'%fn
     try:
@@ -15,7 +17,7 @@ def main():
             current = set()
         else:
             raise
-    utils.update_symlinks( current, needed, verbose )
+    utils.update_symlinks( current, needed, do_print )
 
 if __name__=='__main__':
     import sys

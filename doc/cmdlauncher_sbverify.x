@@ -2,8 +2,6 @@
 set -eu
 TMP_THISDIR="$( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 . "${TMP_THISDIR}/../resources/shellrc_snippet.sh"
-#CMDLOGSTART
-#PRETENDRUN: conda activate sbenv
 echo "CMDPROMPT>mkdir sbverify"
 mkdir sbverify
 echo "CMDPROMPT>cd sbverify"

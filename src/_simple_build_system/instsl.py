@@ -14,10 +14,12 @@ def main():
     import os
     fn=sys.argv[1]
     verbose=int(sys.argv[2]) if len(sys.argv)>=3 else 0
+    #verbose flag: -1 quiet, 0 normal, 1 verbose.
+    do_print = verbose > 0
     newlist = extract_filelist( fn )
     oldfn = '%s.old'%fn
     oldlist = extract_filelist( oldfn ) if os.path.exists(oldfn) else set()
-    utils.update_symlinks( oldlist, newlist, verbose )
+    utils.update_symlinks( oldlist, newlist, do_print )
 
 if __name__=='__main__':
     import sys

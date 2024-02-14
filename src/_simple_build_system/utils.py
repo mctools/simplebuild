@@ -219,10 +219,10 @@ def path_is_relative_to( p, pother ):
         except ValueError:
             return False
 
-def _remove_symlinks( symlinks, verbose ):
+def _remove_symlinks( symlinks, do_print ):
     #FIXME: pathlib
     dirs_with_removals=set()#to test for empty dirs to be removed at the end
-    if verbose:
+    if do_print:
         from .io import print
     else:
         def print( *a, **kw ):
@@ -254,9 +254,8 @@ def _remove_symlinks( symlinks, verbose ):
                 else:
                     raise
 
-
-def update_symlinks( oldlist, newlist, verbose ):
-    if verbose:
+def update_symlinks( oldlist, newlist, do_print ):
+    if do_print:
         from .io import print
     else:
         def print( *a, **kw ):
@@ -265,7 +264,7 @@ def update_symlinks( oldlist, newlist, verbose ):
     obsoleted = oldlist.difference(newlist)
     _remove_symlinks( [ os.path.join(destdir,linkname)
                         for destdir,linkname,src in obsoleted ],
-                      verbose )
+                      do_print )
     #create dirs:
     for dd in set(d for d,_,_ in newlist):
         mkdir_p(dd)
