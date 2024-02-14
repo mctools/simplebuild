@@ -42,8 +42,10 @@ def perform_configuration( select_filter=None,
         return dict(
             install_dir = str(conf.install_dir()),
             build_dir = str(conf.build_dir()),
-            command_paths = dict( (b,str(shutil.which(b))) for b in sorted(set(envdict['autoreconf']['bin_list'].split(';')))),
-            environment_variables = dict( (e,os.environ.get(e)) for e in sorted(set([*envdict['autoreconf']['env_list'].split(';'),*volatile_misc])) )
+            command_paths = dict( (b,str(shutil.which(b)))
+                                  for b in sorted(set(envdict['autoreconf']['bin_list'].split(';')))),
+            environment_variables = dict( (e,os.environ.get(e))
+                                          for e in sorted(set([*envdict['autoreconf']['env_list'].split(';'),*volatile_misc])) )
         )
 
     assert dirs.blddir.is_dir()
@@ -83,11 +85,20 @@ def perform_configuration( select_filter=None,
             envdict=None
 
     from . import env
+    _devel_testextract = os.environ.get('SBLD_DEVEL_TESTCMAKECFG_MODE')
+    if _devel_testextract is not None:
+        assert _devel_testextract in ('REUSE','INVOKECMAKE')
+
     if envdict:
         #Can reuse config:
         env.env=envdict
+        if _devel_testextract is not None:
+            assert _devel_testextract == 'REUSE'
     else:
         #must extract the hard way via cmake:
+        if _devel_testextract is not None:
+            assert _devel_testextract == 'INVOKECMAKE'
+
         envdict = extractenv.extractenv(
             cmakeargs = cmakeargs,
             actually_needed_extdeps = actually_needed_extdeps,

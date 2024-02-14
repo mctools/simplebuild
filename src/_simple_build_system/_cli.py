@@ -1,5 +1,5 @@
 
-def _fast_handle_env_setup( args ):
+def _handle_env_setup( args ):
     def _check_nargs():
         if len(args)>1:
             raise SystemExit('Error: Do not use --env-setup or'
@@ -25,8 +25,8 @@ def main( prevent_env_setup_msg = False ):
     import sys
     _args = sys.argv[1:]
     if any( e.startswith('--env-') for e in _args ):
-        #Special short-circuit to efficiently enable standard --env-setup usage:
-        _fast_handle_env_setup(_args)
+        #Special short-circuit for --env-[un]setup:
+        _handle_env_setup(_args)
     from . import frontend
     frontend.simplebuild_main( prevent_env_setup_msg = prevent_env_setup_msg )
 

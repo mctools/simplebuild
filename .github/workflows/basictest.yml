@@ -79,3 +79,10 @@ jobs:
            #Also verify that eval "$(sb --env-setup)" works:
            eval "$(sb --env-setup)"
            python3 -c 'import _simple_build_system.envsetup as sbe; sbe.verify_env_already_setup()'
+
+    - name: Other tests
+      run: |
+           mkdir othertests
+           cd othertests
+           set +x
+           ../src/devel/tests/test_sbswitch.x
