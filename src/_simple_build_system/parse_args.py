@@ -38,8 +38,8 @@ projects, etc.
 New project initialisation mode ("{_p} --init") is used to initialise a new
 simplebuild bundle in the current directory by creating a simplebuild.cfg
 file. Additional arguments can be used to specify bundles which the new project
-should depend on, or they can be a special keyword (DEBUG|COMPACT). In any case,
-it might be most convenient to edit the simplebuild.cfg file afterwards to
+should depend on, or they can be a special keyword (DEBUG|COMPACT|...). In any
+case, it might be most convenient to edit the simplebuild.cfg file afterwards to
 fine-tune the desired settings.
 
 Examples of {_p} --init usage:
@@ -63,6 +63,11 @@ $> {_p} --init core_val dgcode COMPACT DEBUG
     Set up project with dependency on core_val and dgcode bundles, with the
     build option for producing debug symbols, and a compact simplebuild.cfg
     file.
+
+$> {_p} --init dgcode CACHEDIR::/some/where
+
+    Set up project with a dependency on the dgcode bundle, and the
+    build.cachedir option set to the directory "/some/where".
 
     """.strip()+'\n'
 
@@ -264,7 +269,11 @@ $> {_p} --init core_val dgcode COMPACT DEBUG
         from .singlecfg import is_valid_bundle_name
         args.init = []
         for a in args_unused:
-            if not is_valid_bundle_name(a):
+            #All-uppcase option keywords like COMPACT/DEBUG/... are actually
+            #valid bundle names, so we don't have to treat them specially
+            #here. But we do not to allow for 'CACHEDIR::/some/where' arguments:
+            special_init_opt = a.startswith('CACHEDIR::')
+            if not special_init_opt and not is_valid_bundle_name(a):
                 parser.error(f'Invalid name for dependency bundle: {a}')
             args.init.append( a )
         args_unused = []

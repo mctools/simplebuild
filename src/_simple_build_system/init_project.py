@@ -1,18 +1,34 @@
-def init_project( depbundles = None ):
+def init_project( args = None ):
+    args = args[:] if args else []
+
+    def has_keyword( args, kw ):
+        _=[e for e in args if e!=kw]
+        return _, len(args)!=len(_)
+
+    def extract_opt_with_args( args, optname, pick_last ):
+        key=f'{optname}::'
+        optvals = []
+        otherargs = []
+        for e in args:
+            if e.startswith(key):
+                optvals.append( e[len(key):] )
+            else:
+                otherargs.append( e )
+        if pick_last:
+            optvals = optvals[-1] if optvals else None
+        return otherargs, optvals
+
     #Keywords:
-    debug_mode = False
-    compact = False
-    if 'DEBUG' in depbundles:
-        debug_mode = True
-        depbundles = [ d for d in depbundles if d!='DEBUG' ]
-    if 'COMPACT' in depbundles:
-        compact = True
-        depbundles = [ d for d in depbundles if d!='COMPACT' ]
-    _db = []
-    for d in depbundles:
-        if d not in _db:
-            _db.append(d)
-    depbundles = _db
+    args, debug_mode = has_keyword(args, 'DEBUG')
+    args, compact = has_keyword(args, 'COMPACT')
+    args, build_cachedir = extract_opt_with_args( args, 'CACHEDIR',
+                                                  pick_last = True)
+
+    #Remaining args are the dep-bundles, but remove duplicates:
+    depbundles = []
+    for d in args:
+        if d not in depbundles:
+            depbundles.append(d)
 
     from .io import print
     import pathlib
@@ -22,14 +38,19 @@ def init_project( depbundles = None ):
     res = ''
     for e in template.splitlines():
         res += e.rstrip()+'\n'
-        if debug_mode and e.startswith('[build]'):
-            #inject mode statement:
-            sbundles = "', '".join(depbundles)
-            res += "\n  mode = 'debug'\n\n"
-        if depbundles and e.startswith('[depend]'):
-            #inject depend.projects list:
-            sbundles = "', '".join(depbundles)
-            res += f"\n  projects = ['{sbundles}']\n\n"
+        if e.startswith('[build]'):
+            if debug_mode:
+                #inject mode statement:
+                sbundles = "', '".join(depbundles)
+                res += "\n  mode = 'debug'\n\n"
+            if build_cachedir:
+                #inject cachedir statement:
+                res += f"\n  cachedir = '{build_cachedir}'\n\n"
+        elif e.startswith('[depend]'):
+            if depbundles:
+                #inject depend.projects list:
+                sbundles = "', '".join(depbundles)
+                res += f"\n  projects = ['{sbundles}']\n\n"
 
     if compact:
         res2 = ''

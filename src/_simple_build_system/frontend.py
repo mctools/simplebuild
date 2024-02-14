@@ -55,7 +55,7 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
 
     if opt.init is not None:
         from . import init_project
-        init_project.init_project( depbundles = opt.init )
+        init_project.init_project( args = opt.init )
         raise SystemExit
 
     # Now undo the effect of --env-setup on the current environment, so
