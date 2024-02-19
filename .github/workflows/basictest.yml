@@ -68,6 +68,7 @@ jobs:
            sb --init core_val
            sb -t --testexcerpts=100
            sbenv sb_core_extdeps --require-disabled NCrystal Numpy matplotlib Geant4 ZLib
+           sb -t --testfilter='sb_coretests_testpycpp' --requirepkg CoreTests
 
     - name: Build-and-test-debug-mode
       run: |

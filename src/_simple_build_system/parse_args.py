@@ -194,6 +194,11 @@ $> {_p} --init dgcode CACHEDIR::/some/where
                                    "with care!)."))
     exclusive.add('replace')
 
+    group_other.add_argument("--requirepkg", nargs = '+', dest="requirepkgs",
+                             default=None, metavar='PkgName',
+                             help=("Fail unless all listed"
+                                   " packages are enabled."))
+
     group_other.add_argument("--removelock",
                            action='store_true', dest="removelock",
                            help="Force removal of lockfile.")
@@ -237,6 +242,13 @@ $> {_p} --init dgcode CACHEDIR::/some/where
 
     if args.pkggraph_activeonly:
         args.pkggraph=True
+
+    _ = []
+    for e in (args.requirepkgs or []):
+        for ee in e.strip().split(','):
+            if ee.strip():
+                _.append(ee.strip())
+    args.requirepkgs = _
 
     #Some query option require that we always load all package meta
     #data. Additionally, some have "pathzoom", and use the unused positional

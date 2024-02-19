@@ -225,6 +225,23 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
 
     assert dirs.makefiledir.is_dir()
 
+    if opt.requirepkgs:
+        _rps = set(opt.requirepkgs)
+        _notfound = set( pn for pn in _rps if not pn in pkgloader.name2pkg )
+        if _notfound:
+            error.error('Unknown package name given to --requirepkg:'
+                        f' "{_notfound.pop()}"')
+
+        _actual_pkgs = set( p.name for p in pkgloader.enabled_pkgs_iter() )
+        _missing = _rps - _actual_pkgs
+        if _missing:
+            missinglist = ', '.join(e for e in sorted(_missing))
+            nmissing = len(_missing)
+            error.error(f'{nmissing} required package'
+                        f'{"s" if nmissing!=1 else ""} were not '
+                        f'present and enabled: {missinglist}')
+
+
     def query_pkgs():
         #returns list of (pkg,filenames) where filenames is None, or a list of
         #the files in the pkg to search (e.g. ['pkg.info','pycpp_bla/mod.cc']
