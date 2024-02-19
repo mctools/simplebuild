@@ -227,7 +227,7 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
 
     if opt.requirepkgs:
         _rps = set(opt.requirepkgs)
-        _notfound = set( pn for pn in _rps if not pn in pkgloader.name2pkg )
+        _notfound = set( pn for pn in _rps if pn not in pkgloader.name2pkg )
         if _notfound:
             error.error('Unknown package name given to --requirepkg:'
                         f' "{_notfound.pop()}"')
