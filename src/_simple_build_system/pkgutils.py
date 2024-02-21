@@ -5,6 +5,17 @@ import re
 def _find_pkg_dirs_under_basedir( basedir,
                                   cfgfilename,
                                   error_fct = None ):
+    def _error( msg ):
+        if error_fct is None:
+            from . import error
+            error.error(msg)
+        else:
+            error_fct(msg)
+
+    if not basedir.is_dir():
+        _error('Asked to search non-existing directory for'
+               f' packages: {basedir}')
+
     #Ignore simplebuild's own cache dirs:
     if any( ( basedir / fn ).exists()
             for fn in ('.sbinstalldir','.sbbuilddir') ):
@@ -23,15 +34,10 @@ def _find_pkg_dirs_under_basedir( basedir,
         if not pl or pl[0]=='.' or '~' in pl or '#' in pl:
             continue#always ignore hidden dirs and weird files
         if pl in seen_lc:
-            if error_fct is None:
-                from . import error
-                error_fct_use = error.error
-            else:
-                error_fct_use = error_fct
-            error_fct_use('Directory (and file) names differing only in'
-                          ' casing are not allowed, due to being a potential'
-                          ' source of error on some file systems. \nProblem'
-                          f' occured with {p.name} in the directory {basedir}')
+            _error('Directory (and file) names differing only in'
+                   ' casing are not allowed, due to being a potential'
+                   ' source of error on some file systems. \nProblem'
+                   f' occured with {p.name} in the directory {basedir}')
         seen_lc.add( pl )
         if p.is_dir():
             pkg_dirs+=_find_pkg_dirs_under_basedir(p,
