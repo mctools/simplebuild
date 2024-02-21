@@ -1,0 +1,1 @@
+../src/_simple_build_system/data/resources/shellrc_snippet_deactivate.sh
