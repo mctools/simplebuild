@@ -8,6 +8,8 @@ recursive-include src/_simple_build_system/data/pkgs-core_val/**/data *
 recursive-include src/_simple_build_system/data/pkgs-core_val/**/scripts *
 recursive-include src simplebuild.cfg
 include src/_simple_build_system/data/cfgtemplate.txt
+include src/_simple_build_system/data/resources/shellrc_snippet.sh
+include src/_simple_build_system/data/resources/shellrc_snippet_deactivate.sh
 
 global-exclude *~* *\#* .*
 global-exclude *.pyc *.pyo */__pycache__/* */.ruff_cache/*
