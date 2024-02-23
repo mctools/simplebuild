@@ -293,6 +293,9 @@ def perform_configuration( select_filter=None,
             disappeared_parts = old_parts.difference(new_parts)
             if disappeared_parts:
                 conf.deinstall_parts(dirs.installdir,p.name,new_parts,disappeared_parts)
+            #If we get here, package was updated OK:
+            ts[p.name] = mtime.mtime_pkg(p)
+            rd[p.name] = p.reldirname
         elif p.any_parent_changed():
             #merely load targets from pickle!
             target_builder.create_pkg_targets_from_pickle(p)
