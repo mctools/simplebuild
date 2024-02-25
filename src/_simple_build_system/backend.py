@@ -201,8 +201,13 @@ def perform_configuration( select_filter=None,
     #Force reconfig of pkg+clients if any direct extdep's changed!
     pkgdb_directextdeps = db.db['pkg2directextdeps']
     for p in pl.enabled_pkgs_iter():
-        if (pkgdb_directextdeps.get(p.name) or set()) != p.direct_deps_extnames:
+        _e = pkgdb_directextdeps.get(p.name)
+        if (_e or set()) != p.direct_deps_extnames:
+            if verbose and _e is not None:
+                print(f'Detected direct USEEXT changes in {p.name}')
             p.set_files_in_pkg_changed()
+            #Not 100% sure we should do this here already, but it most likely
+            #does not hurt:
             pkgdb_directextdeps[p.name] = set(e for e in p.direct_deps_extnames)
 
     #TODO: Implement the following for increased safety: We should first check
@@ -296,6 +301,7 @@ def perform_configuration( select_filter=None,
             #If we get here, package was updated OK:
             ts[p.name] = mtime.mtime_pkg(p)
             rd[p.name] = p.reldirname
+            pkgdb_directextdeps[p.name] = set(e for e in p.direct_deps_extnames)
         elif p.any_parent_changed():
             #merely load targets from pickle!
             target_builder.create_pkg_targets_from_pickle(p)
