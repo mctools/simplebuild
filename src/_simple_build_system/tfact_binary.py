@@ -61,7 +61,7 @@ class TargetBinaryObject(target_base.Target):
                               os.path.basename(self.name))
 
         if target_base.need_commands_json_export:
-            self.__jsonexport = [ ( obj_create_cmd, filekey) ]
+            self.__jsonexport = [ ( obj_create_cmd, sf) ]
 
 
         self.code=['@if [ ${VERBOSE} -ge 0 ]; then echo " '

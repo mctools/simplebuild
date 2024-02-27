@@ -15,7 +15,8 @@ double somebadfunc()
   //return DBL_MAX*2;//FPE_FLTOVF
   //return DBL_MIN*0.1;//FPE_FLTUND
   //return 1.0/fpetest_zerodbl;//FPE_FLTDIV
-  return sqrt(-1.0);//FPE_FLTINV
+  //FPE_FLTINV:
+  return std::sqrt(-1.0); // cppcheck-suppress invalidFunctionArg
 }
 
 double somefuncB()

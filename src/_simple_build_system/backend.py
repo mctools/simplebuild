@@ -351,20 +351,22 @@ def perform_cfg( *,
     utils.mkdir_p(dirs.makefiledir)
     from . import makefile
 
+    #the main makefile:
+    enabled_pkgnames=list(p.name for p in pl.enabled_pkgs_iter())
+    makefile.write_main(global_targets,enabled_pkgnames)
+
+
     #package makefiles:
-    enabled_pkgnames=[]
+    if export_jsoncmds_pkg:
+        _makefile_var_map = makefile.get_makefile_global_vars()
     for p in pl.enabled_pkgs_iter():
-        enabled_pkgnames+=[p.name]
         if hasattr(p,'targets'):#no targets means reuse old makefile
             makefile.write_pkg(p)
             if export_jsoncmds_pkg:
-                export_jsoncmds_pkg(p)
+                export_jsoncmds_pkg(p,_makefile_var_map)
 
     if export_jsoncmds_finalise:
         export_jsoncmds_finalise(dirs.blddir / 'compile_commands.json')
-
-    #the main makefile:
-    makefile.write_main(global_targets,enabled_pkgnames)
 
     enabled_pkgnames=set(enabled_pkgnames)
     if 'enabled_pkgnames' in db.db:
