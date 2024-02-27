@@ -256,11 +256,17 @@ $> {_p} --init dgcode CACHEDIR::/some/where
     query_mode_withpathzoom_n = sum(int(bool(a)) for a in [args.grep,
                                                            args.replace,
                                                            args.find])
+
+    #Hidden option (for now):
+    args.export_jsoncmds = bool(os.environ.get('SIMPLEBUILD_EXPORT_JSONCMDS'))
+
     query_mode_n = query_mode_withpathzoom_n + sum(int(bool(a))
                                                    for a in
                                                    [args.pkggraph,
                                                     args.pkginfo,args.
-                                                    incinfo,args.summary])
+                                                    incinfo,
+                                                    args.summary,
+                                                    args.export_jsoncmds])
     if int(args.clean)+ query_mode_n > 1:
         parser.error("Conflicting options (+internal inconsistency:"
                      " this conflict should have been caught earlier)")

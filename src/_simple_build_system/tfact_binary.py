@@ -15,8 +15,6 @@ from . import tfact_headerdeps
 
 join=os.path.join
 
-has_realpath = os.path.exists('/usr/bin/realpath')
-
 class TargetBinaryObject(target_base.Target):
     def __init__(self,pkg,subdir,bn,e,lang,shlib,cflags,possible_privincs):
         is_py_mod = subdir.startswith('pycpp_')#todo better way?
@@ -55,13 +53,23 @@ class TargetBinaryObject(target_base.Target):
         #contains_message=True
         obj_create_key = 'create_obj_for_shlib' if shlib else 'create_obj_for_exe'
 
-        self.code=['@if [ ${VERBOSE} -ge 0 ]; then echo "  %sBuilding %s/%s/%s%s"; fi'%(col.bldcol('objectfile'),
-                                                                                        pkg.name,
-                                                                                        subdir,
-                                                                                        os.path.basename(self.name),
-                                                                                        col.bldend),
+        obj_create_cmd = langinfo[obj_create_key]%( ' '.join(extra_flags),
+                                                    sf,
+                                                    self.name )
+        filekey = '%s/%s/%s'%(pkg.name,
+                              subdir,
+                              os.path.basename(self.name))
+
+        if target_base.need_commands_json_export:
+            self.__jsonexport = [ ( obj_create_cmd, filekey) ]
+
+
+        self.code=['@if [ ${VERBOSE} -ge 0 ]; then echo " '
+                   ' %sBuilding %s%s"; fi'%(col.bldcol('objectfile'),
+                                            filekey,
+                                            col.bldend),
                    'mkdir -p %s'%d,
-                   langinfo[obj_create_key]%(' '.join(extra_flags),'`realpath %s`'%sf if has_realpath else sf,self.name)]
+                   obj_create_cmd]
 
         priv,pub = includes.find_includes(dirs.pkg_dir(pkg,subdir,fn),pkg)
 
@@ -81,6 +89,9 @@ class TargetBinaryObject(target_base.Target):
             self._pub = [(p,f) for (p,f) in pub if p!=self.pkgname]
         else:
             self._pub=None
+
+    def export_compilation_commands(self):
+        return self.__jsonexport
 
     def setup(self,pkg):
         if self._pub:

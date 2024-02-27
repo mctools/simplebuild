@@ -1,9 +1,11 @@
-def perform_configuration( select_filter=None,
-                           force_reconf=False,
-                           load_all_pkgs=False,
-                           quiet=False,
-                           verbose=False
-                          ):
+def perform_cfg( *,
+                 select_filter=None,
+                 force_reconf=False,
+                 load_all_pkgs=False,
+                 quiet=False,
+                 verbose=False,
+                 export_jsoncmds=False
+                ):
     import os
     import sys
     import glob
@@ -338,17 +340,28 @@ def perform_configuration( select_filter=None,
         t.validate()
     all_targets+=global_targets
 
+    export_jsoncmds_pkg = None
+    export_jsoncmds_finalise = None
+    if export_jsoncmds:
+        from . import _export_jsoncmds
+        export_jsoncmds_pkg      = _export_jsoncmds.export_pkg
+        export_jsoncmds_finalise = _export_jsoncmds.finalise
+
     #setup makefiles:
     utils.mkdir_p(dirs.makefiledir)
     from . import makefile
 
     #package makefiles:
-
     enabled_pkgnames=[]
     for p in pl.enabled_pkgs_iter():
         enabled_pkgnames+=[p.name]
         if hasattr(p,'targets'):#no targets means reuse old makefile
             makefile.write_pkg(p)
+            if export_jsoncmds_pkg:
+                export_jsoncmds_pkg(p)
+
+    if export_jsoncmds_finalise:
+        export_jsoncmds_finalise(dirs.blddir / 'compile_commands.json')
 
     #the main makefile:
     makefile.write_main(global_targets,enabled_pkgnames)

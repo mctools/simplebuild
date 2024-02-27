@@ -7,15 +7,15 @@ from . import utils
 from . import error
 from . import conf
 
-patterns=[]
-dirtypes=set()
+_patterns=[]
+#dirtypes=set()
 dirtype_info = {}
 def register_pattern(pattern,target_factory):
-    global patterns,dirtypes,dirtypes_info
-    patterns+=[pattern]
+    global _patterns,dirtypes_info#,dirtypes
+    _patterns+=[pattern]
     dt=pattern[0:4]
     dirtype_info[dt] = (re.compile('^'+pattern+'$').match,target_factory)
-    assert len(dirtype_info)==len(patterns),"patterns not uniquely defined by first 4 chars"
+    assert len(dirtype_info)==len(_patterns),"patterns not uniquely defined by first 4 chars"
 
 for p,f in conf.target_factories_for_patterns():
     register_pattern(p,f)
@@ -30,7 +30,8 @@ def apply_patterns(pkg):
         nfo = dirtype_info.get(dirtype,None)
         dd=os.path.join(dn,d)
         if nfo and nfo[0](d) and os.path.isdir(dd):
-            l=nfo[1](pkg,d)#call factory
+            thefactory = nfo[1]
+            ll=thefactory(pkg,d)#call factory
             #subdirs matching a target-generating pattern can not have subdirs themselves. This seems like a good place to check for it:
             for sf in os.listdir(dd):
                 if sf=='.ipynb_checkpoints':
@@ -40,9 +41,9 @@ def apply_patterns(pkg):
                     if os.path.basename(sf).startswith('__pycache__'):
                         continue
                     error.error('Sub-directories are not allowed in %s/%s/'%(pkg.name,d))
-            if l:
+            if ll:
                 dirtypes.add(dirtype)
-                targets += l
+                targets += ll
     return targets,dirtypes
 
 def create_pkg_targets(pkg):

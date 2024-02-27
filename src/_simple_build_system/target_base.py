@@ -34,6 +34,9 @@
 
 from . import col
 
+need_commands_json_export = False
+
+
 class Target:
     contains_message=False#todo: we should probably have a custom message in all targets
     pkglevel = True#set to false if other targets in the pkg depends on this

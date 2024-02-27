@@ -74,6 +74,10 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
     from .envsetup import apply_envunsetup_to_dict
     apply_envunsetup_to_dict( os.environ )
 
+    if opt.export_jsoncmds:
+        from . import target_base
+        target_base.need_commands_json_export = True
+
     if opt.summary:
         print("FIXME: summary mode is not yet implemented!")
         raise SystemExit
@@ -173,6 +177,11 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
                                                                                               str(conf.build_dir())))
             opt.insist = True
 
+    if not opt.insist and opt.export_jsoncmds:
+        print('Always performing complete rebuild when exporting'
+              ' commands to JSON')
+        opt.insist=True
+
     if opt.insist:
         conf.safe_remove_install_and_build_dir()
         dirs.create_bld_dir()
@@ -187,11 +196,12 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
     err_txt,unclean_exception = None,None
     error.default_error_type = error.Error
     try:
-        pkgloader = backend.perform_configuration(select_filter=select_filter,
-                                                  force_reconf=opt.examine,
-                                                  load_all_pkgs = opt.query_mode,
-                                                  quiet=opt.quiet,
-                                                  verbose=opt.verbose)
+        pkgloader = backend.perform_cfg(select_filter=select_filter,
+                                        force_reconf=opt.examine,
+                                        load_all_pkgs = opt.query_mode,
+                                        quiet=opt.quiet,
+                                        verbose=opt.verbose,
+                                        export_jsoncmds = opt.export_jsoncmds)
     except KeyboardInterrupt:
         err_txt = "Halted by user interrupt (CTRL-C)"
     except error.CleanExit as ce:
