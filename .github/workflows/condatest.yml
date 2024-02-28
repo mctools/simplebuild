@@ -1,0 +1,54 @@
+name: conda-test
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, macos-latest ]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash -el {0}
+    env:
+      CONDA_SOLVER: libmamba
+
+    steps:
+    - name: Checkout main repository
+      uses: actions/checkout@v4
+
+    - name: Setup conda environment
+      uses: conda-incubator/setup-miniconda@v3
+      with:
+        activate-environment: sbenv
+        environment-file: ./resources/conda_sbenv.yml
+
+    - name: Install self
+      run: |
+           #NB: the simple-build-system conda package was installed, but we
+           #remove it (and *only* it, hence --force), and add ourselves via pip
+           #(one side-effect of this is that we no longer have the simplebuild
+           #conda activation script!):
+           conda remove --yes --force simple-build-system
+           python3 -mpip install .
+           echo "sb --version:"
+           sb --version
+
+    - name: Build-and-test-release-mode
+      run: |
+           mkdir myproj
+           cd myproj
+           sb --init core_val COMPACT CACHEDIR::./somecustomcachedir
+           sb -t --testexcerpts=100 --requirepkg 'CoreTests,CorePyLinkTests'
+           sbenv sb_core_extdeps --require-disabled NCrystal Numpy matplotlib Geant4 ZLib
+           sb -t --testfilter='sb_coretests_testpycpp' --requirepkg 'CoreTests,CorePyLinkTests'
+
+    - name: Build-and-test-debug-mode
+      run: |
+           mkdir myproj_dbg
+           cd myproj_dbg
+           sb --init core_val DEBUG
+           sb -t --testexcerpts=100 --requirepkg 'CoreTests,CorePyLinkTests'
+           sbenv sb_core_extdeps --require-disabled NCrystal Numpy matplotlib Geant4 ZLib
