@@ -41,14 +41,14 @@ jobs:
            mkdir myproj
            cd myproj
            sb --init core_val COMPACT CACHEDIR::./somecustomcachedir
-           sb -t --testexcerpts=100 --requirepkg 'CoreTests,CorePyLinkTests'
+           sb -t --testexcerpts=100 --requirepkg CoreTests
            sbenv sb_core_extdeps --require-disabled NCrystal Numpy matplotlib Geant4 ZLib
-           sb -t --testfilter='sb_coretests_testpycpp' --requirepkg 'CoreTests,CorePyLinkTests'
+           sb -t --testfilter='sb_coretests_testpycpp' --requirepkg CoreTests
 
     - name: Build-and-test-debug-mode
       run: |
            mkdir myproj_dbg
            cd myproj_dbg
            sb --init core_val DEBUG
-           sb -t --testexcerpts=100 --requirepkg 'CoreTests,CorePyLinkTests'
+           sb -t --testexcerpts=100 --requirepkg CoreTests
            sbenv sb_core_extdeps --require-disabled NCrystal Numpy matplotlib Geant4 ZLib
