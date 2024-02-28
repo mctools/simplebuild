@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
-import os,sys,random,string,time,shutil,glob,filecmp
+import os
+import sys
+import random
+import string
+import time
+import shutil
+import glob
+import filecmp
+import atexit
 import Core.System as Sys
 import simplebuild.cfg as cfg
 
@@ -105,7 +113,6 @@ def final_summary():
     print("Updated %i files%s"%(len(updated_files),':' if updated_files else ''))
     print('    %s'%(' '.join(updated_files)))
 
-import atexit
 atexit.register(final_summary)
 
 for cmd,log,reflog in commands:

@@ -6,7 +6,7 @@ def query( keys, dict_only_keys, opt_bool01 ):
     with cfg.dirs.envcache.open('rb') as fh:
         data = pickle.load(fh)
     for k in keys:
-        if not isinstance(data, dict) or not k in data:
+        if not isinstance(data, dict) or k not in data:
             raise SystemExit('Invalid key: %s'%k)
         data = data[k]
     if dict_only_keys and isinstance(data, dict):
@@ -25,7 +25,7 @@ def pkginfo( pkgname ):
     if '/' in pkgname or '.' in pkgname:
         raise SystemExit('Please provide only the package name.')
     import simplebuild.cfg as cfg
-    if not pkgname in cfg.pkgs:
+    if pkgname not in cfg.pkgs:
         raise SystemExit('Unknown package: %s'%pkgname)
     print(cfg.pkgs[pkgname]['dirname'])
 

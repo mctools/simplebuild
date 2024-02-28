@@ -227,7 +227,7 @@ def deinstall_parts(instdir,pkgname,current_parts,disappeared_parts):
                 rm_file( pkgcache / 'symlinks' / 'python.pkl.old' )
         elif d.startswith('pycpp_') or d=='symlink__python':
             if d.startswith('pycpp'):
-                rm_file( ( i / 'python' / pkgname / '%s.so' )%d[6:] )
+                rm_file( i / 'python' / pkgname / ( '%s.so'%d[6:] ) )
             if not pydone:
                 pydone=True
                 if not any((e.startswith('pycpp') or e=='symlink__python') for e in current_parts):
