@@ -7,7 +7,9 @@
 // with a PYTHON_MODULE macro to be used in the pycpp_XXX compiled python
 // modules of the packages. It includes the necessary hacks and workarounds to
 // work on the various platforms (try not to put any hacks/workarounds
-// elsewhere!).
+// elsewhere!). It should only be used from C++ code in pycpp_*/ or app_*/
+// folders, since the code in libsrc/ folders is not linked with python and
+// pybind.
 
 //---------------------------------------------------------------------------
 
@@ -36,12 +38,10 @@ namespace pyextra {
   //C++ code, one must ensure python has been initialised (although for app_*/*
   //code, one is most likely better off using a pybind11 scoped_interpreter).
   inline bool isPyInit() { return Py_IsInitialized(); }
-  void pyInit( int argc, char** argv );//Transfer C++ cmdline to sys.argv
-  void pyInit( const char * argv0 = nullptr );//only provide sys.argv[0] (defaulting to "dummyargv0")
   inline void ensurePyInit()
   {
     if (!Py_IsInitialized())
-      pyInit();
+      Py_Initialize();
   }
   //Importing modules (same as py::module_::import):
   inline py::object pyimport( const char * name ) { return py::module_::import(name); }

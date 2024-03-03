@@ -42,10 +42,16 @@ class TargetBinaryObject(target_base.Target):
             self.deps+=['${EXT}/%s'%extdep]
 
         if is_py_mod:
+            #src in pycpp_*/*.cc
             assert shlib
             extra_flags.append( '${PYBIND11_MODULE_CFLAGS}' )
-        else:
+        elif not shlib:
+            #src in app_*/*.cc
             extra_flags.append( '${PYBIND11_EMBED_CFLAGS}' )
+        else:
+            #src in libsrc/*.cc - do not allow Python here!
+            pass
+
 
         if pkg.extraflags_comp:
             extra_flags+=pkg.extraflags_comp
@@ -152,10 +158,15 @@ class TargetBinary(target_base.Target):
         append_to_rpath( extra_flags, join('${INST}','lib','links') )
 
         if is_py_mod:
+            #src in pycpp_*/*.cc
             assert shlib
             extra_flags.append( '${PYBIND11_MODULE_LDFLAGS}' )
-        else:
+        elif not shlib:
+            #src in app_*/*.cc
             extra_flags.append( '${PYBIND11_EMBED_LDFLAGS}' )
+        else:
+            #src in libsrc/*.cc - do not allow Python here!
+            pass
 
         conda_prefix =  envcfg.var.conda_prefix
         if conda_prefix:
