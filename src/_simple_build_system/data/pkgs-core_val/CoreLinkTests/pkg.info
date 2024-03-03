@@ -1,0 +1,9 @@
+package( USEEXT NCrystal )
+
+#############################################################
+
+Tests that NCrystal can be used as an external dependency in the present
+environment. The need for a dedicated test package for this is explained in
+https://github.com/mctools/ncrystal/issues/166 .
+
+primary author: thomas.kittelmann@ess.eu

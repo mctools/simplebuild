@@ -52,3 +52,11 @@ jobs:
            sb --init core_val DEBUG
            sb -t --testexcerpts=100 --requirepkg CoreTests
            sbenv sb_core_extdeps --require-disabled NCrystal Numpy matplotlib Geant4 ZLib
+
+    - name: Verify-ncrystal-linkage
+      run: |
+           #This will fail with tool old ncrystal wheels, but should always be
+           #ok in conda:
+           cd myproj
+           conda install ncrystal
+           sb -t --testexcerpts=100 --requirepkg 'CoreTests,CoreLinkTests'
