@@ -35,15 +35,8 @@ if [ "x$PYLIBS" != "x$SBLD_INSTALL_PREFIX/python/*/*.so" ]; then
 fi
 
 #TODO: Is this rebust enough?
-THEPYLIB=$(sb_core_queryenv system general pybind11_embed_linkflags_list|tr ' ' '\n'|grep libpython|head -1)
-if [ ! -f "${THEPYLIB}" ]; then
-    echo "Could not find python lib!"
-    echo "Tried: >>${THEPYLIB}<<"
-    echo "Tried: >>${THEPYLIB}<<"
-    echo "Output of sb_core_queryenv cmd:"
-    sb_core_queryenv system general pybind11_embed_linkflags_list
-    exit 1
-fi
+
+THEPYLIB=$(python3 -mCore.find_libpython) || exit 1
 
 ERR=0
 for lib in $LIBS; do
