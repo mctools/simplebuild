@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 
+#Since the compiled python modules in pycpp_* are not actually linked with
+#libpython (otherwise they could not work in all contexts, including both a
+#dynamic libpython and a python interpreter with a static libpython linked in),
+#we might miss other non-python symbols being undefined. Thus, we have this unit
+#test where we LD_PRELOAD the libpython, and then use ldd to look for missing
+#symbols.
+
 if [ ! -f /proc/cpuinfo ]; then
     echo "This test only works on linux. Ending gracefully."
     exit 0
@@ -26,11 +33,17 @@ PYLIBS=`echo $SBLD_INSTALL_PREFIX/python/*/*.so`
 if [ "x$PYLIBS" != "x$SBLD_INSTALL_PREFIX/python/*/*.so" ]; then
     LIBS="$LIBS $PYLIBS"
 fi
+
+#TODO: Is this rebust enough?
+THEPYLIB=$(sb_core_queryenv system general pybind11_embed_linkflags_list|tr ' ' '\n'|grep libpython|head -1)
+
 ERR=0
 for lib in $LIBS; do
     echo "Checking "`basename $lib`" for missing symbols"
     #tmpfile_libchecker workaround to get stdout blocked and stderr to stdout
-    ldd -r $lib > /dev/null 2>tmpfile_libchecker
+    LD_PRELOAD="${THEPYLIB}" \
+              ldd -r "${lib}" \
+              2>&1 |grep -i '^undefined ' >tmpfile_libchecker
     if [ -s tmpfile_libchecker ]; then
         ERR=1
     fi
