@@ -36,14 +36,20 @@ fi
 
 #TODO: Is this rebust enough?
 THEPYLIB=$(sb_core_queryenv system general pybind11_embed_linkflags_list|tr ' ' '\n'|grep libpython|head -1)
+if [ ! -f "${THEPYLIB}" ]; then
+    echo "Could not find python lib!"
+    echo "Tried: >>${THEPYLIB}<<"
+    echo "Tried: >>${THEPYLIB}<<"
+    echo "Output of sb_core_queryenv cmd:"
+    sb_core_queryenv system general pybind11_embed_linkflags_list
+    exit 1
+fi
 
 ERR=0
 for lib in $LIBS; do
     echo "Checking "`basename $lib`" for missing symbols"
     #tmpfile_libchecker workaround to get stdout blocked and stderr to stdout
-    LD_PRELOAD="${THEPYLIB}" \
-              ldd -r "${lib}" \
-              2>&1 |grep -i '^undefined ' >tmpfile_libchecker
+    LD_PRELOAD="${THEPYLIB}" ldd -r "${lib}" 2>&1 |grep -i '^undefined ' >tmpfile_libchecker
     if [ -s tmpfile_libchecker ]; then
         ERR=1
     fi
@@ -52,7 +58,7 @@ for lib in $LIBS; do
 done
 if [ $ERR != 0 ]; then
     echo "Error: libraries with missing symbols found"
-    exit $ERR
+    exit 1
 else
     echo "No problems found in any checked libraries"
     exit 0
