@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-def perform_tests(testdir,installdir,njobs,nexcerpts,filters,do_pycoverage,pkgloader=None):
+def perform_tests(testdir,
+                  installdir, njobs, nexcerpts, filters,
+                  do_pycoverage, pkgloader=None):
     import os
     import sys
     import fnmatch
@@ -65,18 +67,37 @@ def perform_tests(testdir,installdir,njobs,nexcerpts,filters,do_pycoverage,pkglo
         pkginfo = simplebuild_cfg.pkgs
 
     if filters:
-        _ = []
+        # Use same logic as for the pkg_filters, i.e.:
+
+        # * If any positive filters are defined, a pkg must pass at least one of
+        #   them to pass.
+        # * If any negative filters are defined, a pkg must NOT pass any of
+        #   them, to pass.
+
+        _pos_filters = []
+        _neg_filters = []
         for fltr in filters:
             fltr=fltr.strip()
-            invert=False
             if fltr.startswith('!'):
-                fltr=fltr[1:].strip()
-                invert=True
-            if not fltr:
-                continue
-            _.append( (invert, fltr ) )
-        filters = _
-    filters = filters or []
+                fltr = fltr[1:].strip()
+                if fltr:
+                    _neg_filters.append( fltr )
+            elif fltr:
+                _pos_filters.append( fltr )
+        def filter_fct( testname ):
+            if _pos_filters:
+                if not any( fnmatch.fnmatch(runnable,fltr)
+                            for fltr in _pos_filters ):
+                    return False
+            if _neg_filters:
+                if any( fnmatch.fnmatch(runnable,fltr)
+                        for fltr in _neg_filters ):
+                    return False
+            return True
+    else:
+        def filter_fct( testname ):
+            return True
+
 
     nfiltered = 0
     for p in (p for _,p in pkginfo.items() if p['enabled']):
@@ -84,12 +105,7 @@ def perform_tests(testdir,installdir,njobs,nexcerpts,filters,do_pycoverage,pkglo
         for runnable in runnables:
             hasreflog = '%s.log'%runnable in reflogs
             if hasreflog or runnable_is_test(runnable):
-                selected = not filters
-                for invert, fltr in filters:
-                    if not fnmatch.fnmatch(runnable,fltr) == invert:
-                        selected=True
-                        break
-                if not selected:
+                if not filter_fct( runnable ):
                     nfiltered += 1
                 else:
                     assert runnable not in tests

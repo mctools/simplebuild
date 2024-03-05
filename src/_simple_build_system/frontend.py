@@ -446,9 +446,11 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
         assert (conf.test_dir().parent / '.sbbuilddir').exists()
         import shutil
         shutil.rmtree(conf.test_dir(),ignore_errors=True)
-        _testfilter=''
+        _testfilter=None
         if opt.testfilter:
-            _testfilter=[fltr.strip() for fltr in opt.testfilter.split(',') if fltr.strip()]
+            _testfilter = [ fltr.strip()
+                            for fltr in opt.testfilter.split(',')
+                            if fltr.strip() ]
         from .testlauncher import perform_tests
         ec = perform_tests( testdir = dirs.testdir,
                             installdir = dirs.installdir,

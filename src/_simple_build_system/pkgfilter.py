@@ -4,8 +4,9 @@ class PkgFilter:
 
     # If any positive filters are defined, a pkg must pass at least one of them to pass.
     # If any negative filters are defined, a pkg must NOT pass any of them, to pass.
+    # NB: The same logic is applied to sb --testfilters
 
-    #TODO: Document filter syntax somewhere (see also cfgtemplate.txt)!
+    #This is documented on in doc/source/simplebuilddotcfg.rst
 
     def __init__( self, filter_definition_list ):
         import fnmatch
