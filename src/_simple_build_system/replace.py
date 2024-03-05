@@ -13,11 +13,11 @@ def replacefile(filename,printname,search_pattern,replace_pattern):
     fh=open(filename,'rt')
     cont=''
     try:
-        for l in fh:
-            if search_pattern in l:
-                n+=l.count(search_pattern)
-                l=l.replace(search_pattern,replace_pattern)
-            cont+=l
+        for ll in fh:
+            if search_pattern in ll:
+                n += ll.count(search_pattern)
+                ll = ll.replace(search_pattern,replace_pattern)
+            cont += ll
     except UnicodeDecodeError:
         #ignore non-text data files
         n=0

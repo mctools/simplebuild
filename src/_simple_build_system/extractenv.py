@@ -12,63 +12,64 @@ def parse_stdouterr(fh):
     n_warnings=0
     unused_var_mode=False
     unused_vars=[]
-    for l in fh:
-        l=l.rstrip()
-        if not l:
+    for ll in fh:
+        ll=ll.rstrip()
+        if not ll:
             continue
-        if l.startswith('CMake Warning:'):
+        if ll.startswith('CMake Warning:'):
             n_warnings += 1
             continue
-        if n_warnings and 'Manually-specified variables were not used by the project:' in l:
+        if ( n_warnings and
+             ('Manually-specified variables were'
+              ' not used by the project:') in ll):
             unused_var_mode = True
             continue
         if unused_var_mode:
-            if l.startswith('  '):
-                l=l.strip()
-                assert l
-                if l not in unused_vars:
-                   unused_vars.append( l )
+            if ll.startswith('  '):
+                ll=ll.strip()
+                assert ll
+                if ll not in unused_vars:
+                   unused_vars.append( ll )
                 continue
             else:
                 assert unused_vars
                 unused_var_mode=False
     assert bool(unused_vars)==bool(n_warnings)
-    return {'other_warnings':n_warnings-(1 if unused_vars else 0),'unused_vars':unused_vars}
+    return {'other_warnings' : ( n_warnings-(1 if unused_vars else 0) ),
+            'unused_vars' : unused_vars }
 
 def parse(fh):
     extdeps = {}
     sysvars = {'langs':{}}
     cmakevars = {}
-    for l in fh:
-        c=l[0]
+    for ll in fh:
+        c=ll[0]
         if c=='#':
             continue
-        l=[e.strip() for e in l.split('@',2)]
-        if l[0]=='EXT':
-            l[2:]=l[2].split('@',1)#can actually have 4 fields in this case, not just 3
-            ext=l[1]
+        ll=[e.strip() for e in ll.split('@',2)]
+        if ll[0]=='EXT':
+            ll[2:]=ll[2].split('@',1)#can actually have 4 fields in this case, not just 3
+            ext=ll[1]
             if ext not in extdeps:
                 extdeps[ext]={}
-            if l[2]=='PRESENT':
-                extdeps[ext]['present']=bool(int(l[3]))
-            elif l[2]=='LINK':
-                extdeps[ext]['ldflags']=l[3]
-            #elif l[2]=='COMPILE':
-            #    extdeps[ext]['cflags']=l[3]
-            elif l[2]=='VERSION':
-                extdeps[ext]['version']=l[3]
-            elif l[2]=='COMPILE_CXX':
-                extdeps[ext]['cflags_cxx']=l[3]
-            elif l[2]=='COMPILE_C':
-                extdeps[ext]['cflags_c']=l[3]
+            if ll[2]=='PRESENT':
+                extdeps[ext]['present']=bool(int(ll[3]))
+            elif ll[2]=='LINK':
+                extdeps[ext]['ldflags']=ll[3]
+            #elif ll[2]=='COMPILE':
+            #    extdeps[ext]['cflags']=ll[3]
+            elif ll[2]=='VERSION':
+                extdeps[ext]['version']=ll[3]
+            elif ll[2]=='COMPILE_CXX':
+                extdeps[ext]['cflags_cxx']=ll[3]
+            elif ll[2]=='COMPILE_C':
+                extdeps[ext]['cflags_c']=ll[3]
             else:
-                assert False,"unexpected field: %s"%l[2]
-        elif l[0]=='VAR':
-            cmakevars[l[1]]=l[2]
+                assert False,"unexpected field: %s"%ll[2]
+        elif ll[0]=='VAR':
+            cmakevars[ll[1]]=ll[2]
         else:
             assert False
-
-
 
     sysvars['general'] = {
         'cmake_version': cmakevars['CMAKE_VERSION'],

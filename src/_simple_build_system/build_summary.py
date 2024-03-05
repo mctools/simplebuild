@@ -25,26 +25,26 @@ def produce_build_summary( *, pkgloader, verbose ):
     col_end = col.end
     #FIXME: Use formatlist module!
     def formatlist(lin,col):
-        l=lin[:]
+        ll=lin[:]
         colbegin = col if col else ''
         colend = col_end if col else ''
-        if not l or l==['']:
+        if not ll or ll==['']:
             return '<none>'
         first=True
         out=''
-        while l:
+        while ll:
             s=''
-            while l and len(s)<40:
+            while ll and len(s)<40:
                 if s:
                     s += ' '
-                s += l.pop(0)
+                s += ll.pop(0)
             if first:
                 out+='%s%s%s'%(colbegin,s,colend)
                 first=False
             else:
                 out += '\n%s                                      %s%s%s'%(prefix,colbegin,s,colend)
         return out
-        #return ' '.join(l)
+        #return ' '.join(ll)
 
     pkg_src_info = []
     for basedir in dirs.pkgsearchpath:

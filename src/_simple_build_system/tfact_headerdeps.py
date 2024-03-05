@@ -56,15 +56,15 @@ class TargetIncDep_HeaderFileInGroup(target_base.Target):
         self.code = []
         self.deps = ['%s__%s__group%i'%(pkg.name,subdir,igroup)]
 
-def find_circ(hh,hh2local,l,circgroups):
+def find_circ(hh,hh2local,ll,circgroups):
     local = hh2local[hh]
     if not local:
         return#no unresolved local includes
     for hhl in local:
-        if hhl in l:
+        if hhl in ll:
             #New circular group! Some circular groups have multiple circular routes within
             #the group, so we must check for overlap with existing groups and merge:
-            newcg=set(l[l.index(hhl):])
+            newcg=set(ll[ll.index(hhl):])
             overlaps=[]
             for cg in circgroups:
                 if not cg.isdisjoint(newcg):
@@ -76,7 +76,7 @@ def find_circ(hh,hh2local,l,circgroups):
                 circgroups+=[newcg]
         else:
             #continue with next layer of includes:
-            find_circ(hhl,hh2local,l+[hhl],circgroups)
+            find_circ(hhl,hh2local,ll+[hhl],circgroups)
     hh2local[hh]=None#prevent recheck
 
 def tfactory_headerdeps(pkg,subdir):

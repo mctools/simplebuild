@@ -11,10 +11,10 @@ def _write_targets(fh,targets):
         tn=t.name
         if '/' not in t.name:
             tn='${TRG}/%s'%tn
-        l=['%s:'%tn]
+        ll=['%s:'%tn]
         for dn in t.deps:
-            l+=[dn if '/' in dn else '${TRG}/%s'%dn]
-        fh.write('%s\n'%' '.join(l))
+            ll+=[dn if '/' in dn else '${TRG}/%s'%dn]
+        fh.write('%s\n'%' '.join(ll))
         for c in t.code:
             fh.write(cmdpat%c)
         if '/' not in t.name:

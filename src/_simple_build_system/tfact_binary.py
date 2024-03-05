@@ -188,18 +188,18 @@ class TargetBinary(target_base.Target):
                                       join(d,filename))]
 
     def setup(self,pkg):
-        l=[]
+        ll=[]
         if self._subdir!='libsrc':
             if pkg.has_lib():
-                l+=[conf.libldflag(pkg)]
-            self.deps+=['%s_libavail'%self.pkgname]
+                ll += [conf.libldflag(pkg)]
+            self.deps += ['%s_libavail'%self.pkgname]
         for p in pkg.deps():
             if p.has_lib():
-                l+=[conf.libldflag(p)]
+                ll += [conf.libldflag(p)]
             self.deps+=['%s_libavail'%p.name]
-        if l:
-            l.insert(0, '-L${INST}/lib')
-        self.code[-1]=self.code[-1]%(' '.join(l))
+        if ll:
+            ll.insert(0, '-L${INST}/lib')
+        self.code[-1]=self.code[-1]%(' '.join(ll))
 
 def create_tfactory_binary(instsubdir=None,pkglib=False,shlib=False,allowed_langs=None,namefct=None,flagfct=None,descrfct=None,checkfct=None):
     if not allowed_langs:

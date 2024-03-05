@@ -12,17 +12,17 @@ def parse_depfile(pkgdir):
     def _err(m=''):
         error.error('Package "%s" has invalid %s file%s'%(pkg_name,conf.package_cfg_file,m))
     with open(filename,'rt') as fh:
-        for iline1,l in enumerate(fh):
-            l=l.split('#')[0].strip()
-            if l.startswith('package(') and l.endswith(')'):
-                l=l[8:-1]
+        for iline1,ll in enumerate(fh):
+            ll=ll.split('#')[0].strip()
+            if ll.startswith('package(') and ll.endswith(')'):
+                ll=ll[8:-1]
                 extdeps=[]
                 pkgdeps=[]
                 extra_cflags=[]
                 extra_ldflags=[]
                 extra_incdeps=[]
                 current=None
-                for e in l.split():
+                for e in ll.split():
                     if e=='USEPKG':
                         current=pkgdeps
                     elif e=='USEEXT':
@@ -128,7 +128,7 @@ class Package:
                 error.error('Malformed EXTRA_INCDEPS statement in %s'%pcf)
             self.extra_include_deps += [eid]
 
-        l=[]
+        ll=[]
         for n in pd:
             o=name2object(n)
             if not o:
@@ -136,11 +136,11 @@ class Package:
                     error.error('Unknown package "%s" specified as auto dependency'%n)
                 else:
                     error.error('Unknown package "%s" specified in %s'%(n,pcf))
-            l+=[o]
-        self.direct_deps=l
+            ll+=[o]
+        self.direct_deps=ll
         if enable_and_recurse_to_deps:
             self.enabled=True
-            for p in l:
+            for p in ll:
                 p.setup(name2object,autodeps,enable_and_recurse_to_deps=True)
         self.__deps=None
         self.__extdeps=None
@@ -250,11 +250,17 @@ class Package:
         from . import env
         width=max(75,len(self.dirname)+30)
         from .io import print, print_prefix
-        def _format(l):
-            if not l:
+        def _format(ll):
+            if not ll:
                 return col.darkgrey+'<none>'+col.end
             from . import formatlist
-            return '\n'.join(formatlist.formatlist([(n,col.ok if b else col.bad) for n,b in sorted(l)],width-40,indent_first='',indent_others=print_prefix+' '*27))
+            return '\n'.join(
+                formatlist.formatlist(
+                    [(n,col.ok if b else col.bad) for n,b in sorted(ll)],
+                    width-40,
+                    indent_first='',
+                    indent_others=print_prefix+' '*27)
+            )
         extdeps_direct = [(e,env.env['extdeps'][e]['present']) for e in self.direct_deps_extnames]
         extdeps_indirect = [(e,env.env['extdeps'][e]['present']) for e in self.extdeps() if e not in self.direct_deps_extnames]
         def nameformat(n):

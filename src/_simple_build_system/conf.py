@@ -139,29 +139,35 @@ def target_factories_for_patterns():
     from . import tfact_symlink as tfs
     from . import tfact_headerdeps as tfh
     from . import tfact_binary as tfb
-    l=[]
-    l += [('data',   tfs.create_tfactory_symlink('','data/%s',chmodx=False))]
-    l += [('scripts',tfs.create_tfactory_symlink('','scripts',chmodx=True,
-                                                 renamefct=runnable_name))]#todo: disallow periods? enforce lowercase?
-    l += [('python', tfs.create_tfactory_symlink('.+\.py','python/%s',chmodx=False))]
-    l += [('pycpp_.+', tfb.create_tfactory_binary(shlib=True,
-                                                  instsubdir='python/%s',
-                                                  allowed_langs=['cxx'],
-                                                  namefct=namefct_pycpp,
-                                                  descrfct=descrfct_pycpp,
-                                                  checkfct=checkfct_pycpp,
-                                                  flagfct=lambda pkg,subdir:['-DPYMODNAME=%s'%subdir[6:]]))]
-    l += [('app_.+', tfb.create_tfactory_binary(instsubdir='bin',namefct=namefct_app,
+    ll=[]
+    ll += [('data',   tfs.create_tfactory_symlink('','data/%s',chmodx=False))]
+    ll += [('scripts',tfs.create_tfactory_symlink('','scripts',chmodx=True,
+                                                  renamefct=runnable_name))]#todo: disallow periods? enforce lowercase?
+    ll += [('python', tfs.create_tfactory_symlink('.+\.py','python/%s',
+                                                  chmodx=False))]
+    ll += [('pycpp_.+',
+            tfb.create_tfactory_binary(shlib=True,
+                                       instsubdir='python/%s',
+                                       allowed_langs=['cxx'],
+                                       namefct=namefct_pycpp,
+                                       descrfct=descrfct_pycpp,
+                                       checkfct=checkfct_pycpp,
+                                       flagfct = lambda pkg,subdir
+                                       :['-DPYMODNAME=%s'%subdir[6:]]))]
+    ll += [('app_.+', tfb.create_tfactory_binary(instsubdir='bin',
+                                                 namefct=namefct_app,
                                                   descrfct=descrfct_app))]
-    l += [('libsrc', tfb.create_tfactory_binary(pkglib=True,namefct=namefct_lib,descrfct=descrfct_lib))]
-    l += [('libinc',  tfh.tfactory_headerdeps)]#just for header dependencies
+    ll += [('libsrc', tfb.create_tfactory_binary(pkglib=True,
+                                                 namefct=namefct_lib,
+                                                 descrfct=descrfct_lib))]
+    ll += [('libinc',  tfh.tfactory_headerdeps)]#just for header dependencies
 
-
-    return l
+    return ll
 
 def ignore_file(f):
     f = f.name if hasattr(f,'name') else f
-    return f[0]=='.' or '~' in f or '#' in f or f.endswith('.orig') or f.endswith('.bak') or f=='__pycache__'
+    return ( f[0]=='.' or '~' in f or '#' in f or f.endswith('.orig')
+             or f.endswith('.bak') or f=='__pycache__' )
 
 def target_factories():
     #non-pattern factories:
@@ -169,12 +175,12 @@ def target_factories():
     from . import tfact_pyinit
     from . import tfact_reflogs
     from . import tfact_libavail
-    l = []
-    l += [tfact_prepinc.tfactory_prepinc]
-    l += [tfact_pyinit.tfactory_pyinit]
-    l += [tfact_reflogs.tfactory_reflogs]
-    l += [tfact_libavail.tfactory_libavail]
-    return l
+    ll = []
+    ll += [tfact_prepinc.tfactory_prepinc]
+    ll += [tfact_pyinit.tfactory_pyinit]
+    ll += [tfact_reflogs.tfactory_reflogs]
+    ll += [tfact_libavail.tfactory_libavail]
+    return ll
 
 def deinstall_parts(instdir,pkgname,current_parts,disappeared_parts):
     from . import dirs

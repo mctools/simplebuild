@@ -161,14 +161,15 @@ def provide_info(pkgloader,f):
     nrelationships = 0
     for i in ('includes','is included by'):
         for d in ('directly','indirectly'):
-            l=['%s%s'%(_printform(pi,fi),_rel_description(f,fi)) for (pi,fi) in sorted(nfo['%s_%s'%(i.replace(' ','_'),d)])]
-            if l:
-                nrelationships += len(l)
-                t='1 file' if len(l)==1 else '%i files'%len(l)
+            ll=['%s%s'%(_printform(pi,fi),_rel_description(f,fi))
+                for (pi,fi) in sorted(nfo['%s_%s'%(i.replace(' ','_'),d)])]
+            if ll:
+                nrelationships += len(ll)
+                t='1 file' if len(ll)==1 else '%i files'%len(ll)
                 print()
                 print("File %s %s (%s):"%(i,t,d))
                 print()
-                for e in l:
+                for e in ll:
                     print('      %s'%e)
     if not nrelationships:
         print()
@@ -188,23 +189,30 @@ def provide_info_multifiles(pkgloader,files):
     merged_nfo = {}
     files_set = set(files)#ignore dependencies within the queried list of files
     for key in ('includes_directly', 'includes_indirectly', 'is_included_by_directly', 'is_included_by_indirectly'):
-        seen,l=set(),[]
+        seen,ll=set(),[]
         for nfo in nfos.values():
-            l += [v for v in nfo[key] if v[1] not in files_set and not (v in seen or seen.add(v))]#relies on seen.add returning None
-        merged_nfo[key] = l
+            ll += [v for v in nfo[key]
+                   if v[1]
+                   not in files_set
+                   and not (v in seen or seen.add(v))]#relies on seen.add
+                                                      #returning None
+        merged_nfo[key] = ll
     #print results
     nrelationships = 0
     for i in ('includes','is included by'):
         for d in ('directly','indirectly'):
-            l=[_printform(pi,fi) for (pi,fi) in sorted(merged_nfo['%s_%s'%(i.replace(' ','_'),d)])]
-            if l:
-                i_plural = {'includes':'include','is included by':'are included by'}[i]
-                nrelationships += len(l)
-                t='1 file' if len(l)==1 else '%i files'%len(l)
+            ll=[ _printform(pi,fi)
+                 for (pi,fi)
+                 in sorted(merged_nfo['%s_%s'%(i.replace(' ','_'),d)]) ]
+            if ll:
+                i_plural = {'includes':'include',
+                            'is included by':'are included by'}[i]
+                nrelationships += len(ll)
+                t='1 file' if len(ll)==1 else '%i files'%len(ll)
                 print()
                 print("Files %s %s (%s):"%(i_plural,t,d))
                 print()
-                for e in l:
+                for e in ll:
                     print('      %s'%e)
     if not nrelationships:
         print()

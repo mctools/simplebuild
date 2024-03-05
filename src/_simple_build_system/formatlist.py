@@ -1,11 +1,16 @@
-def formatlist(l,width,colour=None,indent_first='',indent_others='',nonetext='<none>'):
+def formatlist( thelist,
+                width,
+                colour=None,
+                indent_first='',
+                indent_others='',
+                nonetext='<none>' ):
     from . import col
     #entries in input list are either in format (text,color) or simply
     #(text). colour will be used to override all colours (colour='' will turn
     #all colours off).
     out=['']
     i=0
-    for entry in l:
+    for entry in thelist:
         try:
             e,c = entry
         except ValueError:

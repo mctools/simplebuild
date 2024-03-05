@@ -11,7 +11,7 @@ def grepfile(filename,pattern,color=None):
             #read a bit, to trigger error here (in case file with extension .gz
             #is not actually compressed with gzip)
             try:
-                for l in fh:
+                for ll in fh:
                     break
             except UnicodeDecodeError:
                 return#ignore gzipped non-text data files
@@ -22,23 +22,23 @@ def grepfile(filename,pattern,color=None):
         fh=open(filename)
     lp=pattern.lower()
     try:
-        for i,l in enumerate(fh):
-            ll=l.lower()
+        for i,lorig in enumerate(fh):
+            ll=lorig.lower()
             if lp.lower() in ll:
                 if color is None:
-                    yield (i+1,l)
+                    yield (i+1,lorig)
                 else:
                     used=0
                     l2=''
                     while used<len(ll):
                         k=ll[used:].find(lp)
                         if k==-1:
-                            l2+=l[used:]
+                            l2+=lorig[used:]
                             break
                         else:
-                            l2+=l[used:used+k]
+                            l2+=lorig[used:used+k]
                             l2+=color
-                            l2+=l[used+k:used+k+len(lp)]
+                            l2+=lorig[used+k:used+k+len(lp)]
                             l2+=col.grep_unmatch
                             used+=k+len(pattern)
                     yield (i+1,col.grep_unmatch+l2+col.end)
