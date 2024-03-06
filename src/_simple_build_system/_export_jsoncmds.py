@@ -34,6 +34,9 @@ def export_pkg( pkg, varmap ):
 def finalise( destfile ):
     import json
     from .io import print
+    import pathlib
+    import os #need to use os.path.relpath in this case!
+    dest_pretty = os.path.relpath(destfile.absolute(),pathlib.Path('.'))
     print(f"Exporting {len(_exported_cmds)} compilation"
-          f" commands to file: {destfile.absolute()}")
+          f" commands to file: {dest_pretty}")
     destfile.write_text( json.dumps( _exported_cmds, indent='  ' ) )

@@ -85,7 +85,7 @@ $> {_p} --init dgcode CACHEDIR::/some/where
     group_build = parser.add_argument_group(
         'Controlling the build',
         "The build will be carried out and installed in a cache directory "
-        "(use -s to\nsee which). The following options affects the build "
+        "(use -s\nto see which). The following options affects the build "
         "process.")
 
     group_qv = group_build.add_mutually_exclusive_group()
@@ -199,6 +199,12 @@ $> {_p} --init dgcode CACHEDIR::/some/where
                              help=("Fail unless all listed"
                                    " packages are enabled."))
 
+    group_other.add_argument("--exportcmds", action="store", dest="export_jsoncmds",
+                             default=None, metavar='FILE',
+                             help=('Export build commands for static analysis.'))
+    exclusive.add(('--exportcmds','export_jsoncmds'))
+
+
     group_other.add_argument("--removelock",
                            action='store_true', dest="removelock",
                            help="Force removal of lockfile.")
@@ -257,9 +263,6 @@ $> {_p} --init dgcode CACHEDIR::/some/where
                                                            args.replace,
                                                            args.find])
 
-    #Hidden option (for now):
-    args.export_jsoncmds = bool(os.environ.get('SIMPLEBUILD_EXPORT_JSONCMDS'))
-
     query_mode_n = query_mode_withpathzoom_n + sum(int(bool(a))
                                                    for a in
                                                    [args.pkggraph,
@@ -273,6 +276,15 @@ $> {_p} --init dgcode CACHEDIR::/some/where
     args.query_mode = query_mode_n > 0
 
     args.querypaths=[]
+
+    if args.export_jsoncmds:
+        p = pathlib.Path(args.export_jsoncmds).expanduser().absolute()
+        if p.is_file():
+            parser.error(f'File already exists: {p}')
+        if not p.parent.is_dir():
+            parser.error(f'Not a directory: {p.parent}')
+        args.export_jsoncmds = p.resolve()
+        assert args.export_jsoncmds
 
     if query_mode_withpathzoom_n > 0:
         for a in args_unused:

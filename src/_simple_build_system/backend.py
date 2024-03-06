@@ -345,7 +345,8 @@ def perform_cfg( *,
     if export_jsoncmds:
         from . import _export_jsoncmds
         export_jsoncmds_pkg      = _export_jsoncmds.export_pkg
-        export_jsoncmds_finalise = _export_jsoncmds.finalise
+        def export_jsoncmds_finalise():
+            return _export_jsoncmds.finalise(export_jsoncmds)
 
     #setup makefiles:
     utils.mkdir_p(dirs.makefiledir)
@@ -366,7 +367,7 @@ def perform_cfg( *,
                 export_jsoncmds_pkg(p,_makefile_var_map)
 
     if export_jsoncmds_finalise:
-        export_jsoncmds_finalise(dirs.blddir / 'compile_commands.json')
+        export_jsoncmds_finalise()
 
     enabled_pkgnames=set(enabled_pkgnames)
     if 'enabled_pkgnames' in db.db:

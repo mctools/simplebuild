@@ -58,5 +58,14 @@ jobs:
            #This will fail with tool old ncrystal wheels, but should always be
            #ok in conda:
            cd myproj
-           conda install ncrystal
+           conda install --yes ncrystal
            sb -t --testexcerpts=100 --requirepkg 'CoreTests,CoreLinkTests'
+
+    - name: cppcheck
+      run: |
+           cd myproj
+           conda install --yes cppcheck
+           sb --exportcmds=cmds.json --requirepkg 'CoreTests,CoreLinkTests'
+           test -f cmds.json
+           mkdir ./cppcheck_cache
+           cppcheck --inline-suppr --project=cmds.json --check-level=exhaustive -j4 --cppcheck-build-dir="$PWD"/cppcheck_cache --suppress='*:'"$CONDA_PREFIX"'/include/*' --error-exitcode=1
