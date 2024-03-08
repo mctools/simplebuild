@@ -44,6 +44,7 @@ def perform_cfg( *,
         return dict(
             install_dir = str(conf.install_dir()),
             build_dir = str(conf.build_dir()),
+            env_hash = calc_environment_hash_dict(),
             command_paths = dict( (b,str(shutil.which(b)))
                                   for b in sorted(set(envdict['autoreconf']['bin_list'].split(';')))),
             environment_variables = dict( (e,os.environ.get(e))
@@ -479,3 +480,39 @@ def calc_env_changes( old, new ):
             yield f'{tn} - no longer tracking "{k}"'
         for k in kn-ko:
             yield f'{tn} - now also tracking "{k}"'
+
+def calc_environment_hash_dict():
+    #Calculate a hash of the current environment, Should be very fast. Currently
+    #this only gives something meaningful for conda environments, but it could
+    #of course be extended to other environments (Python venvs, debian pkg list,
+    #etc.).
+    import os
+    cp = os.environ.get('CONDA_PREFIX')
+    if cp:
+        ch =  _calc_conda_env_hash( cp )
+        return dict( conda_env_pkg_hash
+                     = ch or '@@conda_env_with_unknown_hash@@' )
+    return {}
+
+def _calc_conda_env_hash( conda_prefix ):
+    """Get a checksum (hex str) of the files in $CONDA_PREFIX/conda-meta, which
+    can be used to detect if installed packages in a given conda environment
+    changed or not. Returns None if CONDA_PREFIX is not set. Raises a runtime
+    error in case of problems with the current conda environment.
+
+    To be fast, it is assumed that the filenames in $CONDA_PREFIX/conda-meta are
+    enough to detect any changes.
+
+    """
+    assert conda_prefix
+    import pathlib
+    cp = pathlib.Path( conda_prefix ) / 'conda-meta'
+    if not cp.is_dir():
+        raise RuntimeError('Did not find a conda-meta directory'
+                           ' inside $CONDA_PREFIX')
+    import hashlib
+    hashval = hashlib.md5()
+    hashval.update(str(cp.absolute().resolve()).encode())
+    for f in sorted(cp.iterdir(),key = lambda p : str(p) ):
+        hashval.update(f.name.encode())
+    return hashval.hexdigest()
