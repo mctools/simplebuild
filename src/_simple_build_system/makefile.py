@@ -32,13 +32,18 @@ def ldflags_to_rpath_dirs(ldflags):
     #relevant dirs, so we hardcode a list here:
     ignore=set(['/lib','/lib32','/lib64','/usr/lib','/usr/lib32','/usr/lib64'])
     for e in utils.shlex_split(ldflags):
+        #Get dirs from -L/some/dir:
         if e.startswith('-L'):
             e=e[2:]
-        if e and os.path.exists(e) and (e.endswith('.so') or e.endswith('.dylib')):
-            e=os.path.dirname(e)
-        if e and e not in ignore and os.path.isdir(e):
-            e=os.path.abspath(os.path.realpath(e))
-            if e not in res:
+        #Get dirs from /some/dir/with_a_file.so:
+        elif ( e and os.path.exists(e) and
+               ( e.endswith('.so')
+                 or e.endswith('.dylib')
+                 or '.so.' in os.path.basename(e) ) ):
+            e = os.path.dirname(e)
+        if e and os.path.isdir(e):
+            e = os.path.abspath(os.path.realpath(e))
+            if e not in res and e not in ignore:
                 res += [e]
     return res
 
@@ -100,12 +105,13 @@ def write_main(global_targets,enabled_pkgnames,fh=None):
             for lang,info in env.env['system']['langs'].items():
                 if info:#info is only available for available languages:
                     #TODO: join->shlex.join??
-                    _add_var('LDFLAGS_%s_EXE_%s'%(extdep,lang),
-                             ' '.join([info['rpath_flag_exe']%shlex.quote(e)
-                                       for e in rpathdirs]))
-                    _add_var('LDFLAGS_%s_LIB_%s'%(extdep,lang),
-                             ' '.join([info['rpath_flag_lib']%shlex.quote(e)
-                                       for e in rpathdirs]))
+                    _existing_flags = shlex.split(ldflags)
+                    for _bt in ('exe','lib'):
+                        _l = [ info[f'rpath_flag_{_bt}']%shlex.quote(e)
+                               for e in rpathdirs ]
+                        _add_var('LDFLAGS_%s_%s_%s'%(extdep,_bt.upper(),lang),
+                                ' '.join([e for e in _l
+                                           if e not in _existing_flags]))
 
     sysgen = env.env['system']['general']
     fh.write('\n')
