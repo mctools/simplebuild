@@ -7,10 +7,8 @@
 #test where we LD_PRELOAD the libpython, and then use ldd to look for missing
 #symbols.
 
-if [ ! -f /proc/cpuinfo ]; then
-    echo "This test only works on linux. Ending gracefully."
-    exit 0
-fi
+THEPYLIB="$(python3 -mCore.find_libpython)" || exit 1
+test -f "${THEPYLIB}"
 
 if [ "x$SBLD_LIB_DIR" == "x" -o ! -d $SBLD_LIB_DIR ]; then
     echo "SBLD_LIB_DIR not set properly"
@@ -34,9 +32,10 @@ if [ "x$PYLIBS" != "x$SBLD_INSTALL_PREFIX/python/*/*.so" ]; then
     LIBS="$LIBS $PYLIBS"
 fi
 
-#TODO: Is this rebust enough?
-
-THEPYLIB=$(python3 -mCore.find_libpython) || exit 1
+if [ ! -f /proc/cpuinfo ]; then
+    echo "The rest of this test only works on linux. Ending gracefully."
+    exit 0
+fi
 
 ERR=0
 for lib in $LIBS; do

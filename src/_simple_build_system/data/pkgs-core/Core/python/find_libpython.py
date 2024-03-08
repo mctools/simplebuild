@@ -20,13 +20,18 @@ def find_libpython():
             if e.strip():
                 allflags.append(e.strip())
     candidates = [e for e in allflags
-                  if '.so' in e]
+                  if (e.endswith('.so')
+                      or '.so.' in e
+                      or e.endswith('.dylib'))]
     if len(candidates)>1:
         candidates = [e for e in candidates
                       if 'python' in e.lower()]
     if len(candidates)>1:
         candidates = [e for e in candidates
                       if 'libpython' in e.lower()]
+    if len(candidates)>1:
+        candidates = [e for e in candidates
+                      if e.endswith('/Python')]
     if len(candidates)==1:
         import pathlib
         p = pathlib.Path(candidates[0])
