@@ -95,3 +95,9 @@ jobs:
            cd othertests
            set +x
            ../src/devel/tests/test_sbswitch.x
+
+#UNCOMMENT TO ENABLE:    - name: Setup tmate session for manual debugging
+#UNCOMMENT TO ENABLE:      uses: mxschmitt/action-tmate@v3
+#UNCOMMENT TO ENABLE:      if: always()
+#UNCOMMENT TO ENABLE:      with:
+#UNCOMMENT TO ENABLE:        limit-access-to-actor: true
