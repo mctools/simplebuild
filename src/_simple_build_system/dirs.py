@@ -13,7 +13,7 @@ pkgsearchpath = conf.pkg_search_path() # imports envcfg
 
 installdir = conf.install_dir() # imports envcfg
 testdir = conf.test_dir() # imports envcfg
-projdir = conf.projects_dir() # imports envcfg
+main_bundle_pkg_root = conf.main_bundle_pkg_root() # imports envcfg
 datadir = pathlib.Path(__file__).resolve().absolute().parent / 'data'
 cmakedetectdir = datadir / 'cmake'
 
@@ -61,12 +61,6 @@ def makefile_pkg_dir(pkg,*subpaths):
 for d in [str(x) for x in [blddir, *pkgsearchpath, installdir]]:
     assert ' ' not in d, 'Spaces not allowed in directory names. Illegal path is: "%s"'%d
     assert len(d)>3,f"suspiciously short path name: {d}"
-
-# Package directory aliases #keep them lowercase
-pkgdir_aliases = {
-  "projects": projdir,
-  "extra": extrapkgpath
-  }
 
 def create_bld_dir():
     fingerprint = blddir  / '.sbbuilddir'

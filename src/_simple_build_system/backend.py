@@ -383,7 +383,7 @@ def perform_cfg( *,
     db.save_to_file()
 
 
-    dir_names = ('projdir','pkgsearchpath','blddir',
+    dir_names = ('main_bundle_pkg_root','pkgsearchpath','blddir',
                  'installdir','testdir','envcache')
     dirdict = dict(((d, getattr(dirs, d)) for d in dir_names))
 

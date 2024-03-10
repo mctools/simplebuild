@@ -114,9 +114,9 @@ class SingleCfg:
                                                     cfg_file = cfg_file,
                                                     ignore_build = ignore_build )
 
-        if o.project_name != 'core' and 'core' not in o.depend_projects:
-            #Always add the core project as a dependency:
-            o.depend_projects = list(e for e in o.depend_projects) + ['core']
+        if o.bundle_name != 'core' and 'core' not in o.depend_bundles:
+            #Always add the core bundle as a dependency:
+            o.depend_bundles = list(e for e in o.depend_bundles) + ['core']
 
         o._is_locked = True
         return o
@@ -252,11 +252,11 @@ def _generate_toml_schema():
             p = ctx.default_dir / p
         return p.absolute().resolve()
 
-    return dict( project   = dict( name        = (decode_valid_lowercase_identifier_string,None),
-                                   pkg_root      = (decode_dir, '.'),
-                                   env_paths   = (decode_is_env_paths,[]),
-                                  ),
-                 depend    = dict( projects     = (decode_is_list_of_valid_lowercase_identifier_string,[]),
+    return dict( bundle   = dict( name        = (decode_valid_lowercase_identifier_string,None),
+                                  pkg_root      = (decode_dir, '.'),
+                                  env_paths   = (decode_is_env_paths,[]),
+                                 ),
+                 depend    = dict( bundles     = (decode_is_list_of_valid_lowercase_identifier_string,[]),
                                    search_path = (decode_list_of_search_paths,[])
                                   ),
                  build     = dict( mode = ( lambda a,b : decode_str_enum(a,b,('debug','release')), 'release' ),
@@ -292,7 +292,8 @@ def decode_toml_textdata_to_dict( textdata : str, path = None ):
     except tomllib.TOMLDecodeError as e:
         error.error(f'Syntax error in {descr}: {e}')
     #if not cfg:
-    #    error.error(f'No data defined in {descr}. If this is intentional, at least put a single line with the contents "[project]".')
+    #    error.error(f'No data defined in {descr}. If this is intentional, at'
+    #                ' least put a single line with the contents "[bundle]".')
     return cfg
 
 def decode_with_schema_and_apply_result_to_obj( cfg : dict,
@@ -303,6 +304,29 @@ def decode_with_schema_and_apply_result_to_obj( cfg : dict,
     schema = get_toml_schema()
 
     ctx = DecodeContext( str(cfg_file), defaultdir )
+
+    if 'project' in cfg:
+        #Backwards compat: Map [projects] to [bundle], but do not allow both:
+        if 'bundle' in cfg:
+            error.error(f'Error in {ctx.src_descr}: Do not use both'
+                        ' [project] and [bundle] sections of cfg files.'
+                        ' Please migrate to only using [bundle]')
+        error.warn(f'{ctx.src_descr} [project] section name is deprecated.'
+                   ' Please rename [project] to [bundle].')
+        cfg['bundle'] = cfg['project']
+        del cfg['project']
+
+    if 'depend' in cfg and 'projects' in cfg['depend']:
+        #Backwards compat: Map depend.projects to depend.bundle, but do not
+        #allow both:
+        if 'bundle' in cfg['depend']:
+            error.error(f'Error in {ctx.src_descr}: Do not use both "projects" '
+                        'and "bundles" key in [depend] sections of cfg files. '
+                        'Please migrate to only using "bundles".')
+        error.warn(f'{ctx.src_descr} "projects" key in [depend] section is'
+                   ' deprecated. Please rename "projects" to "bundles".')
+        cfg['depend']['bundles'] = cfg['depend']['projects']
+        del cfg['depend']['projects']
 
     #Validate+decode+apply values:
     for section, sectiondata in cfg.items():

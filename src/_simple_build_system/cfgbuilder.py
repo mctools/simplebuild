@@ -39,7 +39,7 @@ class CfgBuilder:
         self.__used_cfg_files.add( master_cfg_file )
         self.__available_unused_cfgs = []#only needed during build up
         self.__cfg_names_used = set()
-        self.__cfg_names_missing = set([ master_cfg.project_name ])
+        self.__cfg_names_missing = set([ master_cfg.bundle_name ])
         self.__use_cfg( master_cfg, is_top_level = True )
 
         for cfg_file, cfg in load_builtin_cfgs():
@@ -47,7 +47,7 @@ class CfgBuilder:
             #installation, but we only add them if they were not added already
             #via a search_path entry (to facilitate development of core pkgs
             #directly from a git clone):
-            if cfg.project_name in self.__cfg_names_missing:
+            if cfg.bundle_name in self.__cfg_names_missing:
                 self.__print_verbose(f'Using built-in cfg: {cfg_file}')
                 assert cfg_file not in self.__used_cfg_files
                 self.__used_cfg_files.add( cfg_file )
@@ -62,7 +62,7 @@ class CfgBuilder:
         if self.__cfg_names_missing:
             _p='", "'.join(self.__cfg_names_missing)
             _s = 's' if len(self.__cfg_names_missing)>2 else ''
-            error.error('Could not find dependent project%s: "%s"'%(_s,_p))
+            error.error('Could not find dependent bundles%s: "%s"'%(_s,_p))
         self.__pkg_path = tuple( self.__pkg_path )
         del self.__available_unused_cfgs
 
@@ -99,13 +99,13 @@ class CfgBuilder:
         return self.__env_paths
 
     def __use_cfg( self, cfg : SingleCfg, is_top_level = False ):
-        assert cfg.project_name in self.__cfg_names_missing
+        assert cfg.bundle_name in self.__cfg_names_missing
         _cfgname='master-' if is_top_level else ''
         self.__print_verbose(f'Using {_cfgname}cfg from {cfg._cfg_file}')
-        self.__cfg_names_missing.remove( cfg.project_name )
-        self.__cfg_names_used.add( cfg.project_name )
+        self.__cfg_names_missing.remove( cfg.bundle_name )
+        self.__cfg_names_used.add( cfg.bundle_name )
         #Add dependencies and cfgs available in search paths:
-        for cfgname in cfg.depend_projects:
+        for cfgname in cfg.depend_bundles:
             if cfgname not in self.__cfg_names_used:
                 self.__cfg_names_missing.add( cfgname )
         for sp in cfg.depend_search_path:
@@ -123,9 +123,9 @@ class CfgBuilder:
             self.__available_unused_cfgs.append( depcfg )
 
         #Add actual pkg-dirs and env-path requests from cfg:
-        if cfg.project_pkg_root not in self.__pkg_path:
-            self.__pkg_path.append( cfg.project_pkg_root )
-        for pathvar,contents in cfg.project_env_paths.items():
+        if cfg.bundle_pkg_root not in self.__pkg_path:
+            self.__pkg_path.append( cfg.bundle_pkg_root )
+        for pathvar,contents in cfg.bundle_env_paths.items():
             if pathvar not in self.__env_paths:
                 self.__env_paths[pathvar] = set()
             self.__env_paths[pathvar].update( contents )
@@ -138,7 +138,7 @@ class CfgBuilder:
             return
         to_use_idx, to_use_cfg = set(), []
         for i,ucfg in enumerate(self.__available_unused_cfgs):
-            if ucfg.project_name in self.__cfg_names_missing:
+            if ucfg.bundle_name in self.__cfg_names_missing:
                 to_use_cfg.append( ucfg )
                 to_use_idx.add( i )
         if to_use_cfg:

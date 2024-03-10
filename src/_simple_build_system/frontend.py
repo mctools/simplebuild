@@ -130,7 +130,7 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
             #or cachedir are anyway expected to be more advanced):
             dcache = envcfg.var.build_dir_resolved.parent
             assert dcache == envcfg.var.install_dir_resolved.parent
-            if ( dcache == ( envcfg.var.projects_dir / 'simplebuild_cache' )
+            if ( dcache == ( envcfg.var.main_bundle_pkg_root / 'simplebuild_cache' )
                  and not any( dcache.iterdir() ) ):
                  dcache.rmdir()
         else:
@@ -347,7 +347,8 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
                 parser.error("Not a file: %s"%fn)
             fn=os.path.abspath(os.path.realpath(fn))
             p = pathlib.Path(fn).absolute().resolve()
-            simplebuild_pkg_dirs = [dirs.projdir, *dirs.extrapkgpath]
+            simplebuild_pkg_dirs = [dirs.main_bundle_pkg_root,
+                                    *dirs.extrapkgpath]
             if not any( utils.path_is_relative_to(p,d)
                         for d in simplebuild_pkg_dirs):
                 _dirsfmt=('\n '.join(str(e) for e in simplebuild_pkg_dirs))

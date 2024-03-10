@@ -5,31 +5,36 @@ Usage example
 Before diving into all the details in later sections, we will in the following
 go through a small usage example. The code in this example will not do anything
 useful in itself, and is merely meant to illustrate how one might lay out files
-for a given project, use the main simplebuild command ``sb`` to configure and
-build everything, and finally invoke a few of the resulting commands.
+for a given project or task, use the main simplebuild command ``sb`` to
+configure and build everything, and finally invoke a few of the resulting
+commands.
 
 Example project files
 =====================
 
-The following lists all the files in our little (silly) user project. Our
-example directory contains a ``simplebuild.cfg`` file, as well as three
-"packages", named ``SomePkgA``, ``SomePkgB``, and ``SomePkgC`` - each kept in
-their separate subdirectory of the same name as the package (the subdirectory
-name actually *defines* the name of the package). In addition to code files,
-each package subdirectory contains a ``pkg.info`` file, with information about
-the dependencies of the given package.
+The following lists all the files in our little (silly) user
+project. Technically, these files are spread over three simplebuild *packages*
+and these packages are collected in a single simplebuild *bundle*. Our example
+directory thus contains a :ref:`simplebuild.cfg <sbdotcfg>` file (exactly one
+such is always associated with a *bundle*), as well as three *packages*, named
+``SomePkgA``, ``SomePkgB``, and ``SomePkgC`` -- each kept in their separate
+subdirectory of the same name as the package (the subdirectory name actually
+*defines* the name of the package). In addition to code files, each package
+subdirectory contains a ``pkg.info`` file, with information about the
+dependencies of the given package.
 
 .. include:: ../build/autogen_projectexample_files.rst
 
 Building the project
 ====================
 
-To build our example project, we simply step into the project directory where we
-have the ``simplebuild.cfg`` file by issuing a command like ``cd
+To build our example project, we simply step into the directory where we have
+the :ref:`simplebuild.cfg <sbdotcfg>` file by issuing a command like ``cd
 /some/where/example_project`` (it is also OK to step into any sub-directory
-under that directory). Then we simply invoke ``sb`` with no arguments to perform
-the build (this includes both configuration, build, and installation steps of
-more traditional setups):
+under that directory). Technically this directory is the *package root* of our
+package *bundle*. Then we simply invoke ``sb`` with no arguments to perform the
+build (this includes both configuration, build, and installation steps of more
+traditional setups):
 
 .. include:: ../build/autogen_projectexample_cmdout_sb.txt
   :literal:
@@ -178,8 +183,8 @@ result in a test failure.
 Having such tests to perform a quick validation that everything still works is
 tremendously useful, and here we will simply show a quick example of this in
 practice. Specifically, we would like a unit test that verifies the output of
-the ``mysquarefunc`` that is already a part of the ``SomePkgA.foo`` module of our
-example project. Thus, we add a new file
+the ``mysquarefunc`` that is already a part of the ``SomePkgA.foo`` module of
+our example's bundle. Thus, we add a new file
 ``example_project/SomePkgA/scripts/testfoo`` with the content:
 
 .. literalinclude:: ../example_project_newtestcmd_content

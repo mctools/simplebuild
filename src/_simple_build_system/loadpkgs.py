@@ -65,7 +65,7 @@ def find_pkg_dirs( basedir_list ):
                             cfgfilename = conf.package_cfg_file )
       if tmp_dirs:
         pkgdirs.update({d:basedir for d in tmp_dirs})
-      elif not basedir==dirs.projdir:
+      elif not basedir==dirs.main_bundle_pkg_root:
         error.error("No packages found in %s!"%basedir)
     return pkgdirs
 

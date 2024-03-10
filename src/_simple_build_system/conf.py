@@ -100,17 +100,16 @@ def uninstall_package(pkgname):
 
 #Get paths to all packages (including the framework and user packages)
 
-def projects_dir():
+def main_bundle_pkg_root():
     from . import envcfg
-    return envcfg.var.projects_dir
+    return envcfg.var.main_bundle_pkg_root
 
 def extra_pkg_path():
     from . import envcfg
     return envcfg.var.extra_pkg_path_list
 
 def pkg_search_path():
-    #candidates = [framework_dir(), projects_dir()]
-    candidates = [projects_dir()]
+    candidates = [main_bundle_pkg_root()]
     candidates.extend(extra_pkg_path())
     dirs = []
     for d in candidates:

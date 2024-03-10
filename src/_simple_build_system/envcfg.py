@@ -45,10 +45,9 @@ def _build_cfg():
         build_dir_resolved = cfg.build_cachedir / f'bld{cachedir_postfix}'
         install_dir_resolved = cfg.build_cachedir / f'install{cachedir_postfix}'
 
-        projects_dir = master_cfg.project_pkg_root #FIXME: Is this ok?
+        main_bundle_pkg_root = master_cfg.bundle_pkg_root #FIXME: Is this ok?
         extra_pkg_path = ':'.join(str(e) for e in cfg.pkg_path)#fixme: keep at Path objects.
         extra_pkg_path_list = cfg.pkg_path#New style!
-        enable_projects_pkg_selection_flag = False#fixme: we could allow this?
         pkg_filter = pkgfilterobj#New style!
 
         #These are used in the context of conda installs:

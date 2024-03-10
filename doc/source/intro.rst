@@ -27,22 +27,31 @@ files are placed in various subdirectories, depending on their type and intended
 usage. The details of how files are organised in packages are provided in the
 :ref:`Packages <sbpackages>` section.
 
-A collection of related packages is referred to as a package *bundle*. A given
-bundle would perhaps contain all the packages related to the investigation of a
-particular scientific problem, or contain the functionality shared between a
-particular group of users. Technically, the directories of all packages in a
-given package bundle will be organised under a single top-level directory which
-is called the *package root* of the bundle. This top-level directory of a bundle
-will contain a single configuration file named ``simplebuild.cfg``. In the
-simplest case, the ``simplebuild.cfg`` file can be kept empty, but if desired,
-users can modify it in order to customise aspects of their build, to name their
-bundle, or to add in dependencies on other bundles of packages. Many users will
-simply be told to check out a given Git repository, which already contain a
-package bundle and a ``simplebuild.cfg`` file. Otherwise, if the intention is to
-start an entirely new bundle, one can simply run ``sb --init`` in an empty
-directory to create a skeleton ``simplebuild.cfg`` file which can be edited
-later as desired. More details are provided in the :ref:`dedicated section on
-simplebuild.cfg <sbdotcfg>`.
+A collection of related packages is referred to as a package
+*bundle*. Additionally, we will occasionally also use the looser term "project"
+to refer to all the code developed and used in the context of a particular
+task. In this sense, code associated with a particular project will typically be
+contained in one or more packages, and these packages will mostly reside inside
+a particular bundle. Depending on the choice, a given simplebuild bundle might
+contain only the packages of a single project, or it might contain packages
+associated with multiple projects. The latter scenario might for instance be the
+case when a particular group of people working on multiple loosely-connected
+projects want to keep all their code in a single repository, and make it easy to
+access code from multiple projects simultaneously.
+
+Technically, the directories of all packages in a given package bundle will be
+organised under a single top-level directory which is called the *package root*
+of the bundle. This top-level directory of a bundle will contain a single
+configuration file named ``simplebuild.cfg``. In the simplest case, the
+``simplebuild.cfg`` file can be kept empty, but if desired, users can modify it
+in order to customise aspects of their build, to name their bundle, or to add in
+dependencies on other bundles of packages. Many users will simply be told to
+check out a given Git repository, which already contain a package bundle and a
+``simplebuild.cfg`` file. Otherwise, if the intention is to start an entirely
+new bundle, one can simply run ``sb --init`` in an empty directory to create a
+skeleton ``simplebuild.cfg`` file which can be edited later as desired. More
+details are provided in the :ref:`dedicated section on simplebuild.cfg
+<sbdotcfg>`.
 
 Upon launching the ``sb`` command inside the package root directory, simplebuild
 will then analyse the ``simplebuild.cfg`` file and the files in all the

@@ -22,8 +22,8 @@ Invokes the simplebuild configuration and build system. Usually this means
 locating a simplebuild.cfg file in the current (or a parent directory), and
 using the corresponding configuration. The default action is to configure and
 build those packages, but as described below, certain options might change this
-in order to instead display information, launch unit tests, prepare new
-projects, etc.
+in order to instead display information, launch unit tests, initialise new
+bundle directories, etc.
 
 
 """
@@ -35,9 +35,9 @@ projects, etc.
     _p = progname
     initmode_longhelp = f"""
 
-New project initialisation mode ("{_p} --init") is used to initialise a new
+New bundle initialisation mode ("{_p} --init") is used to initialise a new
 simplebuild bundle in the current directory by creating a simplebuild.cfg
-file. Additional arguments can be used to specify bundles which the new project
+file. Additional arguments can be used to specify bundles which the new bundle
 should depend on, or they can be a special keyword (DEBUG|COMPACT|...). In any
 case, it might be most convenient to edit the simplebuild.cfg file afterwards to
 fine-tune the desired settings.
@@ -46,11 +46,11 @@ Examples of {_p} --init usage:
 
 $> {_p} --init core_val
 
-    Set up project which depends on the core_val project.
+    Set up bundle which depends on the core_val bundle.
 
 $> {_p} --init DEBUG
 
-    Set up project with build options for producing debug symbols
+    Set up bundle with build options for producing debug symbols
     (build.mode='debug').
 
 $> {_p} --init COMPACT
@@ -60,13 +60,13 @@ $> {_p} --init COMPACT
 
 $> {_p} --init core_val dgcode COMPACT DEBUG
 
-    Set up project with dependency on core_val and dgcode bundles, with the
+    Set up bundle with dependency on core_val and dgcode bundles, with the
     build option for producing debug symbols, and a compact simplebuild.cfg
     file.
 
 $> {_p} --init dgcode CACHEDIR::/some/where
 
-    Set up project with a dependency on the dgcode bundle, and the
+    Set up bundle with a dependency on the dgcode bundle, and the
     build.cachedir option set to the directory "/some/where".
 
     """.strip()+'\n'
@@ -155,7 +155,7 @@ $> {_p} --init dgcode CACHEDIR::/some/where
 
     #NB: Do not change the title in title in the next line without updating its
     #usage as anchor name in the sphinx documentation:
-    group_init = parser.add_argument_group('New project initialisation options')
+    group_init = parser.add_argument_group('New bundle initialisation options')
     group_init.add_argument('--init', action='store_true', dest='init',
                             help=(initmode_longhelp
                                   if sphinx_mode else initmode_shorthelp ))

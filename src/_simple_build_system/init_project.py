@@ -48,9 +48,9 @@ def init_project( args = None ):
                 res += f"\n  cachedir = '{build_cachedir}'\n\n"
         elif e.startswith('[depend]'):
             if depbundles:
-                #inject depend.projects list:
+                #inject depend.bundles list:
                 sbundles = "', '".join(depbundles)
-                res += f"\n  projects = ['{sbundles}']\n\n"
+                res += f"\n  bundles = ['{sbundles}']\n\n"
 
     if compact:
         res2 = ''

@@ -11,9 +11,9 @@ with such command line interfaces.
 .. note::
    The instructions here concern an installation of the basic simplebuild
    system. Users who will be using simplebuild with the Geant4-based framework
-   in the "dgcode" set of packages, should simply skip the instructions here and
-   instead follow the instructions for how to install both simplebuild and
-   "dgcode" on https://mctools.github.io/simplebuild-dgcode/install.html.
+   in the "dgcode" bundle should simply skip the instructions here, and instead
+   follow the instructions for how to install both simplebuild and "dgcode" on
+   https://mctools.github.io/simplebuild-dgcode/install.html.
 
 Install via conda
 =================
@@ -84,7 +84,7 @@ tag by appending ``@<gitid>`` to the URL in the last command. For instance::
 
 Note about the installed simplebuild environment: when installing via ``pip``,
 one downside of not using the conda packages is the lack of automatic activation
-of projects built with ``sb`` (i.e. commands ``sb_mypkg_mycmd`` will not be in
+of bundles built with ``sb`` (i.e. commands ``sb_mypkg_mycmd`` will not be in
 your ``PATH``, and so on). In conda, this is handled by automatically injecting
 a sneaky shell function named ``sb`` into your shell session when you activate
 the conda environment. When not using the conda ``simple-build-system`` package,
@@ -103,7 +103,7 @@ Verifying an installation
 =========================
 
 As a very basic verification of a simplebuild installation, one can create a
-simple simplebuild project and launch a few basic unit tests from the
+simple simplebuild configuration and launch a few basic unit tests from the
 :sbpkg:`bundleroot::core_val` bundle (you can remove the leftover ``sbverify``
 directory afterwards):
 
