@@ -1,10 +1,10 @@
 _cache = [None]
-def locate_master_cfg_file():
+def locate_main_cfg_file():
     if _cache[0] is None:
-        _cache[0] = _actual_locate_master_cfg_file()
+        _cache[0] = _actual_locate_main_cfg_file()
     return _cache[0]
 
-def _actual_locate_master_cfg_file():
+def _actual_locate_main_cfg_file():
     #Be very conservative about imports here!
     import os
     import pathlib
@@ -35,3 +35,7 @@ def _actual_locate_master_cfg_file():
         f = p / 'simplebuild.cfg'
         if f.exists():
             return f
+
+#Backwards compatible alias:
+def locate_master_cfg_file():
+    return locate_main_cfg_file()

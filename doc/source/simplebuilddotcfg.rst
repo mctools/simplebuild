@@ -10,7 +10,7 @@ located. It serves a few different purposes:
 
 * When invoked, the ``sb`` command will look first in the current directory,
   then recursively in the parent directories for such a file - which is then
-  taken as the actual *master cfg* file associated with that invocation of
+  taken as the actual *main cfg* file associated with that invocation of
   ``sb``. This is for instance analogous to the way most Git-users are used to
   working (the ``git`` commands searches the current and parent directories for
   a ``.git/`` directory), and allows for instance a mode of operation
@@ -114,9 +114,8 @@ The ``[build]`` section
 -----------------------
 
 Information related to the build process. Note that only the ``[build]`` section
-of the master ``simplebuild.cfg`` file is considered. Any ``[build]`` section in
-a bundle which is simply being used by another bundle, will be completely
-ignored.
+of the main ``simplebuild.cfg`` file is considered. Any ``[build]`` section in a
+bundle which is simply being used by another bundle, will be completely ignored.
 
 * ``cachedir`` (string): A relative path to the temporary directory in which
   simplebuild will place temporary build output. Defaults to
@@ -205,12 +204,12 @@ Advanced topics
 The SIMPLEBUILD_CFG variable
 ----------------------------
 
-Advanced users  maintaining several interdependent simplebuild package bundles,
-might wish to override the automatic search for a master ``simplebuild.cfg``
-file based on the current working directory. For that purpose, one can use the
+Advanced users maintaining several interdependent simplebuild package bundles,
+might wish to override the automatic search for a main ``simplebuild.cfg`` file
+based on the current working directory. For that purpose, one can use the
 ``SIMPLEBUILD_CFG`` environment variable to point to a particular
 ``simplebuild.cfg`` file. In this case, the indicated file is simply taken to be
-the master file, and the current working directory is ignored (in fact, in this
+the main file, and the current working directory is ignored (in fact, in this
 case the file does not even have to be named ``simplebuild.cfg``).
 
 For instance, they might wish to be able to freely switch their current working

@@ -15,7 +15,7 @@ def produce_build_summary( *, pkgloader, verbose ):
             if cp.is_dir() and path_is_relative_to( pabs, cp ):
                 return os.path.join('${CONDA_PREFIX}',str(pabs.relative_to(cp)))
         return str(p)
-    print('  Main bundle directory            : '
+    print('  Main bundle pkg root             : '
           '%s'%fixpath(dirs.main_bundle_pkg_root))
     print('  Installation directory           : %s'%fixpath(dirs.installdir))
     print('  Build directory                  : %s'%fixpath(dirs.blddir))

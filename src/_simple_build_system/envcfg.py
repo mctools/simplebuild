@@ -9,35 +9,35 @@ def _query(n, *, boolean=False):
     return _
 
 def _build_cfg():
-    from .cfglocate import locate_master_cfg_file
+    from .cfglocate import locate_main_cfg_file
     from .cfgbuilder import CfgBuilder
     from .singlecfg import SingleCfg
     from .pkgfilter import PkgFilter
-    master_cfg_file = locate_master_cfg_file()
+    main_cfg_file = locate_main_cfg_file()
 
-    if not master_cfg_file or not master_cfg_file.is_file():
+    if not main_cfg_file or not main_cfg_file.is_file():
         from . import error
         error.error('In order to continue, please step into a directory'
                     ' tree with a simplebuild.cfg file at its root.')
 
-    assert master_cfg_file.is_file()
+    assert main_cfg_file.is_file()
 
-    master_cfg = SingleCfg.create_from_toml_file( master_cfg_file )
-    cfg = CfgBuilder( master_cfg, master_cfg_file )
+    main_cfg = SingleCfg.create_from_toml_file( main_cfg_file )
+    cfg = CfgBuilder( main_cfg, main_cfg_file )
     pkgfilterobj = PkgFilter( cfg.build_pkg_filter )
 
-    cachedir_postfix = ( '' if master_cfg.build_mode=='release'
-                           else f'_{master_cfg.build_mode}' )
+    cachedir_postfix = ( '' if main_cfg.build_mode=='release'
+                           else f'_{main_cfg.build_mode}' )
 
     import shlex
     _cmake_args = shlex.split( _query('CMAKE_ARGS') or '' )
 
-    if master_cfg.build_mode=='release':
+    if main_cfg.build_mode=='release':
         _cmake_args.append('-DCMAKE_BUILD_TYPE=Release')
     else:
-        assert master_cfg.build_mode=='debug'
+        assert main_cfg.build_mode=='debug'
         _cmake_args.append('-DCMAKE_BUILD_TYPE=Debug')
-    _build_mode_summary_string = master_cfg.build_mode.capitalize()
+    _build_mode_summary_string = main_cfg.build_mode.capitalize()
 
     class EnvCfg:
 
@@ -45,7 +45,7 @@ def _build_cfg():
         build_dir_resolved = cfg.build_cachedir / f'bld{cachedir_postfix}'
         install_dir_resolved = cfg.build_cachedir / f'install{cachedir_postfix}'
 
-        main_bundle_pkg_root = master_cfg.bundle_pkg_root #FIXME: Is this ok?
+        main_bundle_pkg_root = main_cfg.bundle_pkg_root #FIXME: Is this ok?
         extra_pkg_path = ':'.join(str(e) for e in cfg.pkg_path)#fixme: keep at Path objects.
         extra_pkg_path_list = cfg.pkg_path#New style!
         pkg_filter = pkgfilterobj#New style!

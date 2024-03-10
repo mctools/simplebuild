@@ -45,13 +45,17 @@ of the bundle. This top-level directory of a bundle will contain a single
 configuration file named ``simplebuild.cfg``. In the simplest case, the
 ``simplebuild.cfg`` file can be kept empty, but if desired, users can modify it
 in order to customise aspects of their build, to name their bundle, or to add in
-dependencies on other bundles of packages. Many users will simply be told to
-check out a given Git repository, which already contain a package bundle and a
-``simplebuild.cfg`` file. Otherwise, if the intention is to start an entirely
-new bundle, one can simply run ``sb --init`` in an empty directory to create a
-skeleton ``simplebuild.cfg`` file which can be edited later as desired. More
-details are provided in the :ref:`dedicated section on simplebuild.cfg
-<sbdotcfg>`.
+dependencies on other bundles of packages (the original bundle will then be
+referred to as the *main bundle* and the associated ``simplebuild.cfg`` file is
+the ``main cfg file``). Many users will not need to create such files
+themselves, but will simply be told to check out a given Git repository, which
+already contain a package bundle and an associated ``simplebuild.cfg``
+file. Otherwise, if the intention is to start an entirely new bundle, one can
+simply run ``sb --init`` in an empty directory to create a skeleton
+``simplebuild.cfg`` file which can be edited later as desired. More details are
+provided in the dedicated sections on :ref:`simplebuild.cfg <sbdotcfg>` and `sb
+-\-init <./cmdline.html#new-bundle-initialisation-options>`_.
+
 
 Upon launching the ``sb`` command inside the package root directory, simplebuild
 will then analyse the ``simplebuild.cfg`` file and the files in all the

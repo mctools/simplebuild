@@ -36,8 +36,8 @@ def unwrapped_main():
     import sys
     if len(sys.argv)==2 and sys.argv[1]=='--env-setup-silent-fail':
         #Quietly check if we are in a simplebuild project, and abort if not.
-        from .cfglocate import locate_master_cfg_file
-        mf = locate_master_cfg_file()
+        from .cfglocate import locate_main_cfg_file
+        mf = locate_main_cfg_file()
         if mf and mf.is_file():
             from . import io as _io
             _io.make_quiet()

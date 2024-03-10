@@ -10,37 +10,37 @@ def load_builtin_cfgs():
 
 class CfgBuilder:
 
-    """Class which, based on an initial "master" simplebuild.cfg, can locate and
+    """Class which, based on an initial "main" simplebuild.cfg, can locate and
     extract other simplebuild cfg's, and provide a combined configuration object.
 
     The "build" section (build mode, ncpu, pkgfilter, etc.) is taken straight
-    from the master config, while the other sections are based on a combination
-    of data in the master_cfg and any cfg's of the dependencies.
+    from the main config, while the other sections are based on a combination
+    of data in the main_cfg and any cfg's of the dependencies.
 
     """
 
-    def __init__(self, master_cfg : SingleCfg, master_cfg_file ):
+    def __init__(self, main_cfg : SingleCfg, main_cfg_file ):
         #Input:
-        #Take build settings straight from master_cfg:
+        #Take build settings straight from main_cfg:
         from . import io as _io
         print_prefix = f'{_io.print_prefix}cfgbuilder:'
         self.__print = lambda *a,**kw: _io.print_no_prefix(print_prefix,*a,**kw)
         self.__is_verbose = _io.is_verbose
-        self.__build_mode = master_cfg.build_mode
-        #self.__build_njobs = master_cfg.build_njobs
-        self.__build_cachedir = master_cfg.build_cachedir
-        self.__build_pkg_filter = master_cfg.build_pkg_filter
-        #self.__build_extdep_ignore = master_cfg.build_extdep_ignore
+        self.__build_mode = main_cfg.build_mode
+        #self.__build_njobs = main_cfg.build_njobs
+        self.__build_cachedir = main_cfg.build_cachedir
+        self.__build_pkg_filter = main_cfg.build_pkg_filter
+        #self.__build_extdep_ignore = main_cfg.build_extdep_ignore
 
-        #Build up everything else recursively, starting from the master_cfg:
+        #Build up everything else recursively, starting from the main_cfg:
         self.__pkg_path = []#result 1
         self.__env_paths = {}#result 2
         self.__used_cfg_files = set()#make sure we don't consider the same cfg-file twice
-        self.__used_cfg_files.add( master_cfg_file )
+        self.__used_cfg_files.add( main_cfg_file )
         self.__available_unused_cfgs = []#only needed during build up
         self.__cfg_names_used = set()
-        self.__cfg_names_missing = set([ master_cfg.bundle_name ])
-        self.__use_cfg( master_cfg, is_top_level = True )
+        self.__cfg_names_missing = set([ main_cfg.bundle_name ])
+        self.__use_cfg( main_cfg, is_top_level = True )
 
         for cfg_file, cfg in load_builtin_cfgs():
             #core/core-val bundles always available directly from core
@@ -100,7 +100,7 @@ class CfgBuilder:
 
     def __use_cfg( self, cfg : SingleCfg, is_top_level = False ):
         assert cfg.bundle_name in self.__cfg_names_missing
-        _cfgname='master-' if is_top_level else ''
+        _cfgname='main-' if is_top_level else ''
         self.__print_verbose(f'Using {_cfgname}cfg from {cfg._cfg_file}')
         self.__cfg_names_missing.remove( cfg.bundle_name )
         self.__cfg_names_used.add( cfg.bundle_name )
