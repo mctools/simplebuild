@@ -21,13 +21,14 @@ Package bundles
 ===============
 
 All packages belong to a given *bundle*, which normally is defined by all the
-files under a given directory (a *package root*) in which a ``simplebuild.cfg``
-file is located (more about such files :ref:`here <sbdotcfg>`). Typically, users
-will have their own working directories (normally a Git repository) which
-contains a ``simplebuild.cfg`` file, and under which various subdirectories define
-the actual *packages*. Other package bundles might be available on the system,
-and through settings in the ``simplebuild.cfg`` file, packages in such bundles can
-be enabled as well. For instance, common package bundles are:
+packages under a given directory (a *package root*) in which a
+``simplebuild.cfg`` file is located (more about such files :ref:`here
+<sbdotcfg>`). Typically, users will have their own working directories (normally
+a Git repository) which contains a ``simplebuild.cfg`` file, and under which
+various subdirectories define the actual *packages*. Other package bundles might
+be available on the system, and through settings in the ``simplebuild.cfg``
+file, packages in such bundles can be enabled as well. For instance, common
+package bundles are:
 
 .. list-table::
    :header-rows: 1
@@ -59,15 +60,15 @@ Format of the pkg.info file
 ===========================
 
 The name of the package is given by the name of the directory in which it is
-located, and at the very least it must contain one file called ``pkg.info``, which
-in the first line contains information about which optional externals (ROOT,
-Geant4, Fortran, ...) the package needs and which other packages it depends on,
-if any. The latter is important for proper build order and link-time
-dependencies, so if for example PkgA depends on PkgB, then binaries and
-libraries in PkgA will be linked against the library (if any) from PkgB, and any
-public header files of PkgB will be available for inclusion in files in PkgA.
-The following lines of the ``pkg.info`` file can (should) provide brief
-description of the purpose of the package and information about who is the
+located, and at the very least it must contain one file called ``pkg.info``,
+which in the first line contains information about which optional externals
+(ROOT, Geant4, Fortran, ...) the package needs and which other packages it
+depends on, if any. The latter is important for proper build order and link-time
+dependencies, so if for example ``PkgA`` depends on ``PkgB``, then binaries and
+libraries in ``PkgA`` will be linked against the library (if any) from ``PkgB``,
+and any public header files of ``PkgB`` will be available for inclusion in files
+in ``PkgA``.  The following lines of the ``pkg.info`` file can (should) provide
+brief description of the purpose of the package and information about who is the
 principal contact person for the package.
 
 In the simplest case where a package does not depend on other packages, the
@@ -281,7 +282,7 @@ As is also the case for compiled programs, any scripts can be marked as being a
 test (to run when ``sb -t`` is invoked) by either prefixing their file names
 with the word ``test`` or by placing a reference log file next to them. For
 example if the script is placed in a file ``scripts/myscript`` in the package
-MyPkg, then it will be able to be invoked after build by typing
+``MyPkg``, then it will be able to be invoked after build by typing
 ``sb_mypkg_myscript`` and any test reference log file must be placed in
 ``scripts/myscript.log``.
 
