@@ -7,7 +7,6 @@ ruff check "${REPOROOT_DIR}"/doc/source/conf.py
 ruff check "${REPOROOT_DIR}"/src/_simple_build_system/*py
 ruff check "${PDATA}/pkgs-core"/*/python/*py
 
-ruff check "${PDATA}"/pkgs-core/Core/scripts/cmakebuildtype
 ruff check "${PDATA}"/pkgs-core/Core/scripts/extdeps
 ruff check "${PDATA}"/pkgs-core/Core/scripts/queryenv
 ruff check "${PDATA}"/pkgs-core/Core/scripts/reflogupdate
