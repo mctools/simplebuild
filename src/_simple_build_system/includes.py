@@ -9,7 +9,7 @@ def create_include_decoder(exts):
     #pkg==None means possible private include, pkg!=None means possible include from that pkg
     import re
     exts = [(e.encode('ascii') if hasattr(e,'encode') else e) for e in exts]
-    pattern = b'^\s*#\s*include\s*"\s*(([a-zA-Z0-9_]+/)?([a-zA-Z0-9_]+){1}(%s))\s*"'%(b'|'.join(exts))
+    pattern = b'^\\s*#\\s*include\\s*"\\s*(([a-zA-Z0-9_]+/)?([a-zA-Z0-9_]+){1}(%s))\\s*"'%(b'|'.join(exts))
     #match=re.compile(pattern.encode('ascii') if hasattr(pattern,'encode') else pattern).match
     match=re.compile(pattern).match
     def decoder(ll):

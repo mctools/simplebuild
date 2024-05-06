@@ -377,7 +377,7 @@ class PackageLoader:
             forbidden = forbidden.pop() if forbidden else None
             if forbidden:
                 error.error('Unknown external dependency "%s" specified in %s/%s'%(forbidden,p.dirname,conf.package_cfg_file)+
-                          '\Available values in this configuration are: "%s"'%'", "'.join(possible_extdeps))
+                          '\nAvailable values in this configuration are: "%s"'%'", "'.join(possible_extdeps))
 
     def enabled_pkgs_iter(self):
         for p in self.pkgs:

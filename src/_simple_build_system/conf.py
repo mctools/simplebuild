@@ -142,7 +142,7 @@ def target_factories_for_patterns():
     ll += [('data',   tfs.create_tfactory_symlink('','data/%s',chmodx=False))]
     ll += [('scripts',tfs.create_tfactory_symlink('','scripts',chmodx=True,
                                                   renamefct=runnable_name))]#todo: disallow periods? enforce lowercase?
-    ll += [('python', tfs.create_tfactory_symlink('.+\.py','python/%s',
+    ll += [('python', tfs.create_tfactory_symlink(r'.+\.py','python/%s',
                                                   chmodx=False))]
     ll += [('pycpp_.+',
             tfb.create_tfactory_binary(shlib=True,
