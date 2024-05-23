@@ -85,10 +85,10 @@ if ( NOT "${CMAKE_BUILD_TYPE}" STREQUAL "Debug" )
   #https://github.com/mctools/simplebuild/issues/73). For now we assume the
   #compiler understands all of these:
   set( sbld_extra_ccxx_cflags "${sbld_extra_ccxx_cflags} -O3 -DNDEBUG -fno-math-errno -march=native -mtune=native")
+  #Disabling -flto for now, I suspect if causes issues on macos...:
   if ( NOT SBLD_ISINTEL )
-    #TODO: Do we need to add -flto to link step as well, or use gcc to drive the linking, before it works??
-    #NB: =auto due to https://stackoverflow.com/questions/72218980
-    set( sbld_extra_ccxx_cflags "${sbld_extra_ccxx_cflags} -ftree-vectorize -flto=auto")
+    #NB: Not adding -flto=auto for now, since we saw some weird errors of uncaught exceptions on macos.
+    set( sbld_extra_ccxx_cflags "${sbld_extra_ccxx_cflags} -ftree-vectorize")
   endif()
 endif()
 if ( SBLD_ISINTEL )
