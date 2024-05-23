@@ -32,12 +32,16 @@ def _build_cfg():
     import shlex
     _cmake_args = shlex.split( _query('CMAKE_ARGS') or '' )
 
-    if main_cfg.build_mode=='release':
+    if main_cfg.build_mode in ('release','reldbg'):
         _cmake_args.append('-DCMAKE_BUILD_TYPE=Release')
+        if main_cfg.build_mode == 'reldbg':
+            #not just CMAKE_BUILD_TYPE=RelWithDebInfo since that changes other
+            #flags as well.
+            _cmake_args.append('-DSBLD_RELDBG_MODE=ON')
     else:
         assert main_cfg.build_mode=='debug'
         _cmake_args.append('-DCMAKE_BUILD_TYPE=Debug')
-    _build_mode_summary_string = main_cfg.build_mode.capitalize()
+    _build_mode_summary_string = main_cfg.build_mode#.capitalize()
 
     class EnvCfg:
 

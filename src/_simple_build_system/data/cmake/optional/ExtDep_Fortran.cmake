@@ -22,7 +22,12 @@ endif()
 
 if ( NOT tmp_abort_fortran )
   set(HAS_Fortran 1)
-  set(ExtDep_Fortran_COMPILE_FLAGS "")
+  if ( SBLD_RELDBG_MODE )
+    set(ExtDep_Fortran_COMPILE_FLAGS "-g")
+  else()
+    set(ExtDep_Fortran_COMPILE_FLAGS "")
+  endif()
+
   set(ExtDep_Fortran_LINK_FLAGS "")
   list(REMOVE_DUPLICATES CMAKE_Fortran_IMPLICIT_LINK_LIBRARIES)
   set(tmp_fortran_striplgcc OFF)

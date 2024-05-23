@@ -66,9 +66,15 @@
   #
   #   cachedir = '/scr/myname/mysbcache'
   #
-  # If you wish to enable debug-symbols in your build, you can use:
+  # If you want to add many more sanity checks to your code (to help debugging
+  # code CORRECTNESS, at the cost of runtime performance), you can use:
   #
   #   mode = 'debug'
+  #
+  # If you wish to just enable debug-symbols in your build, but not otherwise
+  # modify compilation options (to help debugging code SPEED), you can use:
+  #
+  #   mode = 'reldbg'
   #
   # If you have many packages, and would like to only consider a subset of them,
   # you can set one or more package filters. Note that this concerns packages

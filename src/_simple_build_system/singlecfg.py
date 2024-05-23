@@ -259,7 +259,7 @@ def _generate_toml_schema():
                  depend    = dict( bundles     = (decode_is_list_of_valid_lowercase_identifier_string,[]),
                                    search_path = (decode_list_of_search_paths,[])
                                   ),
-                 build     = dict( mode = ( lambda a,b : decode_str_enum(a,b,('debug','release')), 'release' ),
+                 build     = dict( mode = ( lambda a,b : decode_str_enum(a,b,('debug','release','reldbg')), 'release' ),
                                    #njobs = (decode_nonneg_int, 0),
                                    cachedir = (decode_dir, './simplebuild_cache'),
                                    pkg_filter = (decode_is_list_of_nonempty_str,[]),

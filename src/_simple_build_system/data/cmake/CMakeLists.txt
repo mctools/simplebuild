@@ -18,6 +18,10 @@ if( NOT CMAKE_BUILD_TYPE )
   message( FATAL_ERROR "CMAKE_BUILD_TYPE should always be set" )
 endif()
 
+if (NOT "${CMAKE_BUILD_TYPE}" MATCHES "^(Debug|Release)$")
+  message( FATAL_ERROR "For simplicity we require CMAKE_BUILD_TYPE to be exactly Debug or Release." )
+endif()
+
 message( STATUS "Using CMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}" )
 
 project( DETECT LANGUAGES C CXX )
@@ -25,6 +29,10 @@ project( DETECT LANGUAGES C CXX )
 set(output_filename "cmakecfg.txt")
 
 set(BUILD_SHARED_LIBS ON)
+
+if ( NOT DEFINED SBLD_RELDBG_MODE )
+  set(SBLD_RELDBG_MODE OFF)
+endif()
 
 #We compile with -pedantic and -Werror unless SBLD_RELAX is set:
 set(FLAG_PEDANTIC "")
@@ -46,7 +54,6 @@ endif()
 set(SBLD_GLOBAL_COMPILE_FLAGS_CXX "${FLAG_PEDANTIC}-std=c++17 -Wextra ${FLAG_WERROR}-Wall -Woverloaded-virtual -Wno-non-virtual-dtor -Wno-long-long -Wwrite-strings -Wpointer-arith -Wno-variadic-macros -Wshadow${FLAGS_PLATFORM_CXX} ${SBLD_EXTRA_CFLAGS}")
 set(SBLD_GLOBAL_COMPILE_FLAGS_C "${FLAG_PEDANTIC}-std=c99 -Wextra${FLAGS_PLATFORM_C} ${FLAG_WERROR}-Wall ${SBLD_EXTRA_CFLAGS}")
 
-
 set(SBLD_GLOBAL_COMPILE_FLAGS_Fortran "")
 set(SBLD_GLOBAL_LINK_FLAGS "${SBLD_EXTRA_LDFLAGS}")
 set(SBLD_GLOBAL_LINK_FLAGS_PREPENDED "")
@@ -64,6 +71,38 @@ if ( APPLE AND DEFINED CMAKE_OSX_SYSROOT AND NOT "x${CMAKE_OSX_SYSROOT}" STREQUA
   set(SBLD_GLOBAL_COMPILE_FLAGS_CXX "${SBLD_GLOBAL_COMPILE_FLAGS_CXX} -isysroot ${CMAKE_OSX_SYSROOT}")
   set(SBLD_GLOBAL_COMPILE_FLAGS_Fortran "${SBLD_GLOBAL_COMPILE_FLAGS_Fortran} -isysroot ${CMAKE_OSX_SYSROOT}")
   set(SBLD_GLOBAL_LINK_FLAGS "${SBLD_GLOBAL_LINK_FLAGS} -isysroot ${CMAKE_OSX_SYSROOT}")
+endif()
+
+if ( "x${CMAKE_CXX_COMPILER_ID}" STREQUAL "xIntelLLVM" )
+  set( SBLD_ISINTEL "ON" )
+else()
+  set( SBLD_ISINTEL "OFF" )
+endif()
+
+set( sbld_extra_ccxx_cflags "")
+if ( NOT "${CMAKE_BUILD_TYPE}" STREQUAL "Debug" )
+  #Aggressively target native platform + a few other optimisations (see also
+  #https://github.com/mctools/simplebuild/issues/73). For now we assume the
+  #compiler understands all of these:
+  set( sbld_extra_ccxx_cflags "${sbld_extra_ccxx_cflags} -O3 -DNDEBUG -fno-math-errno -march=native -mtune=native")
+  if ( NOT SBLD_ISINTEL )
+    #TODO: Do we need to add -flto to link step as well, or use gcc to drive the linking, before it works??
+    #NB: =auto due to https://stackoverflow.com/questions/72218980
+    set( sbld_extra_ccxx_cflags "${sbld_extra_ccxx_cflags} -ftree-vectorize -flto=auto")
+  endif()
+endif()
+if ( SBLD_ISINTEL )
+  #Intel defaults to the equivalent of -ffast-math, revert back to proper math:
+  set( sbld_extra_ccxx_cflags "${sbld_extra_ccxx_cflags} -fp-model=precise")
+endif()
+if ( SBLD_RELDBG_MODE )
+  #NB: Fortran -g is handled in ExtDep_Fortran.cmake
+  set( sbld_extra_ccxx_cflags "${sbld_extra_ccxx_cflags} -g")
+endif()
+
+if ( sbld_extra_ccxx_cflags )
+  set(SBLD_GLOBAL_COMPILE_FLAGS_CXX "${SBLD_GLOBAL_COMPILE_FLAGS_CXX} ${sbld_extra_ccxx_cflags}")
+  set(SBLD_GLOBAL_COMPILE_FLAGS_C     "${SBLD_GLOBAL_COMPILE_FLAGS_C} ${sbld_extra_ccxx_cflags}")
 endif()
 
 #To be filled with versions of global ext deps (Python):

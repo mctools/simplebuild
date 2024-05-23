@@ -81,6 +81,17 @@ jobs:
            eval "$(sb --env-setup)"
            python3 -c 'import _simple_build_system.envsetup as sbe; sbe.verify_env_already_setup()'
 
+    - name: Build-and-test-reldbg-mode
+      run: |
+           mkdir myprojreldbg
+           cd myprojreldbg
+           sb --init core_val RELDBG COMPACT
+           sb -t --testexcerpts=100
+           sbenv sb_core_extdeps --require-disabled NCrystal Numpy matplotlib Geant4 ZLib
+           #Also verify that eval "$(sb --env-setup)" works:
+           eval "$(sb --env-setup)"
+           python3 -c 'import _simple_build_system.envsetup as sbe; sbe.verify_env_already_setup()'
+
     - name: Verify-ncrystal-linkage
       run: |
            #This will fail with gcc if ncrystal wheel is not available in recent

@@ -131,9 +131,11 @@ bundle which is simply being used by another bundle, will be completely ignored.
   on many other packages. The syntax for package filter specification is rather
   extended, and is discussed in a dedicated section :ref:`below <sbpkgfilterspec>`.
 
-* ``mode`` (string): A string which must be either ``"release"`` (the default)
-  or ``"debug"``. Changing it to the latter enables all binaries to be build with
-  debug symbols enabled, which is sometimes useful for expert-level debugging.
+* ``mode`` (string): A string which must be either ``"release"`` (the default),
+  ``"reldbg"``, or ``"debug"``. The ``"release"`` mode enables all binaries to
+  be build with debug symbols enabled, which is sometimes useful for
+  expert-level debugging. The ``debug`` mode additionally reduces the level of
+  compiler optimisations, enables ``assert(..)`` statements in C/C++ code, etc.
 
 
 .. _sbpkgfilterspec:

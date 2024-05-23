@@ -38,9 +38,9 @@ bundle directories, etc.
 New bundle initialisation mode ("{_p} --init") is used to initialise a new
 simplebuild bundle in the current directory by creating a simplebuild.cfg
 file. Additional arguments can be used to specify bundles which the new bundle
-should depend on, or they can be a special keyword (DEBUG|COMPACT|...). In any
-case, it might be most convenient to edit the simplebuild.cfg file afterwards to
-fine-tune the desired settings.
+should depend on, or they can be a special keyword (DEBUG|RELDBG|COMPACT|...).
+In any case, it might be most convenient to edit the simplebuild.cfg file
+afterwards to fine-tune the desired settings.
 
 Examples of {_p} --init usage:
 
@@ -48,10 +48,21 @@ $> {_p} --init core_val
 
     Set up bundle which depends on the core_val bundle.
 
+$> {_p} --init RELEASE
+
+    Set up bundle with default build options for compilation of binaries
+    (build.mode='release'). This is the default behaviour.
+
 $> {_p} --init DEBUG
 
     Set up bundle with build options for producing debug symbols
-    (build.mode='debug').
+    (build.mode='debug'). Also reduces compiler optimisation levels and enables
+    additional safe checks in code.
+
+$> {_p} --init RELDBG
+
+    Set up bundle with build options for producing debug symbols
+    but otherwise keep all compiler optimisations (build.mode='reldbg').
 
 $> {_p} --init COMPACT
 
@@ -309,6 +320,11 @@ $> {_p} --init dgcode CACHEDIR::/some/where
         args_unused = []
     else:
         args.init = None
+
+    if args.init and sum(int(e in args.init)
+                         for e in ('RELEASE','DEBUG','RELDBG')) > 1:
+        parser.error('Do not specify more than one of the DEBUG, RELEASE, and'
+                     ' RELDBG keywords with --init')
 
     if args_unused:
         parser.error("Unrecognised arguments: %s"%' '.join(args_unused))

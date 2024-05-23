@@ -40,7 +40,7 @@ jobs:
       run: |
            mkdir myproj
            cd myproj
-           sb --init core_val COMPACT CACHEDIR::./somecustomcachedir
+           sb --init core_val RELEASE COMPACT CACHEDIR::./somecustomcachedir
            sb -t --testexcerpts=100 --requirepkg CoreTests
            sbenv sb_core_extdeps --require-disabled NCrystal Numpy matplotlib Geant4 ZLib
            sb -t --testfilter='sb_coretests_testpycpp' --requirepkg CoreTests

@@ -20,9 +20,19 @@ def init_project( args = None ):
 
     #Keywords:
     args, debug_mode = has_keyword(args, 'DEBUG')
+    args, release_mode = has_keyword(args, 'RELEASE')
+    args, reldbg_mode = has_keyword(args, 'RELDBG' )
     args, compact = has_keyword(args, 'COMPACT')
     args, build_cachedir = extract_opt_with_args( args, 'CACHEDIR',
                                                   pick_last = True)
+
+    _n_mode_opts=sum(int(e) for e in (debug_mode,release_mode,reldbg_mode))
+    if _n_mode_opts == 0:
+        release_mode=True
+    elif _n_mode_opts > 1:
+        from .error import error
+        error('Do not specify more than one of the DEBUG, '
+              'RELEASE, and RELDBG keywords')
 
     #Remaining args are the dep-bundles, but remove duplicates:
     depbundles = []
@@ -39,10 +49,12 @@ def init_project( args = None ):
     for e in template.splitlines():
         res += e.rstrip()+'\n'
         if e.startswith('[build]'):
-            if debug_mode:
+            if ( debug_mode or reldbg_mode ):
                 #inject mode statement:
                 sbundles = "', '".join(depbundles)
-                res += "\n  mode = 'debug'\n\n"
+                res += "\n  mode = '%s'\n\n"%( 'debug'
+                                               if debug_mode
+                                               else 'reldbg' )
             if build_cachedir:
                 #inject cachedir statement:
                 res += f"\n  cachedir = '{build_cachedir}'\n\n"
