@@ -84,7 +84,8 @@ if ( NOT "${CMAKE_BUILD_TYPE}" STREQUAL "Debug" )
   #Aggressively target native platform + a few other optimisations (see also
   #https://github.com/mctools/simplebuild/issues/73). For now we assume the
   #compiler understands all of these:
-  set( sbld_extra_ccxx_cflags "${sbld_extra_ccxx_cflags} -O3 -DNDEBUG -fno-math-errno -march=native -mtune=native")
+  #NB: -march=native -mtune=native changes results in some NCrystal unit tests.
+  set( sbld_extra_ccxx_cflags "${sbld_extra_ccxx_cflags} -O3 -DNDEBUG -fno-math-errno")# -march=native -mtune=native")
   #Disabling -flto for now, I suspect if causes issues on macos...:
   if ( NOT SBLD_ISINTEL )
     #NB: Not adding -flto=auto for now, since we saw some weird errors of uncaught exceptions on macos.
