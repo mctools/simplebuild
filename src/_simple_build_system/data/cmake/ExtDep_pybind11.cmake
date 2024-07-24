@@ -51,6 +51,25 @@ function( detect_system_pybind11
   strip_cpp_version_flags( module_cflags )
   strip_cpp_version_flags( embed_cflags )
 
+  #Temporary workaround (see https://github.com/pybind/pybind11/issues/5224):
+  include(CheckCXXCompilerFlag)
+  check_cxx_compiler_flag(
+    "-Wno-array-bounds"
+    "compiler_supports_Wno-array-bounds"
+  )
+  check_cxx_compiler_flag(
+    "-Wno-stringop-overread"
+    "compiler_supports_Wno-stringop-overread"
+  )
+  if ( compiler_supports_Wno-array-bounds )
+    list(APPEND embed_cflags "-Wno-array-bounds")
+    list(APPEND module_cflags "-Wno-array-bounds")
+  endif()
+  if ( compiler_supports_Wno-stringop-overread )
+    list(APPEND embed_cflags "-Wno-stringop-overread")
+    list(APPEND module_cflags "-Wno-stringop-overread")
+  endif()
+
   #For some reason the -DUSING_pybind11 define does not get added with the
   #above. Try to add it manually and hope it works:
   set( ${resvar_version} "${pybind11_version}" PARENT_SCOPE )

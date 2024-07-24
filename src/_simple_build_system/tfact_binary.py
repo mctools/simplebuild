@@ -41,17 +41,15 @@ class TargetBinaryObject(target_base.Target):
             extra_flags+=['${CFLAGS_%s_%s}'%(('CXX' if lang=='cxx' else 'C'),extdep)]
             self.deps+=['${EXT}/%s'%extdep]
 
-        if is_py_mod:
-            #src in pycpp_*/*.cc
-            assert shlib
-            extra_flags.append( '${PYBIND11_MODULE_CFLAGS}' )
-        elif not shlib:
-            #src in app_*/*.cc
-            extra_flags.append( '${PYBIND11_EMBED_CFLAGS}' )
-        else:
-            #src in libsrc/*.cc - do not allow Python here!
-            pass
-
+        if lang=='cxx':
+            #NB: Only allow pybind for C++ and never for libsrc/*.cc:
+            if is_py_mod:
+                #src in pycpp_*/*.cc
+                assert shlib
+                extra_flags.append( '${PYBIND11_MODULE_CFLAGS}' )
+            elif not shlib:
+                #C++ src in app_*/*.cc
+                extra_flags.append( '${PYBIND11_EMBED_CFLAGS}' )
 
         if pkg.extraflags_comp:
             extra_flags+=pkg.extraflags_comp
@@ -157,16 +155,15 @@ class TargetBinary(target_base.Target):
         append_to_rpath( extra_flags, join('${INST}','lib') )
         append_to_rpath( extra_flags, join('${INST}','lib','links') )
 
-        if is_py_mod:
-            #src in pycpp_*/*.cc
-            assert shlib
-            extra_flags.append( '${PYBIND11_MODULE_LDFLAGS}' )
-        elif not shlib:
-            #src in app_*/*.cc
-            extra_flags.append( '${PYBIND11_EMBED_LDFLAGS}' )
-        else:
-            #src in libsrc/*.cc - do not allow Python here!
-            pass
+        if lang=='cxx':
+            #NB: Only allow pybind for C++ and never for libsrc/*.cc:
+            if is_py_mod:
+                #src in pycpp_*/*.cc
+                assert shlib
+                extra_flags.append( '${PYBIND11_MODULE_LDFLAGS}' )
+            elif not shlib:
+                #C++ src in app_*/*.cc
+                extra_flags.append( '${PYBIND11_EMBED_LDFLAGS}' )
 
         conda_prefix =  envcfg.var.conda_prefix
         if conda_prefix:
