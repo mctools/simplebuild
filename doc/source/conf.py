@@ -87,6 +87,7 @@ def _reporoot():
     return p.absolute()
 
 version = _get_gitversion( _reporoot() )
+print(f"Notice: Detected version tag to use: {version}")
 
 # for :sbpkg:`MyPkg` links
 extensions += '_simple_build_system._sphinxext',
