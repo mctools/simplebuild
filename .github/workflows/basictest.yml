@@ -67,7 +67,7 @@ jobs:
            mkdir myproj
            cd myproj
            sb --init core_val
-           sb -t --testexcerpts=100
+           sb -t --testexcerpts=100 --requirepkg CoreTests
            sbenv sb_core_extdeps --require-disabled NCrystal Numpy matplotlib Geant4 ZLib
            sb -t --testfilter='sb_coretests_testpycpp' --requirepkg CoreTests
 
@@ -76,7 +76,7 @@ jobs:
            mkdir myprojdebug
            cd myprojdebug
            sb --init core_val DEBUG COMPACT
-           sb -t --testexcerpts=100
+           sb -t --testexcerpts=100 --requirepkg CoreTests
            sbenv sb_core_extdeps --require-disabled NCrystal Numpy matplotlib Geant4 ZLib
            #Also verify that eval "$(sb --env-setup)" works:
            eval "$(sb --env-setup)"
@@ -87,7 +87,7 @@ jobs:
            mkdir myprojreldbg
            cd myprojreldbg
            sb --init core_val RELDBG COMPACT
-           sb -t --testexcerpts=100
+           sb -t --testexcerpts=100 --requirepkg CoreTests
            sbenv sb_core_extdeps --require-disabled NCrystal Numpy matplotlib Geant4 ZLib
            #Also verify that eval "$(sb --env-setup)" works:
            eval "$(sb --env-setup)"
@@ -100,6 +100,16 @@ jobs:
            cd myproj
            python3 -m pip install ncrystal
            sb -t --testexcerpts=100 --requirepkg 'CoreTests,CoreLinkTests'
+
+    - name: Test pkgfilter
+      run: |
+           mkdir myproj_pkgfilter
+           cd myproj_pkgfilter
+           sb --init core_val CACHEDIR::"$PWD"/../somecachedir PKGFILTER::'Core*' PKGFILTER::'!CoreLink*'
+           sb -t --testexcerpts=100 --requirepkg 'Core,CoreTests'
+           test -d "$PWD"/../somecachedir
+           sb --requirepkg CoreLinkTests && (echo badpkgfilter; false) || true
+           which sb_corelinktests_test && false || true
 
     - name: Other tests
       run: |

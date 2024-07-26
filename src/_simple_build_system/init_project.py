@@ -25,6 +25,8 @@ def init_project( args = None ):
     args, compact = has_keyword(args, 'COMPACT')
     args, build_cachedir = extract_opt_with_args( args, 'CACHEDIR',
                                                   pick_last = True)
+    args, build_pkgfilter = extract_opt_with_args( args, 'PKGFILTER',
+                                                   pick_last = False)
 
     _n_mode_opts=sum(int(e) for e in (debug_mode,release_mode,reldbg_mode))
     if _n_mode_opts == 0:
@@ -58,6 +60,10 @@ def init_project( args = None ):
             if build_cachedir:
                 #inject cachedir statement:
                 res += f"\n  cachedir = '{build_cachedir}'\n\n"
+            if build_pkgfilter:
+                #inject pkg_filter statement:
+                _ = "','".join(build_pkgfilter)
+                res += f"\n  pkg_filter = ['{_}']\n\n"
         elif e.startswith('[depend]'):
             if depbundles:
                 #inject depend.bundles list:

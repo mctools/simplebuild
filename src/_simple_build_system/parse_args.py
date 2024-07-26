@@ -80,6 +80,11 @@ $> {_p} --init dgcode CACHEDIR::/some/where
     Set up bundle with a dependency on the dgcode bundle, and the
     build.cachedir option set to the directory "/some/where".
 
+$> {_p} --init dgcode PKGFILTER::SomeFilter
+
+    Set up bundle with a dependency on the dgcode bundle, and "SomeFilter"
+    appended to the build.pkg_filter option array.
+
     """.strip()+'\n'
 
     if '--init' in argv and ('-h' in argv or '--help' in argv):
@@ -312,8 +317,10 @@ $> {_p} --init dgcode CACHEDIR::/some/where
         for a in args_unused:
             #All-uppcase option keywords like COMPACT/DEBUG/... are actually
             #valid bundle names, so we don't have to treat them specially
-            #here. But we do not to allow for 'CACHEDIR::/some/where' arguments:
-            special_init_opt = a.startswith('CACHEDIR::')
+            #here. But we do have to do special parsing of 'CACHEDIR::...' and
+            #'PKGFILTER::...' arguments:
+            special_init_opt = ( a.startswith('CACHEDIR::')
+                                 or a.startswith('PKGFILTER::') )
             if not special_init_opt and not is_valid_bundle_name(a):
                 parser.error(f'Invalid name for dependency bundle: {a}')
             args.init.append( a )
