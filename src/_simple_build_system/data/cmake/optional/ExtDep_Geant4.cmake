@@ -75,6 +75,9 @@ if (geant4_config_file)
     #and two others, through the Qt dependency). So if CONDA_PREFIX is set, and
     #Geant4 comes from conda, we add -Wl,--allow-shlib-undefined, although
     #normally we would really try to avoid that.
+    #
+    # NOTE: We also have this workaround in other extdeps (e.g. OSG, HDF5), so
+    # any updates here should be reflected there as well.
     file(REAL_PATH ${geant4_config_file} real_g4cfg)
     file(REAL_PATH $ENV{CONDA_PREFIX} real_condaprefix)
     cmake_path(IS_PREFIX real_condaprefix "${real_g4cfg}" NORMALIZE tmp)
