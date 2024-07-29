@@ -100,6 +100,9 @@ if ( SBLD_RELDBG_MODE )
   #NB: Fortran -g is handled in ExtDep_Fortran.cmake
   set( sbld_extra_ccxx_cflags "${sbld_extra_ccxx_cflags} -g")
 endif()
+if ( "${CMAKE_BUILD_TYPE}" STREQUAL "Debug" )
+  set( sbld_extra_ccxx_cflags "${sbld_extra_ccxx_cflags} -O0")
+endif()
 
 if ( sbld_extra_ccxx_cflags )
   set(SBLD_GLOBAL_COMPILE_FLAGS_CXX "${SBLD_GLOBAL_COMPILE_FLAGS_CXX} ${sbld_extra_ccxx_cflags}")
