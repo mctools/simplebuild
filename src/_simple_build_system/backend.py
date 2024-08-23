@@ -17,7 +17,7 @@ def perform_cfg( *,
     from . import error
     from . import mtime
     from . import envcfg
-    import pipes
+    import shlex
     import shutil
     from .io import print
 
@@ -250,7 +250,7 @@ def perform_cfg( *,
         conf.uninstall_package(pkgname)
         utils.rm_rf(dirs.pkg_cache_dir(pkgname))
         utils.rm_rf(dirs.pkg_dir(pkgname))#remove link to pkg
-        nt=pipes.quote(os.path.join(dirs.blddir,'named_targets',pkgname))
+        nt=shlex.quote(os.path.join(dirs.blddir,'named_targets',pkgname))
         utils.system('rm -f %s %s_*'%(nt,nt))#Fixme: this is potentially
                                              #clashy... we should not use single
                                              #underscores if they are allowed in
