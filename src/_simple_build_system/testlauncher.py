@@ -5,7 +5,6 @@ def perform_tests(testdir,
     import os
     import sys
     import fnmatch
-    import shutil
     import shlex
     import pathlib
     from .conf import runnable_is_test
@@ -132,6 +131,13 @@ def perform_tests(testdir,
     alltests=[]
 
     if do_pycoverage:
+        try:
+            import coverage # noqa F401
+        except ImportError:
+            raise SystemError('Coverage testing requires the Python'
+                              ' coverage package. Install with "conda'
+                              ' install -c conda-forge coverage" or '
+                              '"python3 -mpip install coverage".')
         coverage_out_dir = pathlib.Path(testdir) / 'pycoverage'
         coverage_out_dir.mkdir(parents=True, exist_ok=False)
         coverage_all_out_files = []
@@ -144,7 +150,8 @@ def perform_tests(testdir,
         tf.write('#!/usr/bin/env bash\n')
         cmdstr = bn
         if do_pycoverage:
-            _whichbn = shutil.which(bn)
+            _whichbn = _ospathjoin(installdir,'scripts',bn)
+            #_whichbn = shutil.which(bn) <-- no longer works, not in PATH yet
             _ = pathlib.Path( _whichbn ) if _whichbn else None
             if _ and _.exists() and _.read_bytes().startswith(b'#!/usr/bin/env python3'):
                 coverage_outfile = coverage_out_dir / ('%s.coverage'%bn)

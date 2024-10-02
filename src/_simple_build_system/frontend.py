@@ -448,17 +448,21 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
         import shutil
         shutil.rmtree(conf.test_dir(),ignore_errors=True)
         _testfilter=None
+        do_pycoverage = False
         if opt.testfilter:
             _testfilter = [ fltr.strip()
                             for fltr in opt.testfilter.split(',')
                             if fltr.strip() ]
+            while 'COVERAGE' in _testfilter:
+                _testfilter.remove('COVERAGE')
+                do_pycoverage = True
         from .testlauncher import perform_tests
         ec = perform_tests( testdir = dirs.testdir,
                             installdir = dirs.installdir,
                             njobs = opt.njobs,
                             nexcerpts = opt.nexcerpts,
                             filters = _testfilter,
-                            do_pycoverage = False,
+                            do_pycoverage = do_pycoverage,
                             pkgloader = pkgloader )
 
         from . import env
