@@ -40,6 +40,7 @@ class CfgBuilder:
         self.__available_unused_cfgs = []#only needed during build up
         self.__cfg_names_used = set()
         self.__cfg_names_missing = set([ main_cfg.bundle_name ])
+        self.__dyngenscripts = []
         self.__use_cfg( main_cfg, is_top_level = True )
 
         for cfg_file, cfg in load_builtin_cfgs():
@@ -65,6 +66,23 @@ class CfgBuilder:
             error.error('Could not find dependent bundles%s: "%s"'%(_s,_p))
         self.__pkg_path = tuple( self.__pkg_path )
         del self.__available_unused_cfgs
+        if self.__dyngenscripts:
+            self.__invoke_dynamic_generators()
+
+    def __invoke_dynamic_generators( self ):
+        from .io import print
+        import sys
+        import subprocess
+        assert self.__dyngenscripts
+        pyexec = sys.executable or 'python3'
+        for bundle_name, script in self.__dyngenscripts:
+            if not script.name.endswith('.py'):
+                error.error('dynamic_generator script name must end in .py')
+            descr = f' from {bundle_name}' if bundle_name else ''
+            print(f"Invoking {script}{descr}")
+            rv = subprocess.run( [ pyexec, '-BI', script ] )
+            if rv.returncode!=0:
+                error.error('dynamic_generator script invocation failed')
 
     def __print_verbose( self, *a,**kw ):
         if self.__is_verbose():
@@ -104,6 +122,11 @@ class CfgBuilder:
         self.__print_verbose(f'Using {_cfgname}cfg from {cfg._cfg_file}')
         self.__cfg_names_missing.remove( cfg.bundle_name )
         self.__cfg_names_used.add( cfg.bundle_name )
+        if cfg.bundle_dynamic_generator:
+            dyngenscript = cfg.bundle_dynamic_generator
+            if not any(dyngenscript.samefile(s) for s in self.__dyngenscripts):
+                self.__dyngenscripts.append( ( cfg.bundle_name, dyngenscript ) )
+
         #Add dependencies and cfgs available in search paths:
         for cfgname in cfg.depend_bundles:
             if cfgname not in self.__cfg_names_used:

@@ -237,7 +237,7 @@ def _generate_toml_schema():
             error.error(f'Invalid option "{item}" for item {ctx.item_name} (must be a non-negative integer) in {ctx.src_descr}')
         return item
 
-    def decode_dir( ctx : TOMLSchemaDecodeContext, item ):
+    def decode_dir_or_file( ctx : TOMLSchemaDecodeContext, item ):
         if isinstance( item, pathlib.Path ):
             #special case (likely no longer needed, for sources which already provides Path's rather than str's)
             p = item
@@ -252,9 +252,24 @@ def _generate_toml_schema():
             p = ctx.default_dir / p
         return p.absolute().resolve()
 
+    def decode_dir( ctx : TOMLSchemaDecodeContext, item ):
+        p = decode_dir_or_file( ctx, item )
+        if p.exists() and not p.is_dir():
+            error.error(f'Invalid option "{item}" for item {ctx.item_name} '
+                        '(must be a directory but a regular file exists with that name)')
+        return p
+
+    def decode_existing_file( ctx : TOMLSchemaDecodeContext, item ):
+        p = decode_dir_or_file( ctx, item )
+        if not p.is_file():
+            error.error(f'Invalid option "{item}" for item {ctx.item_name} '
+                        '(must refer to an existing file)')
+        return p
+
     return dict( bundle   = dict( name        = (decode_valid_lowercase_identifier_string,None),
                                   pkg_root      = (decode_dir, '.'),
                                   env_paths   = (decode_is_env_paths,[]),
+                                  dynamic_generator = (decode_existing_file,None),
                                  ),
                  depend    = dict( bundles     = (decode_is_list_of_valid_lowercase_identifier_string,[]),
                                    search_path = (decode_list_of_search_paths,[])

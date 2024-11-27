@@ -18,6 +18,8 @@ share/python-wheels/
 venv/
 wheels/
 
+devel/example_project_dynamic/autogen_dynpkgs/
+
 #ignore emacs backup and lock files:
 *~
 \#*\#
