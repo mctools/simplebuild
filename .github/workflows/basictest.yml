@@ -113,7 +113,7 @@ jobs:
            sb -t --testexcerpts=100 --requirepkg 'Core,CoreTests'
            test -d "$PWD"/../somecachedir
            sb --requirepkg CoreLinkTests && (echo badpkgfilter; false) || true
-           which sb_corelinktests_test && false || true
+           sbenv which sb_corelinktests_test && false || true
 
     - name: Test dynamic generator
       run: |
@@ -121,7 +121,7 @@ jobs:
            cp src/devel/example_project_dynamic/* ./myproj_dyngen/
            cd myproj_dyngen
            sb -t --requirepkg MyPkg
-           sb_mypkg_testbla
+           sbenv sb_mypkg_testbla
 
     - name: Other tests
       run: |
