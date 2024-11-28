@@ -108,6 +108,11 @@ def get_cmake_command( args ):
 class ParseCmd:
     def __init__( self, cmd, input_file ):
         ll = shlex.split(cmd)
+
+        #Needed this little workaround for cmake 3.31:
+        ll = list( e for e in ll
+                   if not e.startswith('-Wl,--dependency-file,CMakeFiles/') )
+
         assert len(ll)>=1
         assert ll.count('-o')==1
         _ = []
