@@ -123,6 +123,13 @@ jobs:
            sb -t --requirepkg MyPkg
            sbenv sb_mypkg_testbla
 
+    - name: Test custom extdeps generator
+      run: |
+           mkdir myproj_extdep
+           cp -rp src/devel/example_project_custom_extdeps/* ./myproj_extdep/
+           cd myproj_extdep
+           sb -t --requirepkg MyPkg
+
     - name: Other tests
       run: |
            mkdir othertests
