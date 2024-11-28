@@ -173,6 +173,10 @@ def extractenv(*,cmakeargs,actually_needed_extdeps,quiet=True,verbose=False):
     _joined_extdeps=':'.join(actually_needed_extdeps)
     cmd.append( f'-DSBLD_ACTUALLY_USED_EXTDEPS={_joined_extdeps}' )
 
+    if dirs.extraextdeppath:
+        _= ';'.join(str(e) for e in dirs.extraextdeppath)
+        cmd.append( '-DSBLD_EXTRA_EXTDEP_PATH=%s'%_ )
+
     output_file = cmakeblddir / 'cmake_output21_capture.txt'
     output_file_quoted = shlex.quote(str(output_file))
     cmd = ' '.join(shlex.quote(str(e)) for e in cmd )

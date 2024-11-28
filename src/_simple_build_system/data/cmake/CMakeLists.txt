@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.24.2...3.27.6)
+cmake_minimum_required(VERSION 3.24.2...3.31)
 
 if (SBLD_QUIET)
   #override normal message function and block anything except errors and warnings

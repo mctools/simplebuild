@@ -10,6 +10,7 @@ makefiledir = blddir / 'makefiles'
 
 extrapkgpath = conf.extra_pkg_path() # imports envcfg
 pkgsearchpath = conf.pkg_search_path() # imports envcfg
+extraextdeppath = conf.extra_extdep_path() # imports envcfg
 
 installdir = conf.install_dir() # imports envcfg
 testdir = conf.test_dir() # imports envcfg

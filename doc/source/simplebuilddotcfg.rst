@@ -96,6 +96,9 @@ Information about the associated package bundle.
   repositories whose layout does not match that required by a simplebuild
   package.
 
+* ``extdep_root`` (string): Path to a directory containing additional CMake
+  files for defining external dependencies (expert-only).
+
 The ``[depend]`` section
 ------------------------
 

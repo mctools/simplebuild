@@ -108,6 +108,10 @@ def extra_pkg_path():
     from . import envcfg
     return envcfg.var.extra_pkg_path_list
 
+def extra_extdep_path():
+    from . import envcfg
+    return envcfg.var.extra_extdep_path
+
 def pkg_search_path():
     candidates = [main_bundle_pkg_root()]
     candidates.extend(extra_pkg_path())

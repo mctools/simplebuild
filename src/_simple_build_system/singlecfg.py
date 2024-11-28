@@ -270,6 +270,7 @@ def _generate_toml_schema():
                                   pkg_root      = (decode_dir, '.'),
                                   env_paths   = (decode_is_env_paths,[]),
                                   dynamic_generator = (decode_existing_file,None),
+                                  extdep_root = (decode_dir, None),
                                  ),
                  depend    = dict( bundles     = (decode_is_list_of_valid_lowercase_identifier_string,[]),
                                    search_path = (decode_list_of_search_paths,[])

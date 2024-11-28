@@ -33,8 +33,9 @@ class CfgBuilder:
         #self.__build_extdep_ignore = main_cfg.build_extdep_ignore
 
         #Build up everything else recursively, starting from the main_cfg:
-        self.__pkg_path = []#result 1
-        self.__env_paths = {}#result 2
+        self.__pkg_path = []
+        self.__extdep_path = []
+        self.__env_paths = {}
         self.__used_cfg_files = set()#make sure we don't consider the same cfg-file twice
         self.__used_cfg_files.add( main_cfg_file )
         self.__available_unused_cfgs = []#only needed during build up
@@ -65,6 +66,7 @@ class CfgBuilder:
             _s = 's' if len(self.__cfg_names_missing)>2 else ''
             error.error('Could not find dependent bundles%s: "%s"'%(_s,_p))
         self.__pkg_path = tuple( self.__pkg_path )
+        self.__extdep_path = tuple( self.__extdep_path )
         del self.__available_unused_cfgs
         if self.__dyngenscripts:
             self.__invoke_dynamic_generators()
@@ -116,6 +118,10 @@ class CfgBuilder:
     def env_paths(self):
         return self.__env_paths
 
+    @property
+    def extdep_path(self):
+        return self.__extdep_path
+
     def __use_cfg( self, cfg : SingleCfg, is_top_level = False ):
         assert cfg.bundle_name in self.__cfg_names_missing
         _cfgname='main-' if is_top_level else ''
@@ -148,6 +154,8 @@ class CfgBuilder:
         #Add actual pkg-dirs and env-path requests from cfg:
         if cfg.bundle_pkg_root not in self.__pkg_path:
             self.__pkg_path.append( cfg.bundle_pkg_root )
+        if cfg.bundle_extdep_root and cfg.bundle_extdep_root not in self.__extdep_path:
+            self.__extdep_path.append( cfg.bundle_extdep_root )
         for pathvar,contents in cfg.bundle_env_paths.items():
             if pathvar not in self.__env_paths:
                 self.__env_paths[pathvar] = set()

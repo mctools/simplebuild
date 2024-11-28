@@ -52,6 +52,7 @@ def _build_cfg():
         main_bundle_pkg_root = main_cfg.bundle_pkg_root #FIXME: Is this ok?
         extra_pkg_path = ':'.join(str(e) for e in cfg.pkg_path)#fixme: keep at Path objects.
         extra_pkg_path_list = cfg.pkg_path#New style!
+        extra_extdep_path = cfg.extdep_path or tuple([])
         pkg_filter = pkgfilterobj#New style!
 
         #These are used in the context of conda installs:
