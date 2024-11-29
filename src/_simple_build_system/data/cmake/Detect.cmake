@@ -23,13 +23,16 @@ declare_includes_as_system_headers(SBLD_GLOBAL_COMPILE_FLAGS_C)
 ###   package must explicitly add as a dependency if needed       ###
 #####################################################################
 
-#Create extdep_all list based on files in optional:
-FILE(GLOB extdepfiles "optional/ExtDep_*.cmake")
-set(extdep_dirs "optional_")
+#Create extdep list based on files in optional:
+set(extdep_dirs "${CMAKE_CURRENT_LIST_DIR}/optional")
+FILE(GLOB extdepfiles "${extdep_dirs}/ExtDep_*.cmake")
+
 if( DEFINED SBLD_EXTRA_EXTDEP_PATH )
+  #Add extra files in downstream projects:
   foreach( tmp_extra_dir ${SBLD_EXTRA_EXTDEP_PATH} )
-    FILE(GLOB extra_files "${tmp_extra_dir}/ExtDep_*.cmake")
-    foreach( tmp_extra_file ${extra_files} )
+    #list( APPEND extdep_dirs ${tmp_extra_dir} )
+    FILE(GLOB tmp_extra_files "${tmp_extra_dir}/ExtDep_*.cmake")
+    foreach( tmp_extra_file ${tmp_extra_files} )
       message(STATUS "Using custom dependency file: ${tmp_extra_file}")
       list(APPEND extdepfiles "${tmp_extra_file}")
       if ( NOT "${tmp_extra_dir}" IN_LIST extdep_dirs )
@@ -94,16 +97,23 @@ while(extdep_pending)
     message( STATUS "Checking for ${extdep} installation")
     set( tmp_found "OFF" )
     foreach( tmpdir ${extdep_dirs} )
-      if ( EXISTS "${tmpdir}/ExtDep_${extdep}.cmake" )
+      set( tmp_candidate "${tmpdir}/ExtDep_${extdep}.cmake" )
+      message(STATUS "CHECKING ${tmp_candidate}")
+      if ( EXISTS "${tmp_candidate}" )
         if ( tmp_found )
-          message( FATAL_ERROR "Internal inconsistency when searching extdep dirs")
+          message(
+            FATAL_ERROR "Internal inconsistency when searching extdep dirs"
+            " (found ${extdep} more than once)"
+          )
         endif()
-        include("${tmpdir}/ExtDep_${extdep}.cmake")
         set( tmp_found "ON" )
+        include("${tmp_candidate}")
       endif()
     endforeach()
     if (NOT tmp_found )
-      message( FATAL_ERROR "Internal inconsistency when searching extdep dirs")
+      message(
+        FATAL_ERROR "Internal inconsistency when searching extdep dirs"
+        " (could not find ${extdep} again)")
     endif()
     if ( EXTDEPS_WAITS_FOR )
       list( APPEND SBLD_ACTUALLY_USED_EXTDEPS ${EXTDEPS_WAITS_FOR} )
