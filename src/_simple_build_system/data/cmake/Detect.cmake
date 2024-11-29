@@ -98,7 +98,6 @@ while(extdep_pending)
     set( tmp_found "OFF" )
     foreach( tmpdir ${extdep_dirs} )
       set( tmp_candidate "${tmpdir}/ExtDep_${extdep}.cmake" )
-      message(STATUS "CHECKING ${tmp_candidate}")
       if ( EXISTS "${tmp_candidate}" )
         if ( tmp_found )
           message(
