@@ -65,8 +65,9 @@ def mtime_pkg(pkg):
 def mtime_cmake():
     from . import dirs
     ll = [dirs.cmakedetectdir] + list(dirs.extraextdeppath)
+    files  = []
     for ddir in ll:
-        files  = list(ddir.glob('**/*.txt'))
+        files += list(ddir.glob('**/*.txt'))
         files += list(ddir.glob('**/*.cmake'))
         files += list(ddir.glob('**/*.py'))
     files = [ f for f in files if '#' not in f.name ]
