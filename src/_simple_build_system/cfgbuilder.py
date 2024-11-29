@@ -29,6 +29,13 @@ class CfgBuilder:
         self.__build_mode = main_cfg.build_mode
         #self.__build_njobs = main_cfg.build_njobs
         self.__build_cachedir = main_cfg.build_cachedir
+        cachedir_postfix = ( '' if main_cfg.build_mode=='release'
+                             else f'_{main_cfg.build_mode}' )
+        self.__build_dir_resolved = ( main_cfg.build_cachedir
+                                      / f'bld{cachedir_postfix}' )
+        self.__install_dir_resolved = ( main_cfg.build_cachedir
+                                        / f'install{cachedir_postfix}' )
+
         self.__build_pkg_filter = main_cfg.build_pkg_filter
         #self.__build_extdep_ignore = main_cfg.build_extdep_ignore
 
@@ -82,7 +89,9 @@ class CfgBuilder:
                 error.error('dynamic_generator script name must end in .py')
             descr = f' from {bundle_name}' if bundle_name else ''
             print(f"Invoking {script}{descr}")
-            rv = subprocess.run( [ pyexec, '-BI', script ] )
+            rv = subprocess.run( [ pyexec, '-BI', script,
+                                   str(self.__install_dir_resolved),
+                                   str(self.__build_mode) ] )
             if rv.returncode!=0:
                 error.error('dynamic_generator script invocation failed')
 
@@ -101,6 +110,14 @@ class CfgBuilder:
     @property
     def build_cachedir( self ):
         return self.__build_cachedir
+
+    @property
+    def build_dir_resolved( self ):
+        return self.__build_dir_resolved
+
+    @property
+    def install_dir_resolved( self ):
+        return self.__install_dir_resolved
 
     @property
     def build_pkg_filter( self ):

@@ -26,9 +26,6 @@ def _build_cfg():
     cfg = CfgBuilder( main_cfg, main_cfg_file )
     pkgfilterobj = PkgFilter( cfg.build_pkg_filter )
 
-    cachedir_postfix = ( '' if main_cfg.build_mode=='release'
-                           else f'_{main_cfg.build_mode}' )
-
     import shlex
     _cmake_args = shlex.split( _query('CMAKE_ARGS') or '' )
 
@@ -46,8 +43,8 @@ def _build_cfg():
     class EnvCfg:
 
         #These are the basic ones:
-        build_dir_resolved = cfg.build_cachedir / f'bld{cachedir_postfix}'
-        install_dir_resolved = cfg.build_cachedir / f'install{cachedir_postfix}'
+        build_dir_resolved = cfg.build_dir_resolved
+        install_dir_resolved = cfg.install_dir_resolved
 
         main_bundle_pkg_root = main_cfg.bundle_pkg_root #FIXME: Is this ok?
         extra_pkg_path = ':'.join(str(e) for e in cfg.pkg_path)#fixme: keep at Path objects.
