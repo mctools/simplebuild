@@ -89,9 +89,11 @@ class CfgBuilder:
                 error.error('dynamic_generator script name must end in .py')
             descr = f' from {bundle_name}' if bundle_name else ''
             print(f"Invoking {script}{descr}")
+            from .io import is_quiet
             rv = subprocess.run( [ pyexec, '-BI', script,
                                    str(self.__install_dir_resolved),
-                                   str(self.__build_mode) ] )
+                                   str(self.__build_mode) ],
+                                 capture_output = is_quiet() )
             if rv.returncode!=0:
                 error.error('dynamic_generator script invocation failed')
 
