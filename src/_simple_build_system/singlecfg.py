@@ -209,13 +209,53 @@ def _generate_toml_schema():
             error.error(f'Invalid value "{item}" for item {ctx.item_name} (expected list) in {ctx.src_descr}')
         res = {}
         for idx,e in enumerate(item):
-            parts = list(x.strip() for x in e.split(':<install>/') if x.strip())
-            if not len(parts)>=2:
-                error.error(f'Invalid value "{e}" for list entry #{idx+1} in item {ctx.item_name} (expected format like "VARNAME:<install>/SUBDIRNAME" but got "{e}") in {ctx.src_descr}')
-            varname, install_subdirnames = parts[0],parts[1:]
+            def give_error(descr):
+                error.error(f'{descr} for list entry #{idx+1} in'
+                            f' item {ctx.item_name} in {ctx.src_descr}')
+
+
+            tmp = e.split(':',1)
+            if len(tmp) != 2:
+                give_error('Syntax error (missing ":")')
+
+            varname = tmp[0].strip()
+            additions = [e.strip() for e in tmp[1].split(':')]
+            #sanity check varname via .isidentifier() function for
+            #simplicity (assumes python identifiers and valid env var names
+            #is the same thing, which might not be strictly true but is good
+            #enough for our purposes):
+            if not varname.isidentifier():
+                give_error(f'Invalid environment variable name "{varname}"')
+
+            used_additions=set()
+            for a in additions:
+                a = a.strip()
+                if not a or a in used_additions:
+                    continue
+                valid_prefs = ('<install>/','/','./','../','~/')
+                if not any(a.startswith(e) for e in valid_prefs):
+                    valid_prefs_str = '"%s", or "%s"'%(
+                        '", "'.join( valid_prefs[:-1] ),
+                        valid_prefs[-1]
+                    )
+                    give_error(f'Component "{a}" for "{varname}" is invalid.'
+                               f' It should lead with either {valid_prefs_str}.'
+                               ' Seen')
+                used_additions.add(a)
+
+            if not used_additions:
+                continue
+
+            import os.path
             if varname not in res:
                 res[varname] = set()
-            res[varname].update(install_subdirnames)
+            for a in used_additions:
+                if a.startswith('~/'):
+                    a = os.path.expanduser(a)
+                if a.startswith('.'):
+                    a = os.path.realpath(ctx.default_dir.joinpath(a))
+                assert a.startswith('<install>/') or a.startswith('/')
+                res[varname].add(a)
         return res
 
     def decode_is_list_of_nonempty_str( ctx : TOMLSchemaDecodeContext, item ):

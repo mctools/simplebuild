@@ -93,13 +93,22 @@ def calculate_env_setup( oldenv = None ):
         error.error("Colons not allowed in cache dir or variable names")
 
     #So inject our new variables:
-    for pathvar, inst_subdirs in sorted( var.env_paths.items() ):
-        prepend_entries = [ instdir / sd for sd in sorted(inst_subdirs) ]
+    for pathvar, entries_to_append in sorted( var.env_paths.items() ):
+        prepend_entries = []
+        prune_and_prepend_entries = []
+        for e in sorted(entries_to_append):
+            if e.startswith('<install>/'):
+                prepend_entries.append(instdir / e[len('<install>/'):])
+            else:
+                prune_and_prepend_entries.append(e)
+
         ed = env_dict if pathvar in env_dict else oldenv
         env_dict[pathvar] = modify_path_var( pathvar,
                                              env_dict = ed,
                                              blockpath = instdir,
-                                             prepend_entries = prepend_entries )
+                                             prepend_entries = prepend_entries,
+                                             prune_and_prepend_entries
+                                             = prune_and_prepend_entries )
 
 
     #Set relevant non-path vars:
@@ -164,24 +173,27 @@ def emit_env_dict( env_dict):
 def modify_path_var( varname, *,
                      env_dict,
                      blockpath = None,
-                     prepend_entries = None ):
+                     prepend_entries = None,
+                     prune_and_prepend_entries = None ):
     """Removes all references to blockpath or its subpaths from a path variable,
     prepends any requested paths, and returns the result."""
     import pathlib
     assert env_dict is not None
     assert isinstance(blockpath,pathlib.Path)
-    #assert not blockpath.exists() or blockpath.is_dir()#still ok?
-    if prepend_entries:
-        res = prepend_entries[:]
-    else:
-        res = []
+    existing = (env_dict.get(varname,'') or '').split(':')
+    res = prepend_entries[:] if prepend_entries else []
     from .utils import path_is_relative_to
-    for e in (env_dict.get(varname,'') or '').split(':'):
+    for e in existing:
+        if prune_and_prepend_entries and e in prune_and_prepend_entries:
+            continue
         #NB: Keeping empty entries, to make setup->unsetup more likely to give
         #consistent results:
         if ( blockpath is None
              or not path_is_relative_to( pathlib.Path(e), blockpath ) ):
             res.append(str(e or ''))
+    if prune_and_prepend_entries:
+        res = prune_and_prepend_entries + res
+
     #NB: keeping duplicate entries, to make setup->unsetup more likely to
     #give consistent results:
     #return ':'.join(unique_list(str(e) for e in res))

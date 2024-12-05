@@ -87,7 +87,8 @@ Information about the associated package bundle.
     [bundle]
       #..
       env_paths = [ "PATH:<install>/bin:<install>/scripts",
-                    "PYTHONPATH:<install>/python" ]
+                    "PYTHONPATH:<install>/python",
+                    "PATH:./project/cmds:/other/cmds:~/mycmds"
 
 * ``dynamic_generator`` (string): Path to a Python file which will be invoked by
   simplebuild whenever it is itself invoked, which can for instance be used to
