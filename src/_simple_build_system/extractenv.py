@@ -107,8 +107,8 @@ def parse(fh):
             lf='${LDFLAGSLANG_%s}'%lang.lower()
             lfprepend='${LDFLAGSPREPENDLANG_%s}'%lang.lower()
 
-            lvars['create_obj_for_shlib'] = cmakevars['RULE_%s_COMPOBJ'%lang].replace('[FLAGS]','%s %%s'%cf_shlib).replace('[INPUT]','%s').replace('[OUTPUT]','%s')
-            lvars['create_obj_for_exe']   = cmakevars['RULE_%s_COMPOBJ'%lang].replace('[FLAGS]','%s %%s'%cf_exe).replace('[INPUT]','%s').replace('[OUTPUT]','%s')
+            lvars['create_obj_for_shlib'] = cmakevars['RULE_%s_COMPOBJ'%lang].replace('[FLAGS]','%%s %s'%cf_shlib).replace('[INPUT]','%s').replace('[OUTPUT]','%s')
+            lvars['create_obj_for_exe']   = cmakevars['RULE_%s_COMPOBJ'%lang].replace('[FLAGS]','%%s %s'%cf_exe).replace('[INPUT]','%s').replace('[OUTPUT]','%s')
             lvars['create_lib'] = cmakevars['RULE_%s_SHLIB'%lang].replace('[FLAGS]','%s %s %s %%s'%(lfprepend,cf_shlib,lf)).replace('[INPUT]','%s').replace('[OUTPUT]','%s')
             lvars['create_exe'] = cmakevars['RULE_%s_EXECUTABLE'%lang].replace('[FLAGS]','%s %s %s %%s'%(lfprepend,cf_exe,lf)).replace('[INPUT]','%s').replace('[OUTPUT]','%s')
 
