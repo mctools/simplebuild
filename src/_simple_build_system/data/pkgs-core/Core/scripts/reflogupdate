@@ -10,6 +10,7 @@ import filecmp
 import atexit
 import Core.System as Sys
 import simplebuild.cfg as cfg
+import pathlib
 
 def find_reflog(command):
     rl = os.path.join(cfg.dirs.testrefdir,'%s.log'%command)
@@ -92,8 +93,29 @@ def show_diff(reflog,log,side_by_side=True,sbs_column_width=130):
 updated_files=[]
 def update_file(log,reflog):
     global updated_files
-    assert os.path.islink(reflog)
-    target=os.path.abspath(os.path.realpath(reflog))
+    import simplebuild.cfg
+    reflogname = os.path.basename(reflog)
+    #We used to simply use os.path.realpath here to get to the log file in the
+    #package, however these days that file might itself be a link elsewhere. So
+    #we do the following search instead:
+
+    pinfo = None
+    for pkgname, _pinfo in simplebuild.cfg.pkgs.items():
+        if not _pinfo['enabled']:
+            continue
+        if reflogname in _pinfo['reflogs']:
+            pinfo = _pinfo
+            break
+    assert pinfo is not None
+    pdir = pathlib.Path(pinfo['dirname'])
+    target = None
+    for pcandidate in pdir.glob('*/*.log'):
+        if pcandidate.samefile(reflog):
+            target = str(pcandidate)
+            break
+    assert target is not None
+    target = str(target)
+
     assert any([target.startswith(str(d)) for d in cfg.dirs.pkgsearchpath])
     i=0
     while True:
@@ -103,8 +125,9 @@ def update_file(log,reflog):
         if not os.path.exists(backup):
             break
     shutil.copy2(target,backup)
-    Sys.rm_f(target)
-    shutil.copy2(log,target)
+    targetrp = os.path.realpath(target)
+    Sys.rm_f(targetrp)
+    shutil.copy2(log,targetrp)
     updated_files+=[os.path.relpath(target)]
     return os.path.relpath(target)
 
