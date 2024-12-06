@@ -338,15 +338,22 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
                 #Could be of form "pkgname/subdir/file. If so, expand pkgname part
                 #to full path to package:
                 i=fn.split(os.path.sep)
-                pkg=pkgloader.name2pkg.get(i[0],None) if len(i)==3 else None
+                pkg=pkgloader.name2pkg.get(i[0],None) if len(i) in (2,3) else None
                 if pkg:
-                    return _val_incinfofn(dirs.pkg_dir(pkg,i[1],i[2]))
+
+                    if len(i) == 3:
+                        return _val_incinfofn( os.path.join(pkg.dirname,i[1],i[2]) )
+                    else:
+                        return _val_incinfofn( os.path.join(pkg.dirname,'libinc', i[1]) )
                 else:
                     parser.error("File not found: %s"%fn)
             if os.path.isdir(fn):
                 parser.error("Not a file: %s"%fn)
-            fn=os.path.abspath(os.path.realpath(fn))
-            p = pathlib.Path(fn).absolute().resolve()
+            fn = os.path.abspath(fn)#NB: We used to do realpath here as well,
+                                    #but it gave problems with symlinked source
+                                    #files.
+            p = pathlib.Path(fn).absolute()#NB: We used to do .resolve() here as
+                                           #well
             simplebuild_pkg_dirs = [dirs.main_bundle_pkg_root,
                                     *dirs.extrapkgpath]
             if not any( utils.path_is_relative_to(p,d)
