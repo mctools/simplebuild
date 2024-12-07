@@ -109,9 +109,21 @@ class ParseCmd:
     def __init__( self, cmd, input_file ):
         ll = shlex.split(cmd)
 
-        #Needed this little workaround for cmake 3.31:
-        ll = list( e for e in ll
-                   if not e.startswith('-Wl,--dependency-file,CMakeFiles/') )
+        #
+        # Needed this little _prune_flags workaround for cmake 3.31, removing
+        # some flags.
+        #
+        # In cmake 3.31.1 we will find flags like:
+        #     -Wl,--dependency-file,CMakeFiles/
+        # In cmake 3.31.2 we will find flags like:
+        #     -Wl,--dependency-file=CMakeFiles/
+        #
+        def _prune_flag(e):
+            if e.startswith('-Wl,--dependency-file,CMakeFiles/'):
+                return True#CMake 3.31.1
+            if e.startswith('-Wl,--dependency-file=CMakeFiles/'):
+                return True#CMake 3.31.2
+        ll = list( e for e in ll if not _prune_flag(e) )
 
         assert len(ll)>=1
         assert ll.count('-o')==1
