@@ -15,6 +15,16 @@ from . import tfact_headerdeps
 
 join=os.path.join
 
+def _sort_extdep_list( extdeps ):
+    if not extdeps or len(extdeps) <= 1:
+        return
+    _ed = env.env['extdeps']
+    def extdep_sort_key( extdepname ):
+        i = _ed[extdepname]
+        return ( i['flagpriority'], extdepname )
+    extdeps.sort( key = extdep_sort_key )
+
+
 class TargetBinaryObject(target_base.Target):
     def __init__(self,pkg,subdir,bn,e,lang,shlib,cflags,possible_privincs):
         is_py_mod = subdir.startswith('pycpp_')#todo better way?
@@ -37,7 +47,13 @@ class TargetBinaryObject(target_base.Target):
             extra_flags+=cflags
         if shlib:
             extra_flags+=['-fPIC']#Could we get this from cmake already??
-        for extdep in pkg.extdeps():
+
+        #Get extdeps in order of priority (so we can use FLAGPRIORITY to force
+        #some extdeps to set their include paths earlier than others).
+        extdeps_sorted = list(pkg.extdeps())
+        _sort_extdep_list(extdeps_sorted)
+
+        for extdep in extdeps_sorted:
             extra_flags+=['${CFLAGS_%s_%s}'%(('CXX' if lang=='cxx' else 'C'),extdep)]
             self.deps+=['${EXT}/%s'%extdep]
 
@@ -143,7 +159,10 @@ class TargetBinary(target_base.Target):
         self.deps+=[dirs.makefile_blddir(objlistfile)]#'%s_prepinc'%pkg.name]
         extra_flags=[]
         extra_flags+=['%s']#This is used in self.setup() to add in library deps.
-        for extdep in pkg.extdeps():
+
+        extdeps_sorted = list(pkg.extdeps())
+        _sort_extdep_list(extdeps_sorted)
+        for extdep in extdeps_sorted:
             extra_flags+=['${LDFLAGS_%s} ${LDFLAGS_%s_%s_%s}'%(extdep,extdep,('LIB' if shlib else 'EXE'),lang)]
         if pkg.extraflags_link:
             extra_flags+=pkg.extraflags_link

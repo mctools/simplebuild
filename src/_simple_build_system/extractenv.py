@@ -66,6 +66,8 @@ def parse(fh):
                 extdeps[ext]['cflags_c']=ll[3]
             elif ll[2]=='INCLUDEMAPFILE':
                 extdeps[ext]['includemap']=ll[3]
+            elif ll[2]=='FLAGPRIORITY':
+                extdeps[ext]['flagpriority']=int(ll[3])
             else:
                 assert False,"unexpected field: %s"%ll[2]
         elif ll[0]=='VAR':
