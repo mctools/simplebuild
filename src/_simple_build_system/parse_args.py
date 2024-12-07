@@ -192,8 +192,8 @@ $> {_p} --init dgcode PKGFILTER::SomeFilter
                             help=('Only run tests with names matching at least '
                                   'one\nof the provided patterns (use wildcards,'
                                   ' comma\nseparation, and "!" prefix to'
-                                  ' negate). An entry "COVERAGE" will enable'
-                                  ' coverage testing of python tests'),)
+                                  ' negate). An entry\n"COVERAGE" will enable'
+                                  ' coverage testing of python\ntests'),)
 
     group_other = parser.add_argument_group('Other options')
 
