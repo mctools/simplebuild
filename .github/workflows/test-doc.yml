@@ -23,6 +23,9 @@ jobs:
         environment-file: .github/resources/publish-doc-condaenv.yml
         #use-mamba: no
 
+    - name: Conda list
+      run: conda list
+
     - name: Install self
       run: python3 -mpip install .
 

@@ -25,6 +25,9 @@ jobs:
         activate-environment: sbenv
         environment-file: ./resources/conda_sbenv.yml
 
+    - name: Conda list
+      run: conda list
+
     - name: Install self
       run: |
            #NB: the simple-build-system conda package was installed, but we
