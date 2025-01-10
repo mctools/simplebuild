@@ -63,6 +63,8 @@ sbrun rather than sbenv.
 """)
         raise SystemExit(0 if request_help else 111)
         return
+    from . import io as _io
+    _io.make_quiet()
     from .envsetup import create_install_env_clone
     run_env = create_install_env_clone()
     from . import utils
@@ -85,6 +87,8 @@ then proceeds to launch <program> within the simplebuild runtime environment.
 """)
         raise SystemExit(0 if request_help else 111)
         return
+    from . import io as _io
+    _io.make_quiet()
     from . import frontend
     frontend.simplebuild_main( argv = ['sb',
                                        '--quiet'],
