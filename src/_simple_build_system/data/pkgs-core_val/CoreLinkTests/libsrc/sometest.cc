@@ -1,6 +1,10 @@
 #include "NCrystal/NCrystal.hh"
-#include "NCrystal/internal/NCString.hh"
 
+#if NCRYSTAL_VERSION >= 3009080
+#  include "NCrystal/internal/utils/NCString.hh"
+#else
+#  include "NCrystal/internal/NCString.hh"
+#endif
 
 int sbld_ncrystaltests_impl()
 {
