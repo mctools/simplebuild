@@ -114,15 +114,19 @@ class ParseCmd:
         # some flags.
         #
         # In cmake 3.31.1 we will find flags like:
-        #     -Wl,--dependency-file,CMakeFiles/
+        #     -Wl,--dependency-file,CMakeFiles/...
         # In cmake 3.31.2 we will find flags like:
-        #     -Wl,--dependency-file=CMakeFiles/
+        #     -Wl,--dependency-file=CMakeFiles/...
+        # In cmake 3.31.4 we will find flags like:
+        #     --dependency-file=CMakeFiles/...
         #
         def _prune_flag(e):
             if e.startswith('-Wl,--dependency-file,CMakeFiles/'):
                 return True#CMake 3.31.1
             if e.startswith('-Wl,--dependency-file=CMakeFiles/'):
                 return True#CMake 3.31.2
+            if e.startswith('--dependency-file=CMakeFiles/'):
+                return True#CMake 3.31.4
         ll = list( e for e in ll if not _prune_flag(e) )
 
         assert len(ll)>=1
