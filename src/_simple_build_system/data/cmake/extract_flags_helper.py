@@ -128,6 +128,10 @@ class ParseCmd:
             if e.startswith('--dependency-file=CMakeFiles/'):
                 return True#CMake 3.31.4
         ll = list( e for e in ll if not _prune_flag(e) )
+        if '--dependency-file' in ' '.join(ll):
+            raise SystemExit('Error bad pruning in extract_flags_helper.py.'
+                             f' Input was: {cmd}')
+
 
         assert len(ll)>=1
         assert ll.count('-o')==1
