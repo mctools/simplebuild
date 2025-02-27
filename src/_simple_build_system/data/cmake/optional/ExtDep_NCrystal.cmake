@@ -28,7 +28,7 @@ function(
   if ( NOT "x${cmd_exitcode}" STREQUAL "x0" )
     return()
   endif()
-  set( findpkgargs NCrystal 3.7.1 NO_MODULE NO_DEFAULT_PATH )#TODO: If found but version is too old, and in conda, provide conda command for updating ncrystal version.
+  set( findpkgargs NCrystal 4.1.2 NO_MODULE NO_DEFAULT_PATH )#TODO: If found but version is too old, and in conda, provide conda command for updating ncrystal version.
   if ( SBLD_VERBOSE )
     message( STATUS "Found NCrystal_DIR=${NCrystal_DIR}")
     string( JOIN " " tmp ${findpkgargs} )
