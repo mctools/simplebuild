@@ -151,7 +151,7 @@ class CfgBuilder:
         self.__cfg_names_used.add( cfg.bundle_name )
         if cfg.bundle_dynamic_generator:
             dyngenscript = cfg.bundle_dynamic_generator
-            if not any(dyngenscript.samefile(s) for s in self.__dyngenscripts):
+            if not any(dyngenscript.samefile(s) for nm,s in self.__dyngenscripts):
                 self.__dyngenscripts.append( ( cfg.bundle_name, dyngenscript ) )
 
         #Add dependencies and cfgs available in search paths:
