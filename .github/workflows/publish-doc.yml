@@ -38,7 +38,7 @@ jobs:
 
     steps:
     - name: Checkout main repository
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
       #Note: We get all history and tags, so the version detection will always
       #be able to yield vx.y.z for the main website:
       with:
