@@ -22,7 +22,6 @@ jobs:
           - { os: ubuntu-latest, CC: gcc,      CXX: g++,        python: '3.13' }
           #- { os: macos-11,      CC: clang,    CXX: clang++,    python: "3.10" }
           #- { os: macos-12,      CC: clang,    CXX: clang++,    python: "3.11" }
-          - { os: macos-13,      CC: clang,    CXX: clang++,    python: "3.12" }
           - { os: macos-latest,      CC: clang,    CXX: clang++,    python: "3.12" }
 
     name: ${{ matrix.os }}.${{ matrix.CC }}.python-${{ matrix.python }}
