@@ -167,3 +167,26 @@ function( strip_cpp_version_flags varname )
     set( "${varname}" "${tmp}" PARENT_SCOPE )
   endif()
 endfunction()
+
+function( strip_unsupported_cxx_flags varname )
+  #Remove any -f... or -m... flags not supported by the C++ compiler, from a
+  #space separated string of flags. This is needed since some externals (like
+  #Geant4 from conda-forge) might report flags specific to the compiler they
+  #were built with (e.g. -fno-merge-constants which clang does not support).
+  include(CheckCXXCompilerFlag)
+  separate_arguments( tmp UNIX_COMMAND "${${varname}}" )
+  set( res "" )
+  foreach( entry ${tmp} )
+    if ( "${entry}" MATCHES "^-[fm]" )
+      string( MAKE_C_IDENTIFIER "sbld_cxx_supports${entry}" testvar )
+      check_cxx_compiler_flag( "${entry}" ${testvar} )
+      if ( NOT ${testvar} )
+        message( STATUS "Ignoring flag not supported by compiler: ${entry}")
+        continue()
+      endif()
+    endif()
+    list( APPEND res "${entry}" )
+  endforeach()
+  list( JOIN res " " res )
+  set( "${varname}" "${res}" PARENT_SCOPE )
+endfunction()
