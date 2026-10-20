@@ -14,11 +14,14 @@ jobs:
 
     steps:
     - name: Checkout main repository
-      uses: actions/checkout@v5
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
     - name: Setup conda environment
-      uses: conda-incubator/setup-miniconda@v3
+      uses: conda-incubator/setup-miniconda@be893c923ea9cf1cf7cd510fbdde27c7e18cbdcb # v4.1.0
       with:
+        miniforge-version: latest
+        channels: conda-forge
+        conda-remove-defaults: true
         activate-environment: publish-doc-condaenv
         environment-file: .github/resources/publish-doc-condaenv.yml
         #use-mamba: no

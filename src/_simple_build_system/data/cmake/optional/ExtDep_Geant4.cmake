@@ -61,6 +61,9 @@ if (geant4_config_file)
   endif()
   #Make sure G4 does not overrule the standard:
   strip_cpp_version_flags( ExtDep_Geant4_COMPILE_FLAGS_CXX )
+  #Remove flags not supported by our compiler (e.g. Geant4 built with gcc but we
+  #are using clang):
+  strip_unsupported_cxx_flags( ExtDep_Geant4_COMPILE_FLAGS_CXX )
   #version:
   execute_process(COMMAND "${geant4_config_file}" "--version" OUTPUT_VARIABLE tmp OUTPUT_STRIP_TRAILING_WHITESPACE)
   string(STRIP "${tmp}" tmp)

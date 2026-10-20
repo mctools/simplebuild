@@ -13,9 +13,9 @@ endif()
 file(REAL_PATH "${Python_EXECUTABLE}" tmp_python_exec_in_path )
 
 if ( SBLD_VERBOSE )
-  find_package( Python 3.8 COMPONENTS Interpreter Development REQUIRED )
+  find_package( Python 3.9 COMPONENTS Interpreter Development REQUIRED )
 else()
-  find_package( Python 3.8 COMPONENTS Interpreter Development REQUIRED QUIET )
+  find_package( Python 3.9 COMPONENTS Interpreter Development REQUIRED QUIET )
 endif()
 
 message( STATUS "Python executable: ${Python_EXECUTABLE}")
