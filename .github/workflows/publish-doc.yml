@@ -54,11 +54,6 @@ jobs:
         environment-file: .github/resources/publish-doc-condaenv.yml
         #use-mamba: no
 
-    - name: Install libpython matching python version
-      #Newer python packages on conda-forge no longer always provide the
-      #libpython shared library needed for embedding python:
-      run: conda install --yes "libpython=$(python3 -c 'import sys;print("%i.%i"%sys.version_info[:2])')"
-
     - name: Install self
       run: python3 -mpip install .
 

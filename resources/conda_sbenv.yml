@@ -3,7 +3,7 @@ channels:
   - nodefaults
   - conda-forge
 dependencies:
-  - python
+  - python<3.15 #python>=3.15 needs libpython added explicitly for embedding
   - pip
   - compilers
   - bash
