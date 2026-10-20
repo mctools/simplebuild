@@ -3,6 +3,8 @@ channels:
   - nodefaults
   - conda-forge
 dependencies:
+  - python
+  - pip
   - compilers
   - bash
   - simple-build-system

@@ -4,6 +4,7 @@ channels:
   - nodefaults
 dependencies:
   - python>=3.11
+  - pip
   - pybind11 >= 2.10.4
   - cmake >=3.24.2
   - make
