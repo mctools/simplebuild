@@ -22,6 +22,9 @@ jobs:
     - name: Setup conda environment
       uses: conda-incubator/setup-miniconda@v3
       with:
+        miniforge-version: latest
+        channels: conda-forge
+        conda-remove-defaults: true
         activate-environment: sbenv
         environment-file: ./resources/conda_sbenv.yml
 
