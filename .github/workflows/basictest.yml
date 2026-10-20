@@ -14,15 +14,13 @@ jobs:
           #NOTE Available python versions (including RC ones like '3.13.0-rc.1'
           #can be found in:
           #https://raw.githubusercontent.com/actions/python-versions/main/versions-manifest.json
-          #retired - { os: ubuntu-20.04,  CC: gcc-10,   CXX: g++-10,     python: '3.8'  }
           - { os: ubuntu-latest, CC: gcc,      CXX: g++,        python: '3.9'  }
           - { os: ubuntu-latest, CC: gcc,      CXX: g++,        python: '3.10' }
           - { os: ubuntu-latest, CC: clang,    CXX: clang++,    python: '3.11' }
           - { os: ubuntu-latest, CC: gcc-12,   CXX: g++-12,     python: '3.12' }
           - { os: ubuntu-latest, CC: gcc,      CXX: g++,        python: '3.13' }
-          #- { os: macos-11,      CC: clang,    CXX: clang++,    python: "3.10" }
-          #- { os: macos-12,      CC: clang,    CXX: clang++,    python: "3.11" }
-          - { os: macos-latest,      CC: clang,    CXX: clang++,    python: "3.12" }
+          - { os: ubuntu-latest, CC: gcc,      CXX: g++,        python: '3.14' }
+          - { os: macos-latest,  CC: clang,    CXX: clang++,    python: "3.12" }
 
     name: ${{ matrix.os }}.${{ matrix.CC }}.python-${{ matrix.python }}
     runs-on: ${{ matrix.os }}
@@ -35,12 +33,12 @@ jobs:
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v5
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         path: src
 
     - name: Setup python
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
       with:
         python-version: ${{ matrix.python }}
 
@@ -137,7 +135,7 @@ jobs:
            ../src/devel/tests/test_sbswitch.x
 
 #UNCOMMENT TO ENABLE:    - name: Setup tmate session for manual debugging
-#UNCOMMENT TO ENABLE:      uses: mxschmitt/action-tmate@v3
+#UNCOMMENT TO ENABLE:      uses: mxschmitt/action-tmate@35b54afac29c97fb54faba5b513f8fbd1882f113 # v3.24
 #UNCOMMENT TO ENABLE:      if: always()
 #UNCOMMENT TO ENABLE:      with:
 #UNCOMMENT TO ENABLE:        limit-access-to-actor: true
