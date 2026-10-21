@@ -376,8 +376,10 @@ test, and so will any application or script who has a reference log-file
 provided (either a ``test.log`` file in the ``app_XXX/`` directory or a
 ``scripts/myscript.log`` file for a script named ``scripts/myscript``). Tests
 consists of two parts: first of all, it must finish with an exit code of 0, and
-second of all those tests which have a reference log-file must give the same
-output as that given in the log-file. Thus, do not print out pointer addresses
+second of all those tests which have a reference log-file must give exactly the
+same output as that given in the log-file (including whitespace, so be careful
+with editors which automatically remove trailing spaces). Thus, do not print out
+pointer addresses
 or absolute file-paths in a test with a reference log, since those will change
 spuriously between invocations and when your package code was checked out in
 different locations.

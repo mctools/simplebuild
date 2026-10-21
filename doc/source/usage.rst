@@ -199,7 +199,30 @@ Having added this new script, we now launch ``sb --tests``:
 
 All went well in this case! If you had issues, you could go and look in the
 directory listed in the output (the ``Trouble info`` column) for clues as to
-what went wrong. If there was a problem with a reference log (the ``Log-diff``
-column), you could also use the ``sb_core_reflogupdate`` command to check what
-was wrong (just don't actually update the log files unless you are the developer
-maintaining them).
+what went wrong. Adding for instance ``--testexcerpts=20`` will additionally
+print the first and last 20 lines of the output of failed tests, or of the
+differences between the output and the reference log.
+
+The report of the test results can also be printed again later with ``sb
+--testreport``, without building anything or running any tests (as usual, the
+build variant can be selected with e.g. ``-d``, and the results of each build
+variant are kept separately). The report can be customised, e.g. ``sb
+--testreport=failed,time`` shows only the failed tests, with the slowest first,
+and ``--testfilter`` and ``--testexcerpts`` can be used to select tests and show
+excerpts. When running tests, the slowest tests (as measured in previous runs)
+are started first, to avoid ending up waiting for a single slow test at the end.
+
+Reference logs must match the output exactly, including whitespace. If the
+output differs from a reference log only in whitespace (e.g. due to an editor
+removing trailing spaces from the reference log), this is pointed out
+explicitly. If there was a problem with a reference log (the ``Log-diff``
+column), you can use ``sb --reflogupdate`` to review the differences in an
+interactive viewer, which highlights changed words and whitespace (press ``?``
+in the viewer for a list of keys). From the viewer, you can also run the test
+again (``r``), or rebuild and then run the test again (``R``), for instance
+after editing the code producing the output. Finally, the viewer can update
+the reference log in the package with the new output, but you should not
+actually do so unless you are the developer maintaining it. To make you think
+before updating, a randomly generated code must be typed in reverse order for
+each update (for large scale maintenance, this requirement can be disabled for
+the rest of the session).
