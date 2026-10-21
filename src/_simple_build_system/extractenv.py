@@ -166,7 +166,7 @@ def extractenv(*,cmakeargs,actually_needed_extdeps,quiet=True,verbose=False):
     cmd = [ 'cmake', '-S', cmakesrcdir, '-B', cmakeblddir ]
     #Pass on options like build type and conda-forge CMAKE_ARGS:
     cmd += envcfg.var.cmake_args
-    #Legacy options (unused now?):
+    #Options which trigger reconfiguration when changed (see backend.py):
     for a in cmakeargs:
         cmd.append('-D%s'%a)
     assert not (quiet and verbose)

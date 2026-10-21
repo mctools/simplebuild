@@ -96,7 +96,10 @@ you have two options:
 2. Download :download:`this shell snippet <../../resources/shellrc_snippet.sh>`
    and either source it or copy and paste it into the end of the appropriate
    file shell initialisation file (e.g. ``~/.bashrc`` on Ubuntu or ``~/.zshrc``
-   on macOS).
+   on macOS). If you have a copy of this shell snippet from an older
+   simplebuild version (from before the introduction of the :ref:`build
+   variant flags <sbbuildvariants>`), you must replace it with the new version. The ``sb``
+   command will fail with an error message until you do so.
 
 
 Verifying an installation

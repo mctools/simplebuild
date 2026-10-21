@@ -76,6 +76,23 @@
   #
   #   mode = 'reldbg'
   #
+  # The mode can also be selected on the command line, with the -r, -g, or -d
+  # flags (e.g. "sb -d" or "sbrun -d mycmd"). Each mode is built in separate
+  # directories in the cache directory, so switching between them is fast.
+  #
+  # Extra flags for compiling C/C++ code or for linking can be specified as
+  # follows (either as a single string or as a list of strings). Use the -x
+  # flag (e.g. "sb -x" or "sbrun -x mycmd") to temporarily build without them:
+  #
+  #   extra_cflags = '-ffp-contract=off'
+  #   extra_ldflags = ['-Wl,--as-needed']
+  #
+  # At most 5 combinations of mode and extra flags are kept in the cache
+  # directory (removing the least recently used ones when needed). To keep a
+  # different number of them (from 1 to 20) use:
+  #
+  #   max_cachedirs = 10
+  #
   # If you have many packages, and would like to only consider a subset of them,
   # you can set one or more package filters. Note that this concerns packages
   # *explicitly* enabled. Any package needed by those, will be *implicitly*

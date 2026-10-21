@@ -122,6 +122,18 @@ $> {_p} --init dgcode PKGFILTER::SomeFilter
         action="store_true", dest="insist",
         help="Insist on reconf/rebuild/reinstall from scratch.")
 
+    group_variant = parser.add_argument_group(
+        'Selecting the build variant',
+        "By default, the build mode and any extra flags are taken from the\n"
+        "[build] section of the simplebuild cfg file. The following flags\n"
+        "can override this. Each build variant uses its own cache\n"
+        "directories, so switching between them does not require a full\n"
+        "rebuild (at most build.max_cachedirs are kept, removing the least\n"
+        "recently used ones). The same flags are also supported by sbrun\n"
+        "and sbenv.")
+    from .variant import add_argparse_options as _add_variant_options
+    _add_variant_options( group_variant )
+
     group_query_g = parser.add_argument_group('Query options')
     group_query = group_query_g.add_mutually_exclusive_group()
 
