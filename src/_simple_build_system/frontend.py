@@ -168,14 +168,20 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
     from . import mtime
     from . import utils
     systs = (mtime.mtime_cmake(),mtime.mtime_pymods())
-    try:
-        oldsysts = utils.pkl_load(dirs.systimestamp_cache)
-    except IOError:
+    oldsysts = utils.pkl_load_or_none(dirs.systimestamp_cache)
+    if not isinstance(oldsysts,tuple) or len(oldsysts)!=2:
         if not opt.insist:
-            if dirs.systimestamp_cache.exists():
-                print("Could not load timestamp cache insist due to IOError loading dirs.systimestamp_cache")
+            print("Performing complete rebuild since the timestamp cache"
+                  " is missing or broken.")
             opt.insist=True
         oldsysts = (None,None)
+
+    #Also make sure the package database can be loaded (otherwise we can no
+    #longer be sure what is in the cache, and must start from scratch):
+    _dbfile = dirs.blddir / 'globdb.pkl'
+    if not opt.insist and _dbfile.exists() and utils.pkl_load_or_none(_dbfile) is None:
+        print("Performing complete rebuild since the package database is broken.")
+        opt.insist = True
 
     if envcfg.var.allow_sys_dev:
         #prevent changes in system from triggering rebuilds (for careful system
@@ -189,8 +195,9 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
             print("simple-build-system time stamp changed -> performing complete rebuild for safety.")
             opt.insist = True
 
-    if not opt.insist and dirs.envcache.exists():
-        envdict=utils.pkl_load(dirs.envcache)
+    from .backend import load_envcache
+    envdict = None if opt.insist else load_envcache()
+    if envdict is not None:
         #insist rebuilding COMPLETELY from scratch if install or build dirs changed:
         _autoreconf_inst_dir = envdict['_autoreconf_environment'].get('install_dir')
         _autoreconf_bld_dir = envdict['_autoreconf_environment'].get('build_dir')
