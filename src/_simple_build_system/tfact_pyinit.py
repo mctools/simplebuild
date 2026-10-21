@@ -35,7 +35,7 @@ class TargetPyInit(target_base.Target):
         mpf=dirs.makefile_blddir(pklfile)
         utils.update_pkl_if_changed(neededlinks,pklfile)
 
-        self.name='%s_pyinit'%pkg.name
+        self.name='%s__pyinit'%pkg.name
         self.pkgname=pkg.name
         self.deps=[mpf]
         self.code = ['@if [ ${VERBOSE} -ge 0 ]; then echo "%s  Generating %s/__init__.py%s"; fi'%(col.bldcol('pymod'),pkg.name,col.bldend),

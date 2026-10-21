@@ -60,12 +60,11 @@ class CacheDir:
         return True
 
     def remove( self ):
-        import shutil
+        from . import utils
         assert self.can_remove()
         #Remove the build dir last, since that is where the lockfile is:
         for d in ( self.installdir, self.blddir ):
-            if d.exists():
-                shutil.rmtree( d )
+            utils.remove_cache_dir( d )
 
 def find_cachedirs( cachedir ):
     """Find the cache dirs of all variants in the cachedir."""

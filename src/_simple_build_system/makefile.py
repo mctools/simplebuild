@@ -10,10 +10,10 @@ def _write_targets(fh,targets):
     for t in targets:
         tn=t.name
         if '/' not in t.name:
-            tn='${TRG}/%s'%tn
+            tn=dirs.makefile_named_target(tn)
         ll=['%s:'%tn]
         for dn in t.deps:
-            ll+=[dn if '/' in dn else '${TRG}/%s'%dn]
+            ll+=[dn if '/' in dn else dirs.makefile_named_target(dn)]
         fh.write('%s\n'%' '.join(ll))
         for c in t.code:
             fh.write(cmdpat%c)
@@ -92,9 +92,13 @@ def write_main(global_targets,enabled_pkgnames,fh=None):
     _add_var('EXT','${BLD}/extdeps')
     _add_var('LANG','${BLD}/langs')
 
-    #Ensure the named_targets dir is created before any targets are triggered
-    #(do not use _add_var for this, it is not a variable to be probed):
-    fh.write('\nCHEAT_RUN0 := $(shell mkdir -p ${BLD}/named_targets)\n\n')
+    #Ensure the directories for named targets are created before any targets
+    #are triggered (do not use _add_var for this, it is not a variable to be
+    #probed):
+    _ = sorted( set( dirs.named_target_subdir(t.name) for t in global_targets )
+                | set( enabled_pkgnames ) )
+    fh.write('\nCHEAT_RUN0 := $(shell mkdir -p %s)\n\n'%' '.join(
+        '${TRG}/%s'%e for e in _ ))
 
     for cname in [c for c in dir(col) if c.startswith('bldmsg_')]:
         _add_var('COL_%s'%cname.upper(),'"%s"'%getattr(col,cname))
@@ -166,8 +170,8 @@ def write_main(global_targets,enabled_pkgnames,fh=None):
     fh.write('.PHONY: all\n\n')
 
     _tmp = ' '.join( ['all:']
-                     + ['${TRG}/%s'%e for e in enabled_pkgnames]
-                     + ['${TRG}/%s'%t.name for t in global_targets] )
+                     + [dirs.makefile_named_target(e) for e in enabled_pkgnames]
+                     + [dirs.makefile_named_target(t.name) for t in global_targets] )
     fh.write('%s\n\t@if [ ${VERBOSE} -ge 0 ]; then echo "%sAll done%s"; fi\n\n'%(
         _tmp,
         col.bldcol('global'),

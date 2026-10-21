@@ -83,6 +83,84 @@ def rm_f(path):
             return#not an error, rm -f should exit silently here
         raise
 
+def remove_within( path, root ):
+    """Safely remove the file, symlink, or directory tree at path (does nothing
+    if it does not exist). The path must be located inside root, which must be
+    a build or install directory created by simplebuild (i.e. one containing a
+    .sbbuilddir or .sbinstalldir fingerprint file). Symlinks are never
+    followed: a symlink is itself removed, never what it points to, and nothing
+    is removed if there is a symlink between root and path (since the path
+    would then really be located somewhere else). Directories are removed by
+    first removing their contents (without following symlinks), and then the
+    directory itself. Raises RuntimeError for unsafe paths."""
+    import stat
+    root = pathlib.Path(os.path.abspath(root))
+    #NB: os.path.abspath normalises the path lexically (i.e. without
+    #resolving symlinks), so ".." components can not take us outside root:
+    path = pathlib.Path(os.path.abspath(path))
+    if root not in path.parents:
+        raise RuntimeError(f'Refusing to remove {path} which is'
+                           f' not inside {root}')
+    if not any( ( root / fp ).is_file()
+                for fp in ( '.sbbuilddir', '.sbinstalldir' ) ):
+        raise RuntimeError(f'Refusing to remove {path} since {root}'
+                           ' is not a simplebuild cache directory')
+    p = root
+    for part in path.relative_to(root).parts[:-1]:
+        p = p / part
+        try:
+            m = os.lstat(p).st_mode
+        except FileNotFoundError:
+            return
+        if not stat.S_ISDIR(m):
+            raise RuntimeError(f'Refusing to remove {path} since {p} is'
+                               ' not a directory (but e.g. a symlink)')
+    try:
+        m = os.lstat(path).st_mode
+    except FileNotFoundError:
+        return
+    if not stat.S_ISDIR(m):
+        path.unlink(missing_ok = True)#file or symlink
+        return
+    import shutil
+    #NB: shutil.rmtree never follows symlinks inside the tree (and on
+    #platforms where shutil.rmtree.avoids_symlink_attacks is True, this is even
+    #guaranteed in case of concurrent modifications):
+    shutil.rmtree(path, ignore_errors = True)
+
+def remove_cache_dir( root ):
+    """Safely remove an entire build or install directory created by
+    simplebuild (does nothing if it does not exist or is not such a
+    directory). The contents are removed with remove_within, and the
+    fingerprint file and the directory itself are removed last."""
+    import stat
+    root = pathlib.Path(os.path.abspath(root))
+    try:
+        if not stat.S_ISDIR(os.lstat(root).st_mode):
+            return
+    except FileNotFoundError:
+        return
+    fps = [ root / fp for fp in ( '.sbbuilddir', '.sbinstalldir' ) ]
+    fps = [ fp for fp in fps if fp.is_file() and not fp.is_symlink() ]
+    if not fps:
+        return
+    for f in sorted(root.iterdir()):
+        if f not in fps:
+            remove_within( f, root )
+    for fp in fps:
+        fp.unlink(missing_ok = True)
+    try:
+        root.rmdir()
+    except OSError:
+        pass#not empty (e.g. if something could not be removed)
+
+def remove_glob_within( directory, pattern, root ):
+    """Apply remove_within(p,root) to all p in directory.glob(pattern)."""
+    directory = pathlib.Path(directory)
+    if directory.is_dir() and not directory.is_symlink():
+        for f in sorted(directory.glob(pattern)):
+            remove_within( f, root )
+
 def rm_rf(path):
     #First attempt with os.remove, and only in case it was a directory go for
     #shutil.rmtree (since shutil.rmtree prints error messages if fed symlinks to
@@ -259,6 +337,11 @@ def _remove_symlinks( symlinks, do_print ):
         def print( *a, **kw ):
             return None
     for fn in symlinks:
+        if os.path.lexists(fn) and not os.path.islink(fn):
+            #Never remove anything but symlinks here:
+            print("WARNING: Not removing obsolete symlink which is no longer"
+                  " a symlink: %s"%fn)
+            continue
         print("Removing obsolete symlink %s"%fn)
         try:
             os.remove(fn)

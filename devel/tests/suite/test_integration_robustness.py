@@ -2,9 +2,11 @@
 # directory, interrupted builds, and changes to packages. Previously, many of
 # these situations required "sb -i" or "sb --removelock" to recover from.
 
+import os
+
 import pytest
 
-from sbtestutils import run, write_files
+from sbtestutils import n_compiled, run, write_files
 
 pytestmark = pytest.mark.integration
 
@@ -228,3 +230,184 @@ def test_replace( tmp_path ):
     assert ( d / 'MyPkg' / 'data' / 'crlf.txt' ).read_bytes() == b'BAZ\r\nline2\r\n'
     assert link.is_symlink()
     assert ( d / 'elsewhere' / 'real.txt' ).read_text() == 'BAZ here\n'
+
+def test_pkgname_prefix_clash( tmp_path ):
+    #Packages Foo and Foo_Bar have installed commands with clashing name
+    #patterns (sb_foo_*). Removing parts of Foo, or Foo itself, must not
+    #affect Foo_Bar:
+    import shutil
+    d = tmp_path / 'proj'
+    files = { 'simplebuild.cfg' : '[bundle]\nname = "proj"\n' }
+    for pkg in ( 'Foo', 'Foo_Bar' ):
+        files.update( {
+            f'{pkg}/pkg.info' : 'package()\n',
+            f'{pkg}/scripts/bar_hello' : f'#!/usr/bin/env bash\necho script {pkg}\n',
+            f'{pkg}/scripts/bar_hello.log' : f'script {pkg}\n',
+            f'{pkg}/app_bar_app/main.cc' : ( '#include <cstdio>\nint main()'
+                                             f' {{ std::printf("app {pkg}\\n"); return 0; }}\n' ),
+        } )
+    write_files( d, files )
+    for pkg in ( 'Foo', 'Foo_Bar' ):
+        ( d / pkg / 'scripts' / 'bar_hello' ).chmod( 0o755 )
+    #NB: sb_foo_bar_hello is both script "bar_hello" of Foo and script "hello"
+    #of Foo_Bar, so we use names which do not clash completely:
+    res = run( 'sb -t', d )
+    assert 'All tests completed without failures!' in res.out
+    def check_foo_bar():
+        res = run( 'sb -t', d )
+        assert 'All tests completed without failures!' in res.out
+        assert run( 'sbenv sb_foo_bar_bar_hello', d ).stdout.strip() == 'script Foo_Bar'
+        assert run( 'sbenv sb_foo_bar_bar_app', d ).stdout.strip() == 'app Foo_Bar'
+        testref = inst( d ) / 'tests' / 'testref' / 'sb_foo_bar_bar_hello.log'
+        assert testref.is_symlink() and testref.exists()
+    #Remove the scripts of Foo:
+    shutil.rmtree( d / 'Foo' / 'scripts' )
+    check_foo_bar()
+    assert not ( inst( d ) / 'scripts' / 'sb_foo_bar_hello' ).exists()
+    #Remove Foo completely:
+    shutil.rmtree( d / 'Foo' )
+    check_foo_bar()
+    assert not os.path.lexists( inst( d ) / 'bin' / 'sb_foo_bar_app' )
+    assert not os.path.lexists( inst( d ) / 'pkgs' / 'Foo' )
+    assert not os.path.lexists( bld( d ) / 'named_targets' / 'Foo' )
+    assert ( bld( d ) / 'named_targets' / 'Foo_Bar' ).is_dir()
+
+def _apps_and_scripts_proj( d, pkgs, extra_files = None ):
+    files = { 'simplebuild.cfg' : '[bundle]\nname = "proj"\n' }
+    for pkg in pkgs:
+        files.update( {
+            f'{pkg}/pkg.info' : 'package()\n',
+            f'{pkg}/scripts/hello' : f'#!/usr/bin/env bash\necho script {pkg}\n',
+            f'{pkg}/app_hi/main.cc' : ( '#include <cstdio>\nint main()'
+                                        f' {{ std::printf("app {pkg}\\n"); return 0; }}\n' ),
+        } )
+    files.update( extra_files or {} )
+    write_files( d, files )
+    for pkg in pkgs:
+        ( d / pkg / 'scripts' / 'hello' ).chmod( 0o755 )
+
+def test_uninstall_does_not_need_db_info( tmp_path ):
+    #Uninstalling a package must remove all its files, even if the package
+    #database does not have complete info about them:
+    import pickle
+    import shutil
+    d = tmp_path / 'proj'
+    _apps_and_scripts_proj( d, ( 'Foo', 'Foo_Bar' ) )
+    run( 'sb', d )
+    dbfile = bld( d ) / 'globdb.pkl'
+    with dbfile.open('rb') as fh:
+        db = pickle.load( fh )
+    #NB: Clearing other parts of the database (like pkg2parts) would trigger
+    #reconfiguration of all packages, hiding any problems:
+    db['pkg2runnables'].clear()
+    with dbfile.open('wb') as fh:
+        pickle.dump( db, fh )
+    shutil.rmtree( d / 'Foo' )
+    res = run( 'sb', d )
+    #Foo_Bar must not be affected at all (in particular not rebuilt, which
+    #would hide any problems):
+    assert n_compiled( res.out ) == 0
+    assert 'Foo_Bar' not in res.out.split('Summary:')[0]
+    for f in ( 'bin/sb_foo_hi', 'scripts/sb_foo_hello', 'pkgs/Foo' ):
+        assert not os.path.lexists( inst( d ) / f )
+    assert run( 'sbenv sb_foo_bar_hi', d ).stdout.strip() == 'app Foo_Bar'
+    assert run( 'sbenv sb_foo_bar_hello', d ).stdout.strip() == 'script Foo_Bar'
+
+def test_user_files_never_removed( tmp_path ):
+    #Files outside the cache dirs (here a package with symlinks to external
+    #files and directories) must never be removed, no matter how the package
+    #is removed from the cache:
+    import shutil
+    ext = tmp_path / 'external'
+    ( ext / 'sub' ).mkdir( parents = True )
+    ( ext / 'sub' / 'file.txt' ).write_text( 'precious' )
+    ( ext / 'data.txt' ).write_text( 'precious data' )
+    ( ext / 'inc' ).mkdir()
+    ( ext / 'inc' / 'hdr.hh' ).write_text( 'inline int foo() { return 1; }\n' )
+    ( ext / 'py' ).mkdir()
+    ( ext / 'py' / 'extmod.py' ).write_text( 'value = 42\n' )
+    def all_external_files():
+        return sorted( ( str(f.relative_to(ext)), f.read_text() )
+                       for f in ext.rglob('*') if f.is_file() )
+    orig = all_external_files()
+    d = tmp_path / 'proj'
+    _apps_and_scripts_proj( d, ( 'Foo', ) )
+    ( d / 'Foo' / 'data' ).mkdir()
+    ( d / 'Foo' / 'data' / 'ext.txt' ).symlink_to( ext / 'data.txt' )
+    ( d / 'Foo' / 'libinc' ).symlink_to( ext / 'inc' )
+    ( d / 'Foo' / 'python' ).symlink_to( ext / 'py' )
+    pkgfiles = sorted( str(f.relative_to(d)) for f in ( d / 'Foo' ).rglob('*') )
+    def check_intact():
+        assert all_external_files() == orig
+        assert pkgfiles == sorted( str(f.relative_to(d))
+                                   for f in ( d / 'Foo' ).rglob('*') )
+    run( 'sb', d )
+    assert ( inst( d ) / 'data' / 'Foo' / 'ext.txt' ).read_text() == 'precious data'
+    assert run( [ 'sbenv', 'python3', '-c', 'import Foo.extmod as m; print(m.value)' ],
+                d ).stdout.strip() == '42'
+    check_intact()
+    #Remove parts of the package (from the cache):
+    for sd in ( 'libinc', 'data', 'python' ):
+        ( d / 'Foo' / sd ).rename( d / f'{sd}_away' )
+    run( 'sb', d )
+    for sd in ( 'include', 'data', 'python' ):
+        assert not os.path.lexists( inst( d ) / sd / 'Foo' )
+    for sd in ( 'libinc', 'data', 'python' ):
+        ( d / f'{sd}_away' ).rename( d / 'Foo' / sd )
+    run( 'sb', d )
+    check_intact()
+    #Disable the package:
+    cfg = d / 'simplebuild.cfg'
+    cfgorig = cfg.read_text()
+    cfg.write_text( cfgorig + '[build]\npkg_filter = ["!Foo"]\n' )
+    res = run( 'sb', d )
+    assert 'Uninstalling package Foo' in res.out
+    assert not os.path.lexists( bld( d ) / 'pkgs' / 'Foo' )
+    check_intact()
+    cfg.write_text( cfgorig )
+    run( 'sb', d )
+    check_intact()
+    #Move the package:
+    ( d / 'sub' ).mkdir()
+    ( d / 'Foo' ).rename( d / 'sub' / 'Foo' )
+    run( 'sb', d )
+    ( d / 'sub' / 'Foo' ).rename( d / 'Foo' )
+    run( 'sb', d )
+    check_intact()
+    #Complete rebuilds and cleaning:
+    run( 'sb -i', d )
+    check_intact()
+    run( 'sb -c', d )
+    check_intact()
+    #Remove the package completely (but external files must remain):
+    run( 'sb', d )
+    shutil.rmtree( d / 'Foo' )
+    run( 'sb', d )
+    assert all_external_files() == orig
+
+def test_cache_from_other_simplebuild_version( proj ):
+    #Caches with a different layout (here simulated by the absence of the
+    #file with the layout version) are rebuilt from scratch:
+    d = proj
+    run( 'sb', d )
+    ( bld( d ) / 'layout_version.txt' ).unlink()
+    res = run( 'sb', d )
+    assert 'cache directory was created by a different version' in res.out
+    check_ok( d )
+    res = run( 'sb', d )
+    assert 'different version' not in res.out
+
+def test_removed_libinc_uninstalled( tmp_path ):
+    #The include dir of a package in the install area is a symlink, which must
+    #be removed when the libinc dir of the package is removed:
+    import shutil
+    d = tmp_path / 'proj'
+    write_files( d, { 'simplebuild.cfg' : '[bundle]\nname = "proj"\n',
+                      'Foo/pkg.info' : 'package()\n',
+                      'Foo/libinc/foo.hh' : 'inline int foo() { return 1; }\n' } )
+    run( 'sb', d )
+    incdir = inst( d ) / 'include' / 'Foo'
+    assert incdir.is_symlink() and ( incdir / 'foo.hh' ).exists()
+    shutil.rmtree( d / 'Foo' / 'libinc' )
+    run( 'sb', d )
+    assert not os.path.lexists( incdir )

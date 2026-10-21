@@ -40,7 +40,7 @@ class TargetBinaryObject(target_base.Target):
         sf=dirs.makefile_pkg_dir(pkg,subdir,fn)
         self.__pklfile=dirs.pkg_cache_dir(pkg,'objs',subdir,fn+'_deps.pkl')
         self.deps=[dirs.makefile_blddir(self.__pklfile)]
-        self.deps+=['${LANG}/%s'%lang,'%s_prepinc'%pkg.name,sf]#FIXME perhaps on /cxxpch in case of cxx? (if has pch reqs)
+        self.deps+=['${LANG}/%s'%lang,'%s__prepinc'%pkg.name,sf]#FIXME perhaps on /cxxpch in case of cxx? (if has pch reqs)
         extra_flags=['-I%s'%dirs.makefile_pkg_cache_dir(pkg,'inc'),'-DPACKAGE_NAME=%s'%pkg.name]
 
         if cflags:
@@ -101,11 +101,11 @@ class TargetBinaryObject(target_base.Target):
         if priv and possible_privincs:
             for p in priv:
                 if p in possible_privincs:
-                    self.deps+=['${TRG}/%s__%s__%s'%(pkg.name,subdir,p)]
+                    self.deps+=[dirs.makefile_named_target('%s__%s__%s'%(pkg.name,subdir,p))]
         if pub:
             pkg.update_incs()
             incs=db.db['pkg2inc'][pkg.name]
-            self.deps += ['${TRG}/%s__libinc__%s'%(p,f) for (p,f) in pub if (p==self.pkgname and f in incs)]
+            self.deps += [dirs.makefile_named_target('%s__libinc__%s'%(p,f)) for (p,f) in pub if (p==self.pkgname and f in incs)]
             self._pub = [(p,f) for (p,f) in pub if p!=self.pkgname]
         else:
             self._pub=None
@@ -118,14 +118,14 @@ class TargetBinaryObject(target_base.Target):
             # NOTE THAT FOLLOWING LINES OF CODE ARE SIMILAR TO ONES IN tfact_headerdeps.py !!!
             p2i=db.db['pkg2inc']
             d=pkg.deps_names()
-            self.deps+=['${TRG}/%s__libinc__%s'%(p,f) for (p,f) in self._pub if (p in d and f in p2i.get(p,[]))]
+            self.deps+=[dirs.makefile_named_target('%s__libinc__%s'%(p,f)) for (p,f) in self._pub if (p in d and f in p2i.get(p,[]))]
         pklcont=set(self.deps[self._pkloffset:])
         utils.mkdir_p(os.path.dirname(self.__pklfile))
         utils.update_pkl_if_changed(pklcont,self.__pklfile)
 
 class TargetBinary(target_base.Target):
 
-    def __init__(self,pkg,subdir,lang,shlib,object_targets,instsubdir,namefct,descrfct=None,checkfct=None):
+    def __init__(self,pkg,subdir,lang,shlib,object_targets,instsubdir,namefct,descrfct=None,checkfct=None,symlinkdir=None):
         is_py_mod = subdir.startswith('pycpp_')#todo better way?
         db.db['pkg2parts'][pkg.name].add(subdir)
         langinfo=env.env['system']['langs'][lang]
@@ -146,7 +146,7 @@ class TargetBinary(target_base.Target):
 
         dcol,descr = descrfct(pkg,subdir,filename) if descrfct else ('','%s/%s'%(pkg.name,filename))
         dcolend = col.bldend if dcol else ''
-        self.name='%s_%s'%(pkg.name,subdir)
+        self.name='%s__%s'%(pkg.name,subdir)
 
         self.deps=[]
         for ot in object_targets:
@@ -156,7 +156,7 @@ class TargetBinary(target_base.Target):
         cachedir=dirs.pkg_cache_dir(pkg,'objs')
         utils.mkdir_p(cachedir)
         objlistfile=join(cachedir,'objs_%s.txt'%subdir)#to make sure we rebuild when removing a src file
-        self.deps+=[dirs.makefile_blddir(objlistfile)]#'%s_prepinc'%pkg.name]
+        self.deps+=[dirs.makefile_blddir(objlistfile)]#'%s__prepinc'%pkg.name]
         extra_flags=[]
         extra_flags+=['%s']#This is used in self.setup() to add in library deps.
 
@@ -207,22 +207,30 @@ class TargetBinary(target_base.Target):
                    langinfo[pattern]%(' '.join(extra_flags),
                                       sobjs,
                                       join(d,filename))]
+        self._icode_link = len(self.code) - 1#for setup()
+        if symlinkdir:
+            #Also make the file available in a shared directory via a relative
+            #symlink:
+            _ = os.path.relpath( join(instsubdir,filename), symlinkdir )
+            self.code += [ 'mkdir -p ${INST}/%s'%symlinkdir,
+                           'ln -sf %s ${INST}/%s/%s'%(_,symlinkdir,filename) ]
 
     def setup(self,pkg):
         ll=[]
         if self._subdir!='libsrc':
             if pkg.has_lib():
                 ll += [conf.libldflag(pkg)]
-            self.deps += ['%s_libavail'%self.pkgname]
+            self.deps += ['%s__libavail'%self.pkgname]
         for p in pkg.deps():
             if p.has_lib():
                 ll += [conf.libldflag(p)]
-            self.deps+=['%s_libavail'%p.name]
+            self.deps+=['%s__libavail'%p.name]
         if ll:
             ll.insert(0, '-L${INST}/lib')
-        self.code[-1]=self.code[-1]%(' '.join(ll))
+        _ = self._icode_link
+        self.code[_]=self.code[_]%(' '.join(ll))
 
-def create_tfactory_binary(instsubdir=None,pkglib=False,shlib=False,allowed_langs=None,namefct=None,flagfct=None,descrfct=None,checkfct=None):
+def create_tfactory_binary(instsubdir=None,pkglib=False,shlib=False,allowed_langs=None,namefct=None,flagfct=None,descrfct=None,checkfct=None,symlinkdir=None):
     if not allowed_langs:
         allowed_langs = langs.langs
     if pkglib:
@@ -277,7 +285,7 @@ def create_tfactory_binary(instsubdir=None,pkglib=False,shlib=False,allowed_lang
         tb=TargetBinary(pkg,subdir,langspresent,
                         shlib=shlib,object_targets=tgts,
                         instsubdir=instsubdir,namefct=namefct,descrfct=descrfct,
-                        checkfct=checkfct)
+                        checkfct=checkfct,symlinkdir=symlinkdir)
         if pkglib:
             pkg.libtarget=tb
         tgts+=[tb]

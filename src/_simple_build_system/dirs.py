@@ -21,6 +21,10 @@ cmakedetectdir = datadir / 'cmake'
 incdirname='include'
 #libdirname='lib'#fixme: unused, 'lib' is simply hardcoded in a few places.
 
+#Increase whenever the layout of the build or install directories changes in
+#an incompatible manner (triggering complete rebuilds of existing caches):
+cache_layout_version = '2'
+
 envcache = blddir / 'env.cache'
 systimestamp_cache=blddir / 'systimestamp.cache'
 lockfile=blddir / ".lock"
@@ -57,6 +61,29 @@ def pkg_dir(pkg,*subpaths):
 
 def makefile_pkg_dir(pkg,*subpaths):
     return os.path.join('${PKG}',_pkgname(pkg),*subpaths)
+
+#Named targets (i.e. targets which are not files) in the makefiles are
+#represented by empty files in a separate directory for each package, so that
+#all the files of a package can be removed together. Such targets are named
+#either "<pkgname>" (the target for the entire package) or
+#"<pkgname>__<subname>" (package names never contain "__"). Global targets are
+#named "_global__<subname>" (package names never start with "_"):
+named_targets_dir = blddir / 'named_targets'
+_named_target_pkgdone = '.pkgdone'
+
+def named_target_subdir( targetname ):
+    """The name of the subdirectory of named_targets_dir holding the file for
+    the named target."""
+    return targetname.partition('__')[0]
+
+def named_targets_pkg_dir(pkg):
+    return named_targets_dir / _pkgname(pkg)
+
+def makefile_named_target( targetname ):
+    assert '/' not in targetname
+    d, sep, subname = targetname.partition('__')
+    assert d and ( subname if sep else '__' not in targetname )
+    return '${TRG}/%s/%s'%( d, subname if sep else _named_target_pkgdone )
 
 #Characters which would break the generated makefiles and shell commands, in
 #which the build and install directories are used unquoted:

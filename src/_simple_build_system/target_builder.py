@@ -79,7 +79,7 @@ class TargetGlobalSysModules(target_base.Target):
     isglobal=True
     contains_message=True
     def __init__(self):
-        self.name='global__sysmods'
+        self.name='_global__sysmods'
         self.pkgname = None
         self.deps = []
         self.code = [
