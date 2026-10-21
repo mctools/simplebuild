@@ -108,7 +108,15 @@ def perform_tests(testdir,
         coverage_out_dir.mkdir(parents=True, exist_ok=False)
         coverage_all_out_files = []
 
-    for t in tests:
+    #Start the slowest tests first (based on their timings in previous runs),
+    #to avoid ending up waiting for a slow test started late. Tests without
+    #previous timings might also be slow, so they are started first:
+    timings = load_test_timings()
+    def _slowest_first( t ):
+        tprev = timings.get( t )
+        return ( 0, 0.0, t ) if tprev is None else ( 1, -tprev, t )
+
+    for t in sorted( tests, key = _slowest_first ):
         bn=os.path.basename(t)
         td=_ospathjoin(testdir,bn)
         mkdir_p(td)
@@ -157,6 +165,7 @@ def perform_tests(testdir,
                                            _ospathjoin(td,'refdiff.log') )
             pathlib.Path(td,'ecdiff.txt').write_text('0\n' if same else '1\n')
     save_runinfo()
+    update_test_timings( testdir, alltests )
 
     notes = []
     if do_pycoverage:
@@ -228,6 +237,7 @@ def rerun_test( testdir, installdir, blddir, name ):
         from .reflogdiff import compare_and_write_diff
         same = compare_and_write_diff( reflog, td/'output.log', td/'refdiff.log' )
         ( td / 'ecdiff.txt' ).write_text('0\n' if same else '1\n')
+    update_test_timings( testdir, [ name ] )
     #Record in the information about the test run:
     try:
         with open( os.path.join( testdir, _runinfo_filename ) ) as fh:
@@ -237,6 +247,42 @@ def rerun_test( testdir, installdir, blddir, name ):
     except (OSError,ValueError):
         pass
     return ec
+
+def _test_timings_file():
+    #Kept outside the test results directory, which is removed for each run:
+    from . import dirs
+    return dirs.blddir / 'testtimings.json'
+
+def load_test_timings():
+    """Duration in milliseconds of tests in previous runs (dict)."""
+    import json
+    try:
+        with _test_timings_file().open() as fh:
+            d = json.load( fh )
+    except (OSError,ValueError):
+        return {}
+    if not isinstance( d, dict ):
+        return {}
+    return dict( ( k, float(v) ) for k,v in d.items()
+                 if isinstance( v, (int,float) ) )
+
+def update_test_timings( testdir, testnames ):
+    """Record the durations of the given tests, if they completed (timings of
+    other tests are kept)."""
+    import os
+    import json
+    from .utils import write_atomic
+    timings = load_test_timings()
+    changed = False
+    for t in testnames:
+        td = os.path.join( testdir, t )
+        tms = _read_number( os.path.join( td, 'timing_ms' ), float )
+        if tms is not None and _read_number( os.path.join( td, 'ec.txt' ), int ) is not None:
+            timings[t] = round( tms, 1 )
+            changed = True
+    if changed:
+        write_atomic( _test_timings_file(),
+                      json.dumps( timings, indent = 1, sort_keys = True ) + '\n' )
 
 def _now():
     import datetime
