@@ -121,6 +121,92 @@ def test_sigterm_releases_lock( lockproj, tmp_path ):
         assert p.wait( timeout = 60 ) == 128 + sig
         assert not lockfile.exists()
 
+def _start_in_own_process_group( cmd, cwd ):
+    #Start command as a terminal would do with a foreground job, so we can send
+    #signals to the whole process group (like pressing CTRL-C):
+    import subprocess
+    from sbtestutils import clean_env
+    return subprocess.Popen( cmd, cwd = cwd, env = clean_env(),
+                             start_new_session = True,
+                             stdout = subprocess.PIPE,
+                             stderr = subprocess.STDOUT )
+
+def _ctrl_c( p ):
+    import os
+    import signal
+    os.killpg( p.pid, signal.SIGINT )
+
+def _wait_for_file( f, p, timeout = 300 ):
+    import time
+    t0 = time.time()
+    while not f.exists():
+        assert time.time() - t0 < timeout, f'timeout waiting for {f}'
+        assert p.poll() is None, 'process ended prematurely'
+        time.sleep( 0.05 )
+
+def test_ctrl_c_during_tests( lockproj, tmp_path ):
+    #CTRL-C during tests must stop everything promptly and cleanly: no test
+    #summary, no traceback, no orphaned processes producing output, no lock:
+    import time
+    d = lockproj
+    marks = tmp_path / 'marks.log'
+    for i in range(3):
+        write_files( d, { f'MyPkg/scripts/testslow{i}' :
+                          '#!/usr/bin/env bash\nfor i in $(seq 1 100); do\n'
+                          f'  echo "test{i} $i" >> {marks}\n  sleep 0.1\ndone\n' } )
+        ( d / 'MyPkg' / 'scripts' / f'testslow{i}' ).chmod( 0o755 )
+    run( 'sb', d )
+    p = _start_in_own_process_group( [ 'sb', '-t', '--testexcerpts=5' ], d )
+    _wait_for_file( marks, p )
+    time.sleep( 0.5 )
+    _ctrl_c( p )
+    out = p.communicate( timeout = 60 )[0].decode()
+    assert p.returncode == 130
+    assert 'Interrupted by user (CTRL-C).' in out
+    assert 'Traceback' not in out
+    assert 'Test job results' not in out
+    n = len( marks.read_text().splitlines() )
+    time.sleep( 1.0 )
+    assert len( marks.read_text().splitlines() ) == n, 'orphaned processes'
+    assert not ( d / 'simplebuild_cache' / 'bld' / '.lock' ).exists()
+    #Everything still works afterwards:
+    res = run( 'sb -t --testfilter=sb_mypkg_testlockheld', d )
+    assert 'All tests completed without failures!' in res.out
+
+def test_ctrl_c_during_build( lockproj ):
+    d = lockproj
+    for i in range(20):
+        write_files( d, { f'MyPkg/app_a{i}/main.cc' :
+                          '#include <iostream>\n#include <map>\n#include <vector>\n'
+                          'int main() { std::map<int,std::vector<int>> m;'
+                          ' std::cout << m.size() << std::endl; return 0; }\n' } )
+    p = _start_in_own_process_group( [ 'sb', '-j1' ], d )
+    for line in p.stdout:
+        if b'Building' in line:
+            break
+    _ctrl_c( p )
+    out = p.communicate( timeout = 120 )[0].decode()
+    assert p.returncode == 130
+    assert 'Interrupted by user (CTRL-C).' in out
+    assert 'Traceback' not in out
+    assert not ( d / 'simplebuild_cache' / 'bld' / '.lock' ).exists()
+    run( 'sb', d )
+    assert run( 'sbenv sb_mypkg_a7', d ).stdout.strip() == '0'
+
+def test_ctrl_c_in_sbenv_program( lockproj, tmp_path ):
+    #CTRL-C in a program launched with sbenv just ends it (exit code 130, and
+    #no extra output from sbenv):
+    d = lockproj
+    run( 'sb', d )
+    marker = tmp_path / 'started'
+    p = _start_in_own_process_group(
+        [ 'sbenv', 'bash', '-c', f'touch {marker}; sleep 60' ], d )
+    _wait_for_file( marker, p )
+    _ctrl_c( p )
+    out = p.communicate( timeout = 60 )[0].decode()
+    assert p.returncode == 130
+    assert out == ''
+
 def test_lock_message_describes_holder( lockproj ):
     #The error message about a held lock must say which process holds it:
     import subprocess

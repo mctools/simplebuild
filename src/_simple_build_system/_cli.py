@@ -26,6 +26,15 @@ def _handle_env_setup( args ):
         emit_envsetup()
         raise SystemExit
 
+def _exit_after_interrupt( quiet = False ):
+    #Exit cleanly (and without a traceback) after a keyboard interrupt (CTRL-C):
+    import sys
+    sys.stdout.flush()
+    if not quiet:
+        from . import io as _io
+        _io.print('Interrupted by user (CTRL-C).')
+    raise SystemExit(130)
+
 def main( prevent_env_setup_msg = False ):
     import sys
     _args = sys.argv[1:]
@@ -33,7 +42,10 @@ def main( prevent_env_setup_msg = False ):
         #Special short-circuit for --env-[un]setup:
         _handle_env_setup(_args)
     from . import frontend
-    frontend.simplebuild_main( prevent_env_setup_msg = prevent_env_setup_msg )
+    try:
+        frontend.simplebuild_main( prevent_env_setup_msg = prevent_env_setup_msg )
+    except KeyboardInterrupt:
+        _exit_after_interrupt()
 
 def _env_setup_after_build( sb_args ):
     #Emit env setup code after a build performed by the sb shell function (see
@@ -132,7 +144,11 @@ def _launch_in_env( program_and_args ):
     from . import utils
     import shlex
     cmd = ' '.join(shlex.quote(e) for e in program_and_args)
-    ec = utils.system(cmd,env=run_env)
+    try:
+        ec = utils.system(cmd,env=run_env)
+    except KeyboardInterrupt:
+        #The program was interrupted, which it presumably handled itself:
+        _exit_after_interrupt( quiet = True )
     raise SystemExit(int(ec))
 
 def sbenv_main( args = None ):
@@ -157,7 +173,10 @@ def sbrun_main():
     if vflags.ignore_extra_flags:
         sbargs.append( '-x' )
     from . import frontend
-    frontend.simplebuild_main( argv = sbargs, prevent_env_setup_msg = True )
+    try:
+        frontend.simplebuild_main( argv = sbargs, prevent_env_setup_msg = True )
+    except KeyboardInterrupt:
+        _exit_after_interrupt( quiet = True )
     _launch_in_env( program_and_args )
 
 if __name__=='__main__':

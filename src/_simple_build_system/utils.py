@@ -9,32 +9,47 @@ def err(msg):
     errfct( msg )
 
 def system(cmd,*,env=None):
+    """Run the command with "bash -c" (so bash syntax can always be used), and
+    return the exit code (wrapped to 0..127, in case it is passed on to
+    sys.exit). On a keyboard interrupt (CTRL-C), or termination by SIGTERM or
+    SIGHUP (see lockfile.exit_cleanly_on_termination_signals), the child
+    processes are first given a chance to finish, before the interrupt is passed
+    on. This avoids leaving behind orphaned processes still producing output
+    after we exit."""
+    import subprocess
     #flush output, to avoid confusing ordering in log-files:
     sys.stdout.flush()
     sys.stderr.flush()
-    #rather than os.system, we call "bash -c <cmd>" explicitly through
-    #the subprocess module, making sure we can always use bash syntax:
-    import subprocess
-    cmd=['bash','-c',cmd]
+    p = subprocess.Popen(['bash','-c',cmd],env=env)
     try:
-        ec=subprocess.call(cmd,env=env)
-    except KeyboardInterrupt:
+        ec = p.wait()
+    except (KeyboardInterrupt,SystemExit):
+        _stop_child_process( p )
+        raise
+    finally:
         sys.stdout.flush()
         sys.stderr.flush()
-        import time
-        time.sleep(0.2)
-        from . import io as _io
-        _io.print("<<<Command execution interrupted by user!>>>")
-        if hasattr(sys,'exc_clear'):
-            sys.exc_clear()#python2 only
-        ec=126
-    #wrap exit code to 0..127, in case the return code is passed on to sys.exit(ec).
-    sys.stdout.flush()
-    sys.stderr.flush()
     if ec>=0 and ec<=127:
         return ec
     return 127
 
+def _stop_child_process( p ):
+    #When CTRL-C is pressed in a terminal (or the terminal is closed), the
+    #signal is sent to all processes in the foreground process group, so the
+    #child processes are most likely already finishing. Give them a moment
+    #before escalating (repeated CTRL-C escalates immediately):
+    import subprocess
+    for action, timeout in ( ( None, 5.0 ), ( p.terminate, 2.0 ),
+                             ( p.kill, None ) ):
+        try:
+            if action:
+                action()
+            p.wait( timeout = timeout )
+            return
+        except (subprocess.TimeoutExpired, KeyboardInterrupt):
+            continue
+        except OSError:
+            return
 
 def run(cmd):
     sys.stdout.flush()
