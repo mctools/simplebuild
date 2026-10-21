@@ -164,11 +164,6 @@ def perform_tests(testdir,
         tf.write('touch ../time_end\n')
         tf.write('echo $EC > ../ec.txt\n')
         tf.write('%s -c \'import os.path;print(1000.0*(os.path.getmtime("../time_end")-os.path.getmtime("../time_start")))\' > ../timing_ms\n'%_pyexec)
-        if bn+'.log' in logfiles:
-            ref=_ospathjoin(installdir,'tests/testref/%s.log'%bn)
-            tf.write("""if [ $EC == 0 ]; then
-      diff -a --ignore-all-space %s ../output.log > ../refdiff.log || diff -a --ignore-all-space -y %s ../output.log > ../refdiff_sidebyside.log; EC=$?; echo $EC > ../ecdiff.txt
-    fi"""%(ref,ref))
         pathlib.Path(td,'run.sh').write_text( tf.getvalue() )
 
         alltests+=[bn]
@@ -193,6 +188,18 @@ def perform_tests(testdir,
                 return numtype(fh.read().strip())
         except (OSError,ValueError):
             return None
+    #Compare the output of successful tests with their reference logs (if
+    #any). This is done exactly, but with a note in the refdiff.log file if
+    #there are only differences in whitespace:
+    from .reflogdiff import compare_and_write_diff
+    for t in alltests:
+        td=_ospathjoin(testdir,t)
+        if ( t+'.log' in logfiles
+             and read_number( _ospathjoin(td,'ec.txt'), int ) == 0 ):
+            same = compare_and_write_diff( _ospathjoin(logdir,t+'.log'),
+                                           _ospathjoin(td,'output.log'),
+                                           _ospathjoin(td,'refdiff.log') )
+            pathlib.Path(td,'ecdiff.txt').write_text('0\n' if same else '1\n')
     rep=[]
     for t in alltests:
         td=_ospathjoin(testdir,t)
