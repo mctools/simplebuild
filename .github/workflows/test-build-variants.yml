@@ -1,0 +1,48 @@
+name: test-build-variants
+on:
+  push:
+  pull_request:
+
+# Workflow which tests build variants: the build.extra_cflags,
+# build.extra_ldflags, and build.max_cachedirs cfg options, the -d/-r/-g/-x
+# flags of sb, sbrun, and sbenv, and the management of the cache directories of
+# the various build variants.
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - { os: ubuntu-latest, python: '3.14' }
+          - { os: macos-latest,  python: '3.14' }
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash -eux {0}
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        path: src
+
+    - name: Setup python
+      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      with:
+        python-version: ${{ matrix.python }}
+
+    - name: Install package
+      run: |
+           python3 -mvenv myvenv
+           . ./myvenv/bin/activate
+           python3 -m pip install pybind11 cmake
+           python3 -m pip install ./src
+           sb --version
+
+    - name: Test build variants
+      run: |
+           . ./myvenv/bin/activate
+           mkdir testdir
+           cd testdir
+           python3 ../src/devel/tests/test_build_variants.py
