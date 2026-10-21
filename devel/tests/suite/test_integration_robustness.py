@@ -186,3 +186,10 @@ def test_makefiles_use_same_python( proj ):
     pkgmf = ( bld( proj ) / 'makefiles' / 'Makefile_PkgB.make' ).read_text()
     assert '${PYTHON} -m_simple_build_system.instsl ' in pkgmf
     assert 'python3 -m' not in pkgmf
+
+def test_reinspect_on_flag_env_changes( proj ):
+    res = run( 'sb', proj, env_extra = { 'CXXFLAGS' : '-DSBTEST_DUMMY_FLAG=1' } )
+    assert 'Change in environment detected' in res.out
+    assert 'CXXFLAGS' in res.out
+    res = run( 'sb', proj, env_extra = { 'CXXFLAGS' : '-DSBTEST_DUMMY_FLAG=1' } )
+    assert 'Change in environment detected' not in res.out

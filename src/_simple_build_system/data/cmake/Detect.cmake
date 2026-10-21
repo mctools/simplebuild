@@ -60,6 +60,11 @@ set(extdep_present "")
 set(extdep_missing "")
 set(extdep_autoreconf_bin_list "cmake;gcc;g++;clang;clang++;python3")
 set(extdep_autoreconf_env_list "CC;CXX;DGDEPDIR;PYTHONHOME;VIRTUAL_ENV;SDKROOT;CPATH")
+#Variables affecting compilation and linking (and hence the results of the
+#environment inspection):
+list(APPEND extdep_autoreconf_env_list "CFLAGS;CXXFLAGS;CPPFLAGS;LDFLAGS;FC;FFLAGS")
+list(APPEND extdep_autoreconf_env_list "C_INCLUDE_PATH;CPLUS_INCLUDE_PATH;LIBRARY_PATH")
+list(APPEND extdep_autoreconf_env_list "LD_LIBRARY_PATH;DYLD_LIBRARY_PATH;MACOSX_DEPLOYMENT_TARGET")
 set(extdep_pending "${extdep_all}")
 
 foreach(extdep ${extdep_all})
