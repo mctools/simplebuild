@@ -54,9 +54,9 @@ def perform_cfg( *,
     assert dirs.blddir.is_dir()
     assert ( dirs.blddir / '.sbbuilddir' ).exists()
 
-    #TODO: This need to cache and retrigger on cmakeargs is a leftover from
-    #ancient times. Should we simply remove it?
-    cmakeargs = []
+    #CMake variables which must trigger a reconfiguration when changed (for
+    #now only the extra flags from the [build] section of the main cfg file):
+    cmakeargs = envcfg.var.cfg_cmake_defines[:]
 
     envdict = None
     if not force_reconf and os.path.exists(dirs.envcache):

@@ -23,22 +23,63 @@ def _build_cfg():
     assert main_cfg_file.is_file()
 
     main_cfg = SingleCfg.create_from_toml_file( main_cfg_file )
-    cfg = CfgBuilder( main_cfg, main_cfg_file )
+
+    #Combine with the variant selected on the command line (see variant.py):
+    from . import variant
+    vflags = variant.selected()
+    build_mode = vflags.mode or main_cfg.build_mode
+    if vflags.ignore_extra_flags:
+        extra_cflags, extra_ldflags = tuple(), tuple()
+    else:
+        extra_cflags = main_cfg.build_extra_cflags
+        extra_ldflags = main_cfg.build_extra_ldflags
+    cachedir_suffix = variant.cachedir_suffix( build_mode,
+                                               extra_cflags,
+                                               extra_ldflags )
+
+    cfg = CfgBuilder( main_cfg, main_cfg_file,
+                      build_mode = build_mode,
+                      cachedir_suffix = cachedir_suffix )
     pkgfilterobj = PkgFilter( cfg.build_pkg_filter )
 
     import shlex
     _cmake_args = shlex.split( _query('CMAKE_ARGS') or '' )
 
-    if main_cfg.build_mode in ('release','reldbg'):
+    if build_mode in ('release','reldbg'):
         _cmake_args.append('-DCMAKE_BUILD_TYPE=Release')
-        if main_cfg.build_mode == 'reldbg':
+        if build_mode == 'reldbg':
             #not just CMAKE_BUILD_TYPE=RelWithDebInfo since that changes other
             #flags as well.
             _cmake_args.append('-DSBLD_RELDBG_MODE=ON')
     else:
-        assert main_cfg.build_mode=='debug'
+        assert build_mode=='debug'
         _cmake_args.append('-DCMAKE_BUILD_TYPE=Debug')
-    _build_mode_summary_string = main_cfg.build_mode#.capitalize()
+
+    _build_mode_summary_string = build_mode
+    if build_mode != main_cfg.build_mode:
+        _build_mode_summary_string += f' (due to {vflags.mode_flag()})'
+
+    #Extra flags from the [build] section. These are kept separate from
+    #_cmake_args, since changes to them must trigger a reconfiguration:
+    _cfg_cmake_defines = []
+    if extra_cflags:
+        _ = ' '.join(extra_cflags)
+        _cfg_cmake_defines.append(f'SBLD_CFG_EXTRA_CFLAGS={_}')
+    if extra_ldflags:
+        _ = ' '.join(extra_ldflags)
+        _cfg_cmake_defines.append(f'SBLD_CFG_EXTRA_LDFLAGS={_}')
+
+    _build_mode, _extra_cflags, _extra_ldflags = ( build_mode, extra_cflags,
+                                                   extra_ldflags )
+
+    #For the summary and warnings (None means no line in the summary):
+    if extra_cflags or extra_ldflags:
+        _extra_flags_summary_string = variant.extra_flags_description(
+            extra_cflags, extra_ldflags )
+    elif vflags.ignore_extra_flags:
+        _extra_flags_summary_string = '<ignored due to -x>'
+    else:
+        _extra_flags_summary_string = None
 
     class EnvCfg:
 
@@ -55,6 +96,7 @@ def _build_cfg():
         #These are used in the context of conda installs:
         conda_prefix =  _query('CONDA_PREFIX')
         cmake_args =  _cmake_args
+        cfg_cmake_defines = _cfg_cmake_defines
 
         #These are most likely almost never used by anyone (thus keeping as env
         #vars for now!):
@@ -74,7 +116,13 @@ def _build_cfg():
 
         env_paths = cfg.env_paths
 
+        build_mode = _build_mode
         build_mode_summary_string = _build_mode_summary_string
+        build_max_cachedirs = main_cfg.build_max_cachedirs
+        build_cachedir = main_cfg.build_cachedir
+        extra_cflags = _extra_cflags
+        extra_ldflags = _extra_ldflags
+        extra_flags_summary_string = _extra_flags_summary_string
 
     return EnvCfg()
 

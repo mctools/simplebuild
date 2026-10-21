@@ -109,6 +109,16 @@ if ( sbld_extra_ccxx_cflags )
   set(SBLD_GLOBAL_COMPILE_FLAGS_C     "${SBLD_GLOBAL_COMPILE_FLAGS_C} ${sbld_extra_ccxx_cflags}")
 endif()
 
+#Extra flags from the [build] section of the main simplebuild cfg file. These
+#are added last, so they can override any flags above:
+if ( SBLD_CFG_EXTRA_CFLAGS )
+  set(SBLD_GLOBAL_COMPILE_FLAGS_CXX "${SBLD_GLOBAL_COMPILE_FLAGS_CXX} ${SBLD_CFG_EXTRA_CFLAGS}")
+  set(SBLD_GLOBAL_COMPILE_FLAGS_C   "${SBLD_GLOBAL_COMPILE_FLAGS_C} ${SBLD_CFG_EXTRA_CFLAGS}")
+endif()
+if ( SBLD_CFG_EXTRA_LDFLAGS )
+  set(SBLD_GLOBAL_LINK_FLAGS "${SBLD_GLOBAL_LINK_FLAGS} ${SBLD_CFG_EXTRA_LDFLAGS}")
+endif()
+
 #To be filled with versions of global ext deps (Python):
 set(SBLD_GLOBAL_VERSION_DEPS_CXX "")
 set(SBLD_GLOBAL_VERSION_DEPS_C "")

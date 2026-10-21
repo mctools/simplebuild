@@ -114,6 +114,9 @@ def produce_build_summary( *, pkgloader, verbose ):
     print(f"  Package filter[*]                : {_pfilter}")
     print('  Build mode                       : '
           + f'{envcfg.var.build_mode_summary_string}' )
+    if envcfg.var.extra_flags_summary_string:
+        print('  Extra flags                      : '
+              + f'{envcfg.var.extra_flags_summary_string}' )
 
 
     print('')

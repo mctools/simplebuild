@@ -165,6 +165,9 @@ def _is_valid_lowercase_identifier( s ):
 
 is_valid_bundle_name = _is_valid_lowercase_identifier
 
+_valid_flag_special_chars = '_+-.,:=/@%'
+_reobj_valid_flag = re.compile( '^[A-Za-z0-9%s]+$'%re.escape(_valid_flag_special_chars) )
+
 
 def _generate_toml_schema():
 
@@ -266,6 +269,36 @@ def _generate_toml_schema():
                 error.error(f'Invalid value of list entry #{i+1} in item {ctx.item_name} (expected non-empty string) in {ctx.src_descr}')
         return tuple(item)
 
+    def decode_flags( ctx : TOMLSchemaDecodeContext, item ):
+        #Either a string or a list of strings. Each string is split with
+        #shlex.split and the results concatenated. The resulting flags end up
+        #in generated Makefiles and shell commands, so for safety we only allow
+        #a conservative set of characters in each:
+        if isinstance( item, str ):
+            item = [ item ]
+        if not isinstance( item, list ) or not all( isinstance(e,str) for e in item ):
+            error.error(f'Invalid value "{item}" for item {ctx.item_name} (expected string or list of strings) in {ctx.src_descr}')
+        import shlex
+        res = []
+        for e in item:
+            try:
+                res += shlex.split( e )
+            except ValueError as ex:
+                error.error(f'Invalid value "{e}" in item {ctx.item_name} ({ex}) in {ctx.src_descr}')
+        for f in res:
+            if not _reobj_valid_flag.search( f ):
+                error.error(f'Unsupported flag "{f}" in item {ctx.item_name} in {ctx.src_descr}. For'
+                            ' safety, flags can only contain letters, digits, and the characters'
+                            f' "{_valid_flag_special_chars}". If you really need other characters'
+                            ' in your flags, please open an issue at'
+                            ' https://github.com/mctools/simplebuild/issues')
+        return tuple(res)
+
+    def decode_max_cachedirs( ctx : TOMLSchemaDecodeContext, item ):
+        if isinstance(item,bool) or not isinstance(item,int) or not ( 1 <= item <= 20 ):
+            error.error(f'Invalid value "{item}" for item {ctx.item_name} (must be an integer from 1 to 20) in {ctx.src_descr}')
+        return item
+
     def decode_str_enum( ctx : TOMLSchemaDecodeContext, item, optionlist ):
         item = decode_nonempty_str( ctx, item )
         if item not in optionlist:
@@ -321,8 +354,9 @@ def _generate_toml_schema():
                                    pkg_filter = (decode_is_list_of_nonempty_str,[]),
                                    #extdep_ignore = (decode_is_list_of_valid_identifier_string,[]),
                                    #cmake_flags = (decode_is_list_of_nonempty_str,[]),
-                                   #extra_cflags = (decode_is_list_of_nonempty_str,[]),
-                                   #extra_linkflags = (decode_is_list_of_nonempty_str,[]),
+                                   extra_cflags = (decode_flags,[]),
+                                   extra_ldflags = (decode_flags,[]),
+                                   max_cachedirs = (decode_max_cachedirs,5),
                                    #relaxed_compilation = (decode_is_bool,False),
                                   ),
                 )

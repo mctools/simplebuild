@@ -29,6 +29,10 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
     parser, opt = parse_args( argv = argv,
                               return_parser = True )
 
+    #Select build variant before anything triggers the loading of envcfg:
+    from . import variant
+    variant.select( variant.from_argparse_result( opt ) )
+
     if opt.show_version:
         from . import _determine_version
         sys.stdout.write(_determine_version.determine_version()+'\n')
@@ -85,7 +89,8 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
     #setup lockfile:
     from . import dirs
 
-    if not dirs.blddir.exists() and not dirs.installdir.exists():
+    fresh_cachedir = not dirs.blddir.exists() and not dirs.installdir.exists()
+    if fresh_cachedir:
         #Silently set this in case of completely fresh build, to avoid getting
         #some slightly confusing printouts later:
         opt.insist = True
@@ -114,29 +119,50 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
 
     from . import conf
     from . import envcfg
+    from . import cachedirs
 
     if opt.clean:
-        if dirs.blddir.is_dir() or dirs.installdir.is_dir():
-            if not opt.quiet:
+        #Remove the cache dirs of all build variants (not just the selected
+        #one):
+        dcache = envcfg.var.build_cachedir
+        removed, skipped = cachedirs.remove_all( dcache, dirs.blddir )
+        if not opt.quiet:
+            if removed and not ( fresh_cachedir and len(removed)==1
+                                 and removed[0].blddir == dirs.blddir ):
                 print("Removing temporary cache directories.")
-            conf.safe_remove_install_and_build_dir()
-            #Let us perhaps also try and remove the cachedir, i.e. the parent
-            #dir of install and build. We want to remove it to not litter an
-            #empty "simplebuild_cache" in peoples bundle dirs, but we also do
-            #not want to remove a directory which a user might have created
-            #manually for their cache (even if empty, since it might still be
-            #confusing). As a compromise, we remove it only if it is in the
-            #default location with the default name (users messing with pkg_root
-            #or cachedir are anyway expected to be more advanced):
-            dcache = envcfg.var.build_dir_resolved.parent
-            assert dcache == envcfg.var.install_dir_resolved.parent
-            if ( dcache == ( envcfg.var.main_bundle_pkg_root / 'simplebuild_cache' )
-                 and not any( dcache.iterdir() ) ):
-                 dcache.rmdir()
-        else:
-            if not opt.quiet:
+            elif not skipped:
                 print("Nothing to clean. Exiting.")
+        for cd in skipped:
+            error.warn('Not removing cache directories which are in use by a'
+                       ' running process or which do not look like they were'
+                       f' created by simplebuild: {cd.blddir} {cd.installdir}')
+        #Let us perhaps also try and remove the cachedir, i.e. the parent dir of
+        #install and build. We want to remove it to not litter an empty
+        #"simplebuild_cache" in peoples bundle dirs, but we also do not want to
+        #remove a directory which a user might have created manually for their
+        #cache (even if empty, since it might still be confusing). As a
+        #compromise, we remove it only if it is in the default location with
+        #the default name (users messing with pkg_root or cachedir are anyway
+        #expected to be more advanced):
+        if ( dcache == ( envcfg.var.main_bundle_pkg_root / 'simplebuild_cache' )
+             and dcache.is_dir() and not any( dcache.iterdir() ) ):
+            dcache.rmdir()
         raise SystemExit
+
+    #Remove the least recently used cache dirs of other build variants, if
+    #there are too many:
+    for cd in cachedirs.remove_least_recently_used(
+            envcfg.var.build_cachedir, dirs.blddir,
+            envcfg.var.build_max_cachedirs ):
+        print('Removed least recently used cache directories'
+              f' (build.max_cachedirs={envcfg.var.build_max_cachedirs}):'
+              f' {cd.name()}')
+
+    if envcfg.var.extra_cflags or envcfg.var.extra_ldflags:
+        if not opt.query_mode:
+            _ = envcfg.var.extra_flags_summary_string
+            error.warn(f'The simplebuild cfg file specifies extra flags ({_}).'
+                       f' Use "{progname} -x" to build without them.')
 
     #Detect changes to system cmake or python files and set opt.examine or opt.insist as appropriate.
     from . import mtime
@@ -185,6 +211,12 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
     if opt.insist:
         conf.safe_remove_install_and_build_dir()
         dirs.create_bld_dir()
+
+    cachedirs.touch_last_used( dirs.blddir )
+    if envcfg.var.extra_cflags or envcfg.var.extra_ldflags:
+        cachedirs.write_extra_flags_file( dirs.blddir,
+                                          envcfg.var.extra_cflags,
+                                          envcfg.var.extra_ldflags )
 
     utils.pkl_dump(systs,dirs.systimestamp_cache)
 
