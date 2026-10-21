@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 def perform_tests(testdir,
                   installdir, njobs, nexcerpts, filters,
-                  do_pycoverage, pkgloader=None):
+                  do_pycoverage, pkgloader=None, report_spec=None):
     import os
     import sys
-    import fnmatch
     import shlex
     import pathlib
     from .conf import runnable_is_test
@@ -17,11 +16,6 @@ def perform_tests(testdir,
 
     print = _io.print
 
-    from . import col as _col
-    col_ok = _col.ok
-    col_bad = _col.bad
-    col_end = _col.end
-
     print(f'Running tests in {testdir}:')
     print()
     sys.stdout.flush()
@@ -29,14 +23,7 @@ def perform_tests(testdir,
 
     assert not os.path.exists(testdir)
     testdir=os.path.abspath(testdir)
-    line_hr = " ---------------------------------------+-----------+--------+----------+------------------"
-    line_titles = "  Test job results                      | Time [ms] | Job EC | Log-diff | Trouble info"
-    def print_header():
-        print(line_hr)
-        print(line_titles)
-        print(line_hr)
-    def print_footer():
-        print(line_hr)
+    time_started = _now()
 
     logdir=_ospathjoin(installdir,'tests/testref')
     #bindirs=[_ospathjoin(installdir,'bin'),_ospathjoin(installdir,'scripts')]
@@ -65,38 +52,7 @@ def perform_tests(testdir,
         sys.path.pop(0)
         pkginfo = simplebuild_cfg.pkgs
 
-    if filters:
-        # Use same logic as for the pkg_filters, i.e.:
-
-        # * If any positive filters are defined, a pkg must pass at least one of
-        #   them to pass.
-        # * If any negative filters are defined, a pkg must NOT pass any of
-        #   them, to pass.
-
-        _pos_filters = []
-        _neg_filters = []
-        for fltr in filters:
-            fltr=fltr.strip()
-            if fltr.startswith('!'):
-                fltr = fltr[1:].strip()
-                if fltr:
-                    _neg_filters.append( fltr )
-            elif fltr:
-                _pos_filters.append( fltr )
-        def filter_fct( testname ):
-            if _pos_filters:
-                if not any( fnmatch.fnmatch(testname,fltr)
-                            for fltr in _pos_filters ):
-                    return False
-            if _neg_filters:
-                if any( fnmatch.fnmatch(testname,fltr)
-                        for fltr in _neg_filters ):
-                    return False
-            return True
-    else:
-        def filter_fct( testname ):
-            return True
-
+    filter_fct = make_filter_fct( filters )
 
     nfiltered = 0
     for p in (p for _,p in pkginfo.items() if p['enabled']):
@@ -111,16 +67,24 @@ def perform_tests(testdir,
                     tests.add(runnable)
                     testinfo[runnable] = {'pkgname':p['name']}
 
-    if not tests:
-        if nfiltered:
-            print(f'WARNING: All {nfiltered} tests were blocked by specified filters.')
-            print()
-        print_header()
-        print('  n/a')
-        print_footer()
-        return 0
-
     mkdir_p(testdir)
+    def save_runinfo():
+        #Information needed for reporting the results later:
+        from . import db
+        _write_runinfo( testdir, dict(
+            time_started = time_started,
+            time_finished = _now(),
+            filters = list( filters or [] ),
+            nfiltered = nfiltered,
+            tests = dict( ( t, dict( pkgname = testinfo[t]['pkgname'],
+                                     has_reflog = t+'.log' in logfiles ) )
+                          for t in sorted(tests) ),
+            pkg2timestamp = _pkg_timestamps( db.db ) ) )
+
+    if not tests:
+        save_runinfo()
+        return print_report( testdir, logdir, nexcerpts, report_spec )
+
     _pyexec = shlex.quote( sys.executable or 'python3' )
     import io
     mf = io.StringIO()
@@ -179,15 +143,7 @@ def perform_tests(testdir,
     test_env = create_install_env_clone()
     test_env['DISPLAY']=''
     test_env['PYTHONUNBUFFERED']='1'
-    ec_global=system('make -j%i -k -f %s/Makefile all'%(njobs,testdir), env = test_env )
-    def read_number( fn, numtype ):
-        #Missing or invalid result files can happen if tests are killed or the
-        #test run is interrupted. Returns None in that case.
-        try:
-            with open(fn) as fh:
-                return numtype(fh.read().strip())
-        except (OSError,ValueError):
-            return None
+    ec_make=system('make -j%i -k -f %s/Makefile all'%(njobs,testdir), env = test_env )
     #Compare the output of successful tests with their reference logs (if
     #any). This is done exactly, but with a note in the refdiff.log file if
     #there are only differences in whitespace:
@@ -195,42 +151,14 @@ def perform_tests(testdir,
     for t in alltests:
         td=_ospathjoin(testdir,t)
         if ( t+'.log' in logfiles
-             and read_number( _ospathjoin(td,'ec.txt'), int ) == 0 ):
+             and _read_number( _ospathjoin(td,'ec.txt'), int ) == 0 ):
             same = compare_and_write_diff( _ospathjoin(logdir,t+'.log'),
                                            _ospathjoin(td,'output.log'),
                                            _ospathjoin(td,'refdiff.log') )
             pathlib.Path(td,'ecdiff.txt').write_text('0\n' if same else '1\n')
-    rep=[]
-    for t in alltests:
-        td=_ospathjoin(testdir,t)
-        ecdiff = read_number( _ospathjoin(td,'ecdiff.txt'), int )
-        ec = read_number( _ospathjoin(td,'ec.txt'), int )
-        rep+=[(t, 1 if ec is None else ec, ecdiff)]
-    rep.sort()
-    excerpts_to_print=[]
-    if nfiltered:
-        print(f'Note: {nfiltered} tests were blocked by specified filters.')
-        print()
-    print_header()
-    for t,ec,ecdiff in rep:
-        time_ms = read_number( _ospathjoin(testdir,t,'timing_ms'), float ) or 0.0
-        ecstr='FAIL' if ec else ' OK '
-        logdiffstr=' -- '
-        if ecdiff is not None:
-            logdiffstr='FAIL' if ecdiff else ' OK '
-        info='--'
-        if ec!=0 or ( (ecdiff is not None) and ecdiff):
-            info=os.path.realpath(_ospathjoin(testdir,t))
-            ec_global=1
-            if nexcerpts>0:
-                excerpts_to_print += [(t,testdir,'output.log' if ec!=0 else 'refdiff.log')]
-        print("  %-37s |  %6.0f   |  %s  |   %s   | %s"%(t,time_ms,ecstr,logdiffstr,info))
-        logdiffok = (ecdiff is None or not ecdiff)
-        testinfo[t].update( dict(time_ms = time_ms,
-                                 exitcode = ec,
-                                 logfile = _ospathjoin(testdir,t,'output.log'),
-                                 logdiffok = logdiffok,
-                                 logdifffile = (_ospathjoin(testdir,t,'refdiff.log') if not logdiffok else None)))
+    save_runinfo()
+
+    notes = []
     if do_pycoverage:
          _cov_infiles = ' '.join(shlex.quote(str(e.absolute().resolve())) for e in coverage_all_out_files)
          _cov_outfile = coverage_out_dir / 'combined.coverage'
@@ -246,47 +174,223 @@ def perform_tests(testdir,
              if ec!=0:
                  print("ERROR: py-coverage html report generation failed!")
              else:
-                 print(f"Pycoverage report available in: {reportdir_quoted}/index.html")
+                 notes.append(f"Pycoverage report available in: {reportdir_quoted}/index.html")
 
     assert len(alltests)==len(set(alltests))
 
-    print_footer()
-
-    do_junitxml = True
-    if do_junitxml:
-        testxmlwriter = testxml.TestXMLWriter()
-        for testcmd in tests:
-            nfo = testinfo[testcmd]
-            test = testxml.Test(testcmd,nfo['pkgname'],nfo['time_ms']*0.001)
-            if nfo['exitcode'] != 0:
-                test.set_run_failure(nfo['logfile'])
-            elif not nfo['logdiffok']:
-                test.set_reflog_failure(nfo['logdifffile'])
-            testxmlwriter.add_test(test)
-        outfile = pathlib.Path(testdir) / 'simplebuild_test_results_junitformat.xml'
-        with outfile.open('wt') as f:
-            for line in testxmlwriter.generate_xml():
-                f.write('%s\n'%line)
-        print()
-        print(f'  Test results are also summarised in: {outfile.name}')
-        print()
-
-    if excerpts_to_print:
-        for t,testdir,logname in excerpts_to_print:
-            print_excerpt( t, testdir, logname, nexcerpts,
-                           reflog = _ospathjoin(logdir,t+'.log') )
+    #Results in junit XML format:
+    runinfo, results = load_results( testdir )
+    testxmlwriter = testxml.TestXMLWriter()
+    for r in results:
+        test = testxml.Test(r.name,r.pkgname,r.time_ms*0.001)
+        if r.ec != 0:
+            test.set_run_failure(_ospathjoin(testdir,r.name,'output.log'))
+        elif r.logdiff_failed:
+            test.set_reflog_failure(_ospathjoin(testdir,r.name,'refdiff.log'))
+        testxmlwriter.add_test(test)
+    outfile = pathlib.Path(testdir) / 'simplebuild_test_results_junitformat.xml'
+    with outfile.open('wt') as f:
+        for line in testxmlwriter.generate_xml():
+            f.write('%s\n'%line)
+    notes.append(f'Test results are also summarised in: {outfile.name}')
 
     sys.stdout.flush()
     sys.stderr.flush()
+    return print_report( testdir, logdir, nexcerpts, report_spec,
+                         notes = notes, failed = ( ec_make != 0 ) )
 
-    if ec_global:
-        print('  %sERROR: Some tests failed!%s'%(col_bad,col_end))
+def _now():
+    import datetime
+    return datetime.datetime.now().isoformat( timespec = 'seconds' )
+
+def _read_number( fn, numtype ):
+    #Missing or invalid result files can happen if tests are killed or the
+    #test run is interrupted. Returns None in that case.
+    try:
+        with open(fn) as fh:
+            return numtype(fh.read().strip())
+    except (OSError,ValueError):
+        return None
+
+def make_filter_fct( filters ):
+    """Returns function deciding if a test with a given name passes the
+    filters (list of patterns, where patterns with a "!" prefix are negated).
+    The same logic as for the pkg_filters is used, i.e. if any positive
+    filters are defined, a test must pass at least one of them, and if any
+    negative filters are defined, a test must not pass any of them."""
+    import fnmatch
+    pos_filters, neg_filters = [], []
+    for fltr in ( filters or [] ):
+        fltr=fltr.strip()
+        if fltr.startswith('!'):
+            fltr = fltr[1:].strip()
+            if fltr:
+                neg_filters.append( fltr )
+        elif fltr:
+            pos_filters.append( fltr )
+    def filter_fct( testname ):
+        if pos_filters:
+            if not any( fnmatch.fnmatch(testname,fltr)
+                        for fltr in pos_filters ):
+                return False
+        if neg_filters:
+            if any( fnmatch.fnmatch(testname,fltr)
+                    for fltr in neg_filters ):
+                return False
+        return True
+    return filter_fct
+
+_runinfo_filename = 'testrun.json'
+
+def _write_runinfo( testdir, info ):
+    import json
+    import pathlib
+    from .utils import write_atomic
+    write_atomic( pathlib.Path(testdir) / _runinfo_filename,
+                  json.dumps( info, indent = 1 ) + '\n' )
+
+def _pkg_timestamps( db ):
+    #Timestamps of packages (as strings), allowing us to detect if packages
+    #were changed (and thus rebuilt) after the tests were run:
+    return dict( ( k, repr(v) ) for k,v in db.get('pkg2timestamp',{}).items() )
+
+class TestResult:
+
+    def __init__( self, name, pkgname, has_reflog, ec, ecdiff, time_ms ):
+        self.name = name
+        self.pkgname = pkgname
+        self.has_reflog = has_reflog
+        self.ec = 1 if ec is None else ec#None means that the test was killed
+        self.ecdiff = ecdiff
+        self.time_ms = time_ms or 0.0
+
+    @property
+    def logdiff_failed( self ):
+        return bool( self.ecdiff )
+
+    @property
+    def failed( self ):
+        return self.ec != 0 or self.logdiff_failed
+
+def load_results( testdir ):
+    """Load information about the last test run, and the results of the
+    tests (list of TestResult objects, sorted by name). Returns (None,None) if
+    not available."""
+    import json
+    import os
+    try:
+        with open( os.path.join( testdir, _runinfo_filename ) ) as fh:
+            runinfo = json.load( fh )
+        tests = runinfo['tests']
+    except (OSError,ValueError,KeyError,TypeError):
+        return None, None
+    results = []
+    for name, nfo in sorted( tests.items() ):
+        td = os.path.join( testdir, name )
+        results.append( TestResult( name, nfo.get('pkgname'),
+                                    nfo.get('has_reflog'),
+                                    _read_number( os.path.join(td,'ec.txt'), int ),
+                                    _read_number( os.path.join(td,'ecdiff.txt'), int ),
+                                    _read_number( os.path.join(td,'timing_ms'), float ) ) )
+    return runinfo, results
+
+_line_hr = " ---------------------------------------+-----------+--------+----------+------------------"
+_line_titles = "  Test job results                      | Time [ms] | Job EC | Log-diff | Trouble info"
+
+def print_report( testdir, logdir, nexcerpts, spec, *, filters = None,
+                  post_factum = False, notes = (), failed = False ):
+    """Print report of the results of the last test run (in testdir), and
+    return the exit code (73 in case of failures). The spec is the result of
+    parse_args.parse_testreport_spec (None means default settings). If filters
+    are given, only tests passing them are shown. If post_factum is True, the
+    report is printed independently of a test run, and starts with
+    information about the test run. Any notes are printed after the table, and
+    failed=True indicates that the test run failed in some other way."""
+    import os
+    import sys
+    from . import io as _io
+    from . import col
+    print = _io.print
+    spec = spec or dict( sort = 'name', failedonly = False )
+    runinfo, results = load_results( testdir )
+    if runinfo is None:
+        print('No test results are available for this build variant'
+              ' (run tests with "-t" first).')
+        print()
+        return 1
+    if post_factum:
+        _ = ', '.join( runinfo.get('filters') or [] )
+        print('Report of test results from %s%s:'%(
+            runinfo.get('time_finished','<unknown>').replace('T',' '),
+            f' (tests run with filter "{_}")' if _ else ''))
+        print()
+        from . import db
+        _ts = _pkg_timestamps( db.db )
+        changed = sorted( p for p,t in ( runinfo.get('pkg2timestamp') or {} ).items()
+                          if _ts.get(p,t) != t )
+        if changed:
+            print('%sWARNING%s The results might be outdated, since the following'
+                  ' packages were changed\n        after the tests were run: %s'%(
+                      col.bad, col.end, ' '.join(changed) ))
+            print()
+    nfiltered = runinfo.get('nfiltered',0)
+    if nfiltered and not results:
+        print(f'WARNING: All {nfiltered} tests were blocked by specified filters.')
+        print()
+    elif nfiltered:
+        print(f'Note: {nfiltered} tests were blocked by specified filters.')
+        print()
+    nall = len(results)
+    if filters:
+        filter_fct = make_filter_fct( filters )
+        results = [ r for r in results if filter_fct( r.name ) ]
+    if spec['failedonly']:
+        results = [ r for r in results if r.failed ]
+    if spec['sort'] == 'pkg':
+        results.sort( key = lambda r : ( r.pkgname or '', r.name ) )
+    elif spec['sort'] == 'time':
+        results.sort( key = lambda r : ( -r.time_ms, r.name ) )
+    any_failed = failed
+    print(_line_hr)
+    print(_line_titles)
+    print(_line_hr)
+    if not results:
+        print('  n/a')
+    excerpts_to_print = []
+    for r in results:
+        ecstr = 'FAIL' if r.ec else ' OK '
+        logdiffstr = ' -- '
+        if r.ecdiff is not None:
+            logdiffstr = 'FAIL' if r.ecdiff else ' OK '
+        info = '--'
+        if r.failed:
+            info = os.path.realpath( os.path.join( testdir, r.name ) )
+            any_failed = True
+            if nexcerpts > 0:
+                excerpts_to_print.append( ( r.name, 'output.log' if r.ec
+                                            else 'refdiff.log' ) )
+        print("  %-37s |  %6.0f   |  %s  |   %s   | %s"%( r.name, r.time_ms,
+                                                       ecstr, logdiffstr, info ))
+    print(_line_hr)
+    if len(results) != nall:
+        print(f'  ({nall-len(results)} of the {nall} tests are not shown)')
+    print()
+    for n in notes:
+        print(f'  {n}')
+        print()
+    for t, logname in excerpts_to_print:
+        print_excerpt( t, testdir, logname, nexcerpts,
+                       reflog = os.path.join( logdir, t+'.log' ) )
+    sys.stdout.flush()
+    sys.stderr.flush()
+    if any_failed:
+        print('  %sERROR: Some tests failed!%s'%(col.bad,col.end))
         print()
     else:
-        print('  %sAll tests completed without failures!%s'%(col_ok,col_end))
+        print('  %sAll tests completed without failures!%s'%(col.ok,col.end))
         print()
     #Used special exit code (73) to indicate test failures.
-    return 0 if ec_global==0 else 73
+    return 73 if any_failed else 0
 
 def excerpt_lines( lines, nexcerpts ):
     """The first and last nexcerpts lines (all lines if there are not more
