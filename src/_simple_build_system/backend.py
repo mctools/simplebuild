@@ -31,7 +31,6 @@ def perform_cfg( *,
     from . import error
     from . import mtime
     from . import envcfg
-    import shlex
     import shutil
     from .io import print
 
@@ -142,7 +141,7 @@ def perform_cfg( *,
         dirs.create_install_dir()
         linkdir = dirs.installdir / 'lib' / 'links'
         assert ( dirs.installdir / '.sbinstalldir' ).exists()
-        shutil.rmtree( linkdir, ignore_errors=True)
+        utils.remove_within( linkdir, dirs.installdir )
         linkdir.mkdir(parents=True)
         for lib_to_symlink in env.env['system']['runtime']['libs_to_symlink']:
             #Symlink not only the given file, but also all other files in target
@@ -249,28 +248,22 @@ def perform_cfg( *,
             #Make sure pkg symlink is in place (refering to the package in
             #symlinked location, potentially allows users to move pkgs around).
             lt=dirs.pkg_dir(p)
-            if lt.is_dir() and not lt.is_symlink():
-                assert utils.path_is_relative_to( lt, conf.build_dir() ) and ( conf.build_dir()/'.sbbuilddir' ).exists()
-                shutil.rmtree( lt, ignore_errors=True)
-            else:
-                lt.parent.mkdir( parents = True, exist_ok = True )
-                if lt.is_symlink():
-                    lt.unlink()
-                lt.symlink_to(p.dirname,target_is_directory=True)
+            #NB: remove_within never follows the symlink:
+            utils.remove_within( lt, dirs.blddir )
+            lt.parent.mkdir( parents = True, exist_ok = True )
+            lt.symlink_to(p.dirname,target_is_directory=True)
             rd[p.name]=p.reldirname#ok to update immediately?
 
     def nuke_pkg(pkgname):
         if verbose:
             print(f'Completely wiping cache for {pkgname}')
         conf.uninstall_package(pkgname)
-        utils.rm_rf(dirs.pkg_cache_dir(pkgname))
-        utils.rm_rf(dirs.pkg_dir(pkgname))#remove link to pkg
-        nt=shlex.quote(os.path.join(dirs.blddir,'named_targets',pkgname))
-        utils.system('rm -f %s %s_*'%(nt,nt))#Fixme: this is potentially
-                                             #clashy... we should not use single
-                                             #underscores if they are allowed in
-                                             #package names (see also fixmes in
-                                             #conf.py).
+        for d in ( dirs.pkg_cache_dir(pkgname),
+                   dirs.named_targets_pkg_dir(pkgname),
+                   dirs.pkg_dir(pkgname) ):#NB: the latter is a link to the pkg
+            utils.remove_within( d, dirs.blddir )
+        utils.remove_within( dirs.makefiledir / f'Makefile_{pkgname}.make',
+                             dirs.blddir )
         db.clear_pkg(pkgname)
 
     from . import target_builder

@@ -157,7 +157,7 @@ def extractenv(*,cmakeargs,actually_needed_extdeps,quiet=True,verbose=False):
     cmakeblddir = dirs.blddir / 'cmake'
     cmakesrcdir = dirs.cmakedetectdir
     try:
-        utils.rm_rf( cmakeblddir )
+        utils.remove_within( cmakeblddir, dirs.blddir )
     except OSError:
         print(f'Failed to remove temporary cmake bld dir: {cmakeblddir}')
         return

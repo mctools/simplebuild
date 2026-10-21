@@ -13,7 +13,7 @@ class TargetPrepInc(target_base.Target):
 
     def __init__(self,pkg,has_compiled_target,has_libinc):
         self.pkgname=pkg.name
-        self.name='%s_prepinc'%pkg.name
+        self.name='%s__prepinc'%pkg.name
         self._privincdir=dirs.pkg_cache_dir(pkg,'inc')
         self._has_libinc=has_libinc
         self._has_compiled_target=has_compiled_target

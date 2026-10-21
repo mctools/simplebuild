@@ -183,6 +183,20 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
         print("Performing complete rebuild since the package database is broken.")
         opt.insist = True
 
+    #The layout of the cache directories might be different in other versions
+    #of simplebuild:
+    _layoutfile = dirs.blddir / 'layout_version.txt'
+    def _read_layout_version():
+        try:
+            return _layoutfile.read_text().strip()
+        except (OSError,UnicodeDecodeError):
+            return None
+    if not opt.insist and _dbfile.exists():
+        if _read_layout_version() != dirs.cache_layout_version:
+            print("Performing complete rebuild since the cache directory was"
+                  " created by a different version of simplebuild.")
+            opt.insist = True
+
     if envcfg.var.allow_sys_dev:
         #prevent changes in system from triggering rebuilds (for careful system
         #development use):
@@ -221,6 +235,8 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
         #The lockfile was removed along with the build dir, so recreate it:
         dirs.lockfile.write_text(lockfile_content)
 
+    if _read_layout_version() != dirs.cache_layout_version:
+        utils.write_atomic( _layoutfile, dirs.cache_layout_version + '\n' )
     cachedirs.touch_last_used( dirs.blddir )
     if envcfg.var.extra_cflags or envcfg.var.extra_ldflags:
         cachedirs.write_extra_flags_file( dirs.blddir,
@@ -499,9 +515,7 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
         )
 
     if opt.runtests:
-        assert (conf.test_dir().parent / '.sbbuilddir').exists()
-        import shutil
-        shutil.rmtree(conf.test_dir(),ignore_errors=True)
+        utils.remove_within( conf.test_dir(), conf.build_dir() )
         _testfilter=None
         do_pycoverage = False
         if opt.testfilter:

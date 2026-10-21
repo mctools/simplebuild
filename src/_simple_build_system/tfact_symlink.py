@@ -13,7 +13,7 @@ assert pypkgname != '__main__'
 class TargetSymlinks(target_base.Target):
     def __init__(self,pkg,linktype,srcdir,destdir,files,chmodx,renamefct=None,runnables=False):
         db.db['pkg2parts'][pkg.name].add('symlink__%s'%linktype)
-        self.name='%s_symlink_%s'%(pkg.name,linktype)
+        self.name='%s__symlink_%s'%(pkg.name,linktype)
         self.linktype=linktype
         self._cachedir = dirs.pkg_cache_dir(pkg,'symlinks')
         self.files=files

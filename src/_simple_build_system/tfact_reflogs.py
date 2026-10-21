@@ -33,7 +33,7 @@ class TargetRefLogs(target_base.Target):
         for _,tn,_ in neededlinks:
             db.db['pkg2reflogs'].setdefault(pkg.name,set()).add(tn)
 
-        self.name='%s_reflogs'%pkg.name
+        self.name='%s__reflogs'%pkg.name
         self.pkgname=pkg.name
         self.deps=[mpf]
         self.code = ['@if [ ${VERBOSE} -ge 0 ]; then echo "  %sUpdating symlinks %s/testlogs%s"; fi'%(col.bldcol('symlink'),pkg.name,col.bldend),

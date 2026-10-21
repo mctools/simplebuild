@@ -9,12 +9,12 @@ class TargetLibAvail(target_base.Target):
         pklcont=has_libsrc
         mpf=dirs.makefile_blddir(pklfile)
         utils.update_pkl_if_changed(pklcont,pklfile)
-        self.name='%s_libavail'%pkg.name
+        self.name='%s__libavail'%pkg.name
         self.pkgname=pkg.name
         self.deps=[mpf]
         self.code = []
         if has_libsrc:
-            self.deps+=['%s_libsrc'%pkg.name]
+            self.deps+=['%s__libsrc'%pkg.name]
 
 def tfactory_libavail(pkg,dirtypes):
     #a silly little target whose only purpose in life is to make sure that

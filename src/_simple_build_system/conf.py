@@ -66,37 +66,55 @@ def descrfct_app(pkg,subdir,name):
     from . import col
     return col.bldcol('app'),'application %s'%name
 
-def uninstall_package(pkgname):
-    #completely remove all traces of a pkg from the install area:
-    #a few sanity checks since we are about to use rm -rf:
-    #assert d and not ' ' in d
+def pkg_install_dir( pkgname ):
+    """Directory in the install area holding files belonging exclusively to
+    the package (currently just applications)."""
+    return install_dir() / 'pkgs' / pkgname
 
+def _symlink_owned_by_pkg( f, pkgname ):
+    """Whether f is a symlink installed for the given package in one of the
+    install directories shared between packages (bin/, scripts/, or
+    tests/testref/). Such symlinks point to files in the package itself (e.g.
+    <blddir>/pkgs/<pkgname>/scripts/<scriptname>), or to applications in the
+    install area of the package (<instdir>/pkgs/<pkgname>/bin/<appname>). Note
+    that a name pattern like "sb_<pkgname>_*" is not enough to determine
+    this, since packages named e.g. Foo and Foo_Bar would clash."""
+    from . import dirs
+    if not f.is_symlink():
+        return False
+    target = pathlib.Path(os.path.normpath(f.parent / os.readlink(f)))
+    return target.parent.parent in ( dirs.pkg_dir(pkgname),
+                                     pkg_install_dir(pkgname) )
+
+def _remove_symlinks_owned_by_pkg( directory, pkgname, names = None ):
+    from . import utils
+    if not directory.is_dir() or directory.is_symlink():
+        return
+    for f in sorted(directory.iterdir()):
+        if names is not None and f.name not in names:
+            continue
+        if _symlink_owned_by_pkg( f, pkgname ):
+            utils.remove_within( f, install_dir() )
+
+def uninstall_package(pkgname):
+    #completely remove all traces of a pkg from the install area. This does not
+    #depend on any information in the package database, but only on the
+    #layout of the install area (files of a package are either in directories
+    #belonging to that package, have names which are unique to the package, or
+    #are symlinks pointing into the package):
+    from . import utils
     instdir = install_dir()
     if not ( instdir / '.sbinstalldir' ).exists():
         return
-
-    #FIXME: <pn>_foo_bar_blah might be script Blah from package Foo_Bar or script
-    #Bar_Blah from package Foo. We should check that the symlinks goes to the
-    #correct package! (or better yet, simplebuild should produce pickle file in
-    #install or bld with all package dependencies and provided scripts, apps,
-    #etc.). But a quick fix for the scripts (not for the apps) would be for the
-    #framework to remove all symlinks to the package in question from the
-    #install dir, and just let the present function deal with non-symlinks.
-
-    parts = [ f'data/{pkgname}',
-              f'lib/*PKG__{pkgname}.*',
-              f'tests/testref/{runnable_prefix}{pkgname.lower()}_*.log',
-              f'include/{pkgname}',
-              f'python/{pkgname}',
-              f'scripts/{runnable_prefix}{pkgname.lower()}_*',
-              f'bin/{runnable_prefix}{pkgname.lower()}_*' ]
-    import shutil
-    for p in parts:
-        for f in instdir.glob(p):
-            if f.is_dir():
-                shutil.rmtree(f,ignore_errors = True)
-            else:
-                f.unlink(missing_ok = True)
+    for d in ( pkg_install_dir(pkgname),
+               instdir / 'data' / pkgname,
+               instdir / 'include' / pkgname,
+               instdir / 'python' / pkgname ):
+        utils.remove_within( d, instdir )
+    #NB: Package names never contain "__":
+    utils.remove_glob_within( instdir / 'lib', f'*PKG__{pkgname}.*', instdir )
+    for d in ( 'bin', 'scripts', 'tests/testref' ):
+        _remove_symlinks_owned_by_pkg( instdir / d, pkgname )
 
 #Get paths to all packages (including the framework and user packages)
 
@@ -133,10 +151,9 @@ def test_dir():
     return build_dir() / 'testresults/'
 
 def safe_remove_install_and_build_dir():
-    import shutil
-    for fingerprintfile in [ build_dir() / '.sbbuilddir', install_dir() / '.sbinstalldir' ]:
-        if fingerprintfile.exists():
-            shutil.rmtree( fingerprintfile.parent, ignore_errors=True )
+    from . import utils
+    for d in ( build_dir(), install_dir() ):
+        utils.remove_cache_dir( d )
 
 def target_factories_for_patterns():
     from . import tfact_symlink as tfs
@@ -157,9 +174,12 @@ def target_factories_for_patterns():
                                        checkfct=checkfct_pycpp,
                                        flagfct = lambda pkg,subdir
                                        :['-DPYMODNAME=%s'%subdir[6:]]))]
-    ll += [('app_.+', tfb.create_tfactory_binary(instsubdir='bin',
+    #Applications are installed in a separate directory per package, and
+    #symlinked into a shared bin directory (which is in the PATH):
+    ll += [('app_.+', tfb.create_tfactory_binary(instsubdir='pkgs/%s/bin',
+                                                 symlinkdir='bin',
                                                  namefct=namefct_app,
-                                                  descrfct=descrfct_app))]
+                                                 descrfct=descrfct_app))]
     ll += [('libsrc', tfb.create_tfactory_binary(pkglib=True,
                                                  namefct=namefct_lib,
                                                  descrfct=descrfct_lib))]
@@ -187,20 +207,21 @@ def target_factories():
 
 def deinstall_parts(instdir,pkgname,current_parts,disappeared_parts):
     from . import dirs
+    from . import utils
     i=instdir
     if not ( i / '.sbinstalldir' ).exists():
         return
     unused=set()
     pydone=False
     pkgcache=dirs.pkg_cache_dir(pkgname)
-    import shutil
     def rm_tree(p):
-        shutil.rmtree( p, ignore_errors=True)
+        utils.remove_within( p, i )
     def rm_file( p ):
-        p.unlink(missing_ok = True)
+        utils.remove_within( p, i )
+    def rm_cachefile( p ):
+        utils.remove_within( p, dirs.blddir )
     def rm_pattern(thedir,pattern):
-        for f in thedir.glob(pattern):
-            rm_file(f)
+        utils.remove_glob_within( thedir, pattern, i )
 
     for d in disappeared_parts:
         if d=='libinc':
@@ -211,19 +232,21 @@ def deinstall_parts(instdir,pkgname,current_parts,disappeared_parts):
             _runnable_name='%s%s_%s' %( runnable_prefix,
                                         pkgname.lower(),
                                         d[4:].lower() )
-            #Apps are files (or on macOS potentially .dSYM dirs):
-            rm_file( i / 'bin' / _runnable_name )
-            rm_tree( i / 'bin' / ( _runnable_name + '.dSYM' ) )
+            #Apps are files (or on macOS potentially .dSYM dirs) in the
+            #install dir of the package, symlinked into the bin dir:
+            _remove_symlinks_owned_by_pkg( i / 'bin', pkgname,
+                                           names = [ _runnable_name ] )
+            _ = pkg_install_dir(pkgname) / 'bin'
+            rm_file( _ / _runnable_name )
+            rm_tree( _ / ( _runnable_name + '.dSYM' ) )
         elif d=='symlink__scripts':
-            #FIXME: Next line clashes (see FIXME above)
-            rm_pattern( i/'scripts',
-                        '%s%s_*'%(runnable_prefix,pkgname.lower()) )
+            _remove_symlinks_owned_by_pkg( i / 'scripts', pkgname )
             (pkgcache/'symlinks'/'scripts.pkl').touch()
-            rm_file(pkgcache/'symlinks'/'scripts.pkl.old')
+            rm_cachefile(pkgcache/'symlinks'/'scripts.pkl.old')
         elif d=='symlink__data':
             rm_tree( i / 'data' / pkgname )
             ( pkgcache / 'symlinks' / 'data.pkl' ).touch()
-            rm_file( pkgcache / 'symlinks' / 'data.pkl.old' )
+            rm_cachefile( pkgcache / 'symlinks' / 'data.pkl.old' )
         #don't do this for testref_links, since all packages always have this target:
         #elif d=='testref_links':
         #    NB: Syntax not updated for pathlib and fcts above!:
@@ -235,7 +258,7 @@ def deinstall_parts(instdir,pkgname,current_parts,disappeared_parts):
                 #we must remove the auto generated __init__.py as it is in the way
                 rm_file( i / 'python' / pkgname / '__init__.py' )
                 ( pkgcache / 'symlinks' / 'python.pkl' ).touch()
-                rm_file( pkgcache / 'symlinks' / 'python.pkl.old' )
+                rm_cachefile( pkgcache / 'symlinks' / 'python.pkl.old' )
         elif d.startswith('pycpp_') or d=='symlink__python':
             if d.startswith('pycpp'):
                 #NB: Compiled modules have names like
@@ -246,7 +269,7 @@ def deinstall_parts(instdir,pkgname,current_parts,disappeared_parts):
                 if not any((e.startswith('pycpp') or e=='symlink__python') for e in current_parts):
                     rm_tree( i / 'python' / pkgname )
                 ( pkgcache / 'symlinks' / 'python.pkl' ).touch()
-                rm_file( pkgcache / 'symlinks' / 'python.pkl.old' )
+                rm_cachefile( pkgcache / 'symlinks' / 'python.pkl.old' )
                 ( pkgcache / 'pyinit' / 'pyinit.pkl' ).touch()
                 #rm_file( pkgcache / 'pyinit' / 'pyinit.pkl.old' )
         else:
