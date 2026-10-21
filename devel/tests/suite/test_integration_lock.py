@@ -1,5 +1,5 @@
-# The lock preventing concurrent sb invocations on the same cache directory
-# (see also issue #72 on GitHub).
+# The lock preventing concurrent sb invocations on the same cache directory,
+# and query options (issues #72 and #30 on GitHub).
 
 import pytest
 
@@ -66,3 +66,13 @@ def test_competing_invocation_detected( lockproj ):
     assert 'Presence of lock file indicates competing invocation' in res.out
     run( 'sb --removelock', d )
     assert not lockfile.exists()
+
+def test_pkginfo_case_insensitive( lockproj ):
+    #Issue #30: package names are unique when ignoring case, so --pkginfo can
+    #be relaxed about casing:
+    d = lockproj
+    for name in ( 'MyPkg', 'mypkg', 'MYPKG', 'myPKG' ):
+        res = run( [ 'sb', '--pkginfo', name ], d )
+        assert 'Package name            : MyPkg' in res.out
+    res = run( 'sb --pkginfo nosuchpkg', d, expect_ec = 1 )
+    assert 'Unknown package "nosuchpkg"' in res.out

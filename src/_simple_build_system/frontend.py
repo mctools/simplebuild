@@ -412,6 +412,13 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
     if opt.pkginfo:
         pkg=pkgloader.name2pkg.get(opt.pkginfo,None)
         if not pkg:
+            #Package names are unique also when ignoring case (this is
+            #enforced in loadpkgs.py), so we can safely be relaxed about
+            #casing:
+            _ = [ p for n,p in pkgloader.name2pkg.items()
+                  if n.lower() == opt.pkginfo.lower() ]
+            pkg = _[0] if len(_)==1 else None
+        if not pkg:
             utils.err('Unknown package "%s"'%opt.pkginfo)
         else:
             pkg.dumpinfo(pkgloader.autodeps)
