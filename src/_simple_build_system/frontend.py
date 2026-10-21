@@ -259,8 +259,6 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
                                         quiet=opt.quiet,
                                         verbose=opt.verbose,
                                         export_jsoncmds = opt.export_jsoncmds)
-    except KeyboardInterrupt:
-        err_txt = "Halted by user interrupt (CTRL-C)"
     except error.CleanExit as ce:
         #errors already handled, exit directly:
         sys.exit(ce._the_ec)
@@ -281,10 +279,9 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
         #fixme: unprefixed printouts?:
         print("\n\nERROR during configuration:\n\n  %s\n\n"
               "Aborting."%(err_txt.replace('\n','\n  ')))
-        #make all packages need reconfig upon next run:
-        from . import db
-        db.db['pkg2timestamp']={}
-        db.save_to_file()
+        #NB: The package database is not saved, so the next invocation will
+        #redo everything which was not completed (as is also the case for
+        #KeyboardInterrupt exceptions, which are simply passed on).
         #exit (with ugly traceback if unknown type of exception):
         if unclean_exception:
             error.print_traceback(unclean_exception)

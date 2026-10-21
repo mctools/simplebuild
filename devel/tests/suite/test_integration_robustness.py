@@ -411,3 +411,91 @@ def test_removed_libinc_uninstalled( tmp_path ):
     shutil.rmtree( d / 'Foo' / 'libinc' )
     run( 'sb', d )
     assert not os.path.lexists( incdir )
+
+def _n_recreated( out ):
+    return sum( 1 for line in out.splitlines()
+                if 'Recreating pkg targets for' in line )
+
+@pytest.mark.parametrize( 'errtype', [ 'pkg', 'global' ] )
+def test_config_error_keeps_previous_build( proj, errtype ):
+    #A configuration error must not destroy the previous build (which remains
+    #usable), and once the error is fixed, only what is needed must be redone
+    #(i.e. not all packages reconfigured or anything recompiled):
+    d = proj
+    if errtype == 'pkg':
+        #Error in configuration of a single package:
+        bad = d / 'PkgB' / 'app_hello' / 'bad.xyz'
+        bad.write_text( 'bad\n' )
+        errmsg = 'ERROR during configuration of package PkgB'
+    else:
+        #Error in loading of the packages:
+        bad = d / 'PkgB' / 'pkg.info'
+        orig = bad.read_text()
+        bad.write_text( 'package(USEPKG PkgA NoSuchPkg)\n' )
+        errmsg = 'NoSuchPkg'
+    for i in range(2):
+        res = run( 'sb', d, expect_ec = 1 )
+        assert errmsg in res.out
+        assert 'Traceback' not in res.out
+        assert run( 'sbenv sb_pkgb_hello', d ).stdout.strip() == 'hello 17'
+        assert ( inst( d ) / 'scripts' / 'sb_pkgb_testpy' ).exists()
+    #Fix the error:
+    if errtype == 'pkg':
+        bad.unlink()
+    else:
+        bad.write_text( orig )
+    res = run( 'sb --verbose', d )
+    assert _n_recreated( res.out ) == 1
+    assert 'Recreating pkg targets for PkgB' in res.out
+    assert n_compiled( res.out ) == 0
+    check_ok( d )
+
+def test_ctrl_c_during_configuration( proj ):
+    #CTRL-C during configuration (here: during the environment inspection via
+    #CMake) must stop cleanly, leaving the previous build usable:
+    import os
+    import signal
+    import subprocess
+    from sbtestutils import clean_env
+    d = proj
+    p = subprocess.Popen( [ 'sb', '--examine' ], cwd = d, env = clean_env(),
+                          start_new_session = True, stdout = subprocess.PIPE,
+                          stderr = subprocess.STDOUT )
+    for line in p.stdout:
+        if b'Inspecting environment via CMake' in line:
+            break
+    os.killpg( p.pid, signal.SIGINT )
+    out = p.communicate( timeout = 120 )[0].decode()
+    assert p.returncode == 130
+    assert 'Interrupted by user (CTRL-C).' in out
+    assert 'Traceback' not in out and 'ERROR' not in out
+    assert not ( bld( d ) / '.lock' ).exists()
+    assert run( 'sbenv sb_pkgb_hello', d ).stdout.strip() == 'hello 17'
+    res = run( 'sb', d )
+    assert n_compiled( res.out ) == 0
+    check_ok( d )
+
+def test_stale_pkg_removed_without_db_info( tmp_path ):
+    #Packages are removed from the cache when they are no longer enabled,
+    #even if the package database does not know they were ever there:
+    import pickle
+    import shutil
+    d = tmp_path / 'proj'
+    _apps_and_scripts_proj( d, ( 'Foo', 'Foo_Bar' ) )
+    run( 'sb', d )
+    dbfile = bld( d ) / 'globdb.pkl'
+    with dbfile.open('rb') as fh:
+        db = pickle.load( fh )
+    del db['enabled_pkgnames']
+    with dbfile.open('wb') as fh:
+        pickle.dump( db, fh )
+    shutil.rmtree( d / 'Foo' )
+    res = run( 'sb', d )
+    assert 'Uninstalling package Foo\n' in res.out
+    assert 'Uninstalling package Foo_Bar' not in res.out
+    for f in ( 'bin/sb_foo_hi', 'scripts/sb_foo_hello', 'pkgs/Foo' ):
+        assert not os.path.lexists( inst( d ) / f )
+    for f in ( 'pc/Foo', 'pkgs/Foo', 'named_targets/Foo',
+               'makefiles/Makefile_Foo.make' ):
+        assert not os.path.lexists( bld( d ) / f )
+    assert run( 'sbenv sb_foo_bar_hi', d ).stdout.strip() == 'app Foo_Bar'
