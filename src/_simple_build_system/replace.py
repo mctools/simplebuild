@@ -9,24 +9,23 @@ def decode_pattern(p):
     return p[1],p[2]#search_pattern,replace_pattern
 
 def replacefile(filename,printname,search_pattern,replace_pattern):
-    n=0
-    fh=open(filename,'rt')
-    cont=''
+    import os
+    import pathlib
+    #Operate on the actual file (and not replace symlinks with files):
+    path = pathlib.Path(os.path.realpath(filename))
     try:
-        for ll in fh:
-            if search_pattern in ll:
-                n += ll.count(search_pattern)
-                ll = ll.replace(search_pattern,replace_pattern)
-            cont += ll
+        #NB: newline='' to keep line endings unchanged:
+        with path.open('rt',encoding='utf-8',newline='') as fh:
+            cont = fh.read()
     except UnicodeDecodeError:
-        #ignore non-text data files
-        n=0
-    fh.close()
+        return 0#ignore non-text data files
+    n = cont.count(search_pattern)
     if n:
-        #at least one replacement made
-        fh=open(filename,'wt')
-        fh.write(cont)
-        fh.close()
+        #at least one replacement made. Write atomically (to never leave behind
+        #partially written source files), keeping the file permissions:
+        from .utils import write_atomic
+        data = cont.replace(search_pattern,replace_pattern).encode('utf-8')
+        write_atomic( path, data, mode = path.stat().st_mode & 0o7777 )
         from .io import print
         print('  %50s : %i replacements'%(printname,n))
     return n

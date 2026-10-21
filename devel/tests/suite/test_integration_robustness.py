@@ -206,3 +206,25 @@ def test_unsafe_cachedir_path( tmp_path, badchar ):
     assert ( 'path contains unsupported characters' in res.out
              or 'Colons not allowed in cache dir' in res.out )
     assert 'Traceback' not in res.out
+
+def test_replace( tmp_path ):
+    import os
+    d = tmp_path / 'proj'
+    write_files( d, {
+        'simplebuild.cfg' : '[bundle]\nname = "proj"\n',
+        'MyPkg/pkg.info' : 'package()\n',
+        'MyPkg/scripts/myscript' : '#!/usr/bin/env bash\necho FOOBAR\n',
+        'MyPkg/data/crlf.txt' : 'FOOBAR\r\nline2\r\n',
+        'elsewhere/real.txt' : 'FOOBAR here\n',
+    } )
+    script = d / 'MyPkg' / 'scripts' / 'myscript'
+    script.chmod( 0o755 )
+    link = d / 'MyPkg' / 'data' / 'link.txt'
+    link.symlink_to( d / 'elsewhere' / 'real.txt' )
+    res = run( 'sb --replace /FOOBAR/BAZ/', d )
+    assert 'replacements' in res.out
+    assert script.read_text() == '#!/usr/bin/env bash\necho BAZ\n'
+    assert os.stat( script ).st_mode & 0o777 == 0o755
+    assert ( d / 'MyPkg' / 'data' / 'crlf.txt' ).read_bytes() == b'BAZ\r\nline2\r\n'
+    assert link.is_symlink()
+    assert ( d / 'elsewhere' / 'real.txt' ).read_text() == 'BAZ here\n'
