@@ -23,10 +23,15 @@ Extra arguments are passed on to pytest (e.g. `-k coreval`, `-m shells`,
 
 The tests are marked as `unit` (fast tests of the python code), `integration`
 (invoking `sb`, `sbrun`, `sbenv`, etc. on temporary projects), or `shells`
-(the `sb` shell function in various shells). Tests needing features which are
-not available (e.g. a particular shell, `cppcheck`, or NCrystal) are skipped,
-unless the feature is listed in the `SBTEST_REQUIRE` environment variable (see
-`suite/sbtestutils.py` for this and other environment variables).
+(the `sb` shell function in various shells).
+
+The test dependencies (the `test` optional dependencies in `pyproject.toml`,
+installed with e.g. `pip install ".[test]"`) are always required: tests needing
+them fail if they are missing, since we would otherwise be running blind. Tests
+needing other features which are not available (e.g. a particular shell,
+`cppcheck`, or NCrystal) are skipped, unless the feature is listed in the
+`SBTEST_REQUIRE` environment variable (see `suite/sbtestutils.py` for this and
+other environment variables).
 
 ## Standalone test scripts
 

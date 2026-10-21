@@ -7,9 +7,11 @@
 # Environment variables recognised (all optional, mostly intended for CI):
 #
 #   SBTEST_REQUIRE : Comma or space separated list of features which must be
-#                    available (e.g. "shell:zsh,ncrystal,cppcheck,ruff"). Tests
+#                    available (e.g. "shell:zsh,ncrystal,cppcheck"). Tests
 #                    which would otherwise be skipped due to a missing feature
-#                    will instead fail if the feature is listed here.
+#                    will instead fail if the feature is listed here. This is
+#                    not needed for test dependencies (see
+#                    require_test_dependency), which are always required.
 #   SBTEST_EXPECT_DISABLED_EXTDEPS : Space separated list of extdeps which must
 #                    be reported as disabled by sb_core_extdeps.
 #   SBTEST_LOGDIR  : If set, the commands invoked by the tests and their output
@@ -48,6 +50,16 @@ def require_feature( name, available, reason = None ):
     if name in required_features():
         pytest.fail( msg + ' but it is listed in SBTEST_REQUIRE' )
     pytest.skip( msg )
+
+def require_test_dependency( name, available ):
+    """Fail the test if a test dependency (i.e. something listed in the "test"
+    optional dependencies in pyproject.toml) is not available. Tests are never
+    skipped due to missing test dependencies, since we would then be running
+    blind."""
+    if not available:
+        pytest.fail( f'The test dependency "{name}" is not available (install'
+                     ' the test dependencies, e.g. with "pip install'
+                     ' simple-build-system[test]")', pytrace = False )
 
 def expected_disabled_extdeps():
     return _split_list( os.environ.get('SBTEST_EXPECT_DISABLED_EXTDEPS') )
@@ -222,11 +234,8 @@ class PtyProcess:
         try:
             import pyte
         except ImportError:
-            #NB: Never skip tests due to missing test dependencies, since we
-            #would then be running blind:
-            pytest.fail( 'The pyte module is required for this test (install'
-                         ' the test dependencies, e.g. with "pip install'
-                         ' simple-build-system[test]")', pytrace = False )
+            pyte = None
+        require_test_dependency( 'pyte', pyte is not None )
         if self._screen is None:
             self._screen = pyte.Screen( self._cols, self._rows )
             self._stream = pyte.ByteStream( self._screen )

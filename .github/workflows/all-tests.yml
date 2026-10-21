@@ -61,7 +61,7 @@ jobs:
 
     - name: Run test suite
       env:
-        SBTEST_REQUIRE: ruff shell:bash
+        SBTEST_REQUIRE: shell:bash
       run: |
            mkdir -p "${GITHUB_WORKSPACE}/ci-logs"
            exec > >(tee -a "${GITHUB_WORKSPACE}/ci-logs/02_run_test_suite.log") 2>&1
@@ -133,7 +133,7 @@ jobs:
 
     - name: Run test suite
       env:
-        SBTEST_REQUIRE: ruff shell:bash
+        SBTEST_REQUIRE: shell:bash
       run: |
            mkdir -p "${GITHUB_WORKSPACE}/ci-logs"
            exec > >(tee -a "${GITHUB_WORKSPACE}/ci-logs/02_run_test_suite.log") 2>&1
