@@ -165,7 +165,8 @@ jobs:
       matrix:
         include:
           - { os: ubuntu-latest, python: '3.14', shells: 'shell:bash shell:dash shell:zsh shell:ksh shell:ash' }
-          - { os: macos-latest,  python: '3.14', shells: 'shell:bash shell:zsh' }
+          #NB: ash is not available on macOS:
+          - { os: macos-latest,  python: '3.14', shells: 'shell:bash shell:dash shell:zsh shell:ksh' }
     name: shells.${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     defaults:
