@@ -44,6 +44,8 @@ jobs:
 
     - name: Pip install cmake and pybind11
       run: |
+           mkdir -p "${GITHUB_WORKSPACE}/ci-logs"
+           exec > >(tee -a "${GITHUB_WORKSPACE}/ci-logs/01_pip_install_cmake_and_pybind11.log") 2>&1
            python3 -m pip install pybind11
            python3 -m pip install cmake
            which python3
@@ -54,17 +56,23 @@ jobs:
 
     - name: Lint python
       run: |
+           mkdir -p "${GITHUB_WORKSPACE}/ci-logs"
+           exec > >(tee -a "${GITHUB_WORKSPACE}/ci-logs/02_lint_python.log") 2>&1
            python3 -m pip install ruff
            ./src/devel/ruff.x
 
     - name: Install package
       run: |
+           mkdir -p "${GITHUB_WORKSPACE}/ci-logs"
+           exec > >(tee -a "${GITHUB_WORKSPACE}/ci-logs/03_install_package.log") 2>&1
            python3 -m pip install ./src
            echo "sb --version:"
            sb --version
 
     - name: Build-and-test-release-mode
       run: |
+           mkdir -p "${GITHUB_WORKSPACE}/ci-logs"
+           exec > >(tee -a "${GITHUB_WORKSPACE}/ci-logs/04_build_and_test_release_mode.log") 2>&1
            mkdir myproj
            cd myproj
            sb --init core_val
@@ -74,6 +82,8 @@ jobs:
 
     - name: Build-and-test-debug-mode
       run: |
+           mkdir -p "${GITHUB_WORKSPACE}/ci-logs"
+           exec > >(tee -a "${GITHUB_WORKSPACE}/ci-logs/05_build_and_test_debug_mode.log") 2>&1
            mkdir myprojdebug
            cd myprojdebug
            sb --init core_val DEBUG COMPACT
@@ -85,6 +95,8 @@ jobs:
 
     - name: Build-and-test-reldbg-mode
       run: |
+           mkdir -p "${GITHUB_WORKSPACE}/ci-logs"
+           exec > >(tee -a "${GITHUB_WORKSPACE}/ci-logs/06_build_and_test_reldbg_mode.log") 2>&1
            mkdir myprojreldbg
            cd myprojreldbg
            sb --init core_val RELDBG COMPACT
@@ -96,6 +108,8 @@ jobs:
 
     - name: Verify-ncrystal-linkage
       run: |
+           mkdir -p "${GITHUB_WORKSPACE}/ci-logs"
+           exec > >(tee -a "${GITHUB_WORKSPACE}/ci-logs/07_verify_ncrystal_linkage.log") 2>&1
            #This will fail with gcc if ncrystal wheel is not available in recent
            #wheel (with gcc5 support or later). Due to std::string cxx11 abi issues.
            cd myproj
@@ -104,6 +118,8 @@ jobs:
 
     - name: Test pkgfilter
       run: |
+           mkdir -p "${GITHUB_WORKSPACE}/ci-logs"
+           exec > >(tee -a "${GITHUB_WORKSPACE}/ci-logs/08_test_pkgfilter.log") 2>&1
            mkdir myproj_pkgfilter
            cd myproj_pkgfilter
            sb --init core_val CACHEDIR::"$PWD"/../somecachedir PKGFILTER::'Core*' PKGFILTER::'!CoreLink*'
@@ -114,6 +130,8 @@ jobs:
 
     - name: Test dynamic generator
       run: |
+           mkdir -p "${GITHUB_WORKSPACE}/ci-logs"
+           exec > >(tee -a "${GITHUB_WORKSPACE}/ci-logs/09_test_dynamic_generator.log") 2>&1
            mkdir myproj_dyngen
            cp src/devel/example_project_dynamic/* ./myproj_dyngen/
            cd myproj_dyngen
@@ -122,6 +140,8 @@ jobs:
 
     - name: Test custom extdeps generator
       run: |
+           mkdir -p "${GITHUB_WORKSPACE}/ci-logs"
+           exec > >(tee -a "${GITHUB_WORKSPACE}/ci-logs/10_test_custom_extdeps_generator.log") 2>&1
            mkdir myproj_extdep
            cp -rp src/devel/example_project_custom_extdeps/* ./myproj_extdep/
            cd myproj_extdep
@@ -129,6 +149,8 @@ jobs:
 
     - name: Other tests
       run: |
+           mkdir -p "${GITHUB_WORKSPACE}/ci-logs"
+           exec > >(tee -a "${GITHUB_WORKSPACE}/ci-logs/11_other_tests.log") 2>&1
            mkdir othertests
            cd othertests
            set +x
@@ -139,3 +161,41 @@ jobs:
 #UNCOMMENT TO ENABLE:      if: always()
 #UNCOMMENT TO ENABLE:      with:
 #UNCOMMENT TO ENABLE:        limit-access-to-actor: true
+
+    - name: Upload logs
+      if: always()
+      uses: ./src/.github/actions/upload-logs
+      with:
+        name: ${{ matrix.os }}.${{ matrix.CC }}.python-${{ matrix.python }}
+
+  collect_logs:
+    #Single job downloading all per-leg "ci-logs-*" artifacts above and
+    #bundling them into one tarball, so the logs of all legs can be
+    #downloaded with a single click:
+    name: Collect all CI logs
+    needs: [ build ]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all per-leg logs
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: ci-logs-*
+          path: all-ci-logs
+
+      - name: Bundle into a single tarball
+        env:
+          #For pull requests, github.sha is a temporary merge commit, so use
+          #the commit of the PR branch instead:
+          CI_LOGS_FULL_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          echo "CI_LOGS_SHA=${CI_LOGS_FULL_SHA:0:10}" >> "$GITHUB_ENV"
+          mkdir -p all-ci-logs
+          tar -czf all-ci-logs-basictest-${CI_LOGS_FULL_SHA:0:10}.tar.gz all-ci-logs
+
+      - name: Upload combined log tarball
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: all-ci-logs-basictest-${{ env.CI_LOGS_SHA }}
+          path: all-ci-logs-basictest-${{ env.CI_LOGS_SHA }}.tar.gz
+          if-no-files-found: warn

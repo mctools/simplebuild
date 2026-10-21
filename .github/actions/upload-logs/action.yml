@@ -1,0 +1,58 @@
+name: 'upload-logs'
+description: >-
+  Gather CI logs of this job (anything already written to ./ci-logs, plus the
+  test results and CMake output from any simplebuild build directories found
+  in the workspace), and upload them as a single artifact. Use with
+  "if: always()", so logs are also uploaded when earlier steps failed.
+inputs:
+  name:
+    description: Unique (within the workflow run) name of this job/leg
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Gather logs
+      shell: bash
+      env:
+        #For pull requests, github.sha is a temporary merge commit, so use the
+        #commit of the PR branch instead:
+        CI_LOGS_FULL_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      run: |
+        set -u
+        echo "CI_LOGS_SHA=${CI_LOGS_FULL_SHA:0:10}" >> "$GITHUB_ENV"
+        mkdir -p ci-logs
+        #Test results (but not the potentially large files in the rundirs) and
+        #cmake output from all simplebuild build directories in the workspace
+        #(identified by their fingerprint files):
+        find . -name .sbbuilddir -not -path './ci-logs/*' | while read -r fp; do
+          blddir="$(dirname "${fp}")"
+          dest="ci-logs/sbbld/${blddir#./}"
+          if [ -d "${blddir}/testresults" ]; then
+            for d in "${blddir}"/testresults/*/; do
+              [ -d "$d" ] || continue
+              mkdir -p "${dest}/testresults/$(basename "$d")"
+              find "$d" -maxdepth 1 -type f -exec cp {} "${dest}/testresults/$(basename "$d")/" \;
+            done
+          fi
+          if [ -d "${blddir}/cmake" ]; then
+            mkdir -p "${dest}/cmake"
+            find "${blddir}/cmake" -maxdepth 1 -type f -name '*.txt' -not -name 'CMakeCache.txt' \
+              -exec cp {} "${dest}/cmake/" \;
+          fi
+        done
+        #Sphinx linkcheck results (lists all broken links):
+        for f in doc/build/linkcheck/output.txt src/doc/build/linkcheck/output.txt; do
+          if [ -f "$f" ]; then
+            cp "$f" ci-logs/sphinx_linkcheck_output.txt
+          fi
+        done
+        echo "CI_TIMING: $(date -u '+%Y-%m-%dT%H:%M:%SZ') -- logs gathered" >> ci-logs/timing.log
+        du -sh ci-logs
+
+    - name: Upload logs
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: ci-logs-${{ inputs.name }}-${{ env.CI_LOGS_SHA }}
+        path: ci-logs
+        if-no-files-found: warn

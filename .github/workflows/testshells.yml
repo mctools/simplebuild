@@ -21,11 +21,16 @@ jobs:
     steps:
     - name: Install more shells (Linux)
       if: runner.os == 'Linux'
-      run: sudo apt install ksh ash zsh
+      run: |
+        mkdir -p "${GITHUB_WORKSPACE}/ci-logs"
+        exec > >(tee -a "${GITHUB_WORKSPACE}/ci-logs/01_install_more_shells_linux.log") 2>&1
+        sudo apt install ksh ash zsh
 
     - name: Show shell versions (Linux)
       if: runner.os == 'Linux'
       run: |
+           mkdir -p "${GITHUB_WORKSPACE}/ci-logs"
+           exec > >(tee -a "${GITHUB_WORKSPACE}/ci-logs/02_show_shell_versions_linux.log") 2>&1
            sudo apt list dash bash ksh zsh ash
            bash --version
            zsh --version
@@ -35,6 +40,8 @@ jobs:
     - name: Show shell versions (macOS)
       if: runner.os == 'macOS'
       run: |
+           mkdir -p "${GITHUB_WORKSPACE}/ci-logs"
+           exec > >(tee -a "${GITHUB_WORKSPACE}/ci-logs/03_show_shell_versions_macos.log") 2>&1
            bash --version
            zsh --version
 
@@ -50,6 +57,8 @@ jobs:
 
     - name: Pip install cmake and pybind11
       run: |
+           mkdir -p "${GITHUB_WORKSPACE}/ci-logs"
+           exec > >(tee -a "${GITHUB_WORKSPACE}/ci-logs/04_pip_install_cmake_and_pybind11.log") 2>&1
            #For some reason adding a venv makes the later "pip install ./src"
            #work correctly. But this is NOT needed in basictest.yml. Why ?!?!
            python3 -mvenv myvenv
@@ -64,6 +73,8 @@ jobs:
 
     - name: Install package
       run: |
+           mkdir -p "${GITHUB_WORKSPACE}/ci-logs"
+           exec > >(tee -a "${GITHUB_WORKSPACE}/ci-logs/05_install_package.log") 2>&1
            . ./myvenv/bin/activate
            test -f ./src/pyproject.toml
            test -f ./src/src/_simple_build_system/__init__.py
@@ -73,7 +84,47 @@ jobs:
 
     - name: Test shell snippet
       run: |
+           mkdir -p "${GITHUB_WORKSPACE}/ci-logs"
+           exec > >(tee -a "${GITHUB_WORKSPACE}/ci-logs/06_test_shell_snippet.log") 2>&1
            . ./myvenv/bin/activate
            echo "sb --version:"
            sb --version
            ./src/devel/tests/test_envsetup_manyshells.x
+
+    - name: Upload logs
+      if: always()
+      uses: ./src/.github/actions/upload-logs
+      with:
+        name: ${{ matrix.os }}
+
+  collect_logs:
+    #Single job downloading all per-leg "ci-logs-*" artifacts above and
+    #bundling them into one tarball, so the logs of all legs can be
+    #downloaded with a single click:
+    name: Collect all CI logs
+    needs: [ build ]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all per-leg logs
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: ci-logs-*
+          path: all-ci-logs
+
+      - name: Bundle into a single tarball
+        env:
+          #For pull requests, github.sha is a temporary merge commit, so use
+          #the commit of the PR branch instead:
+          CI_LOGS_FULL_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          echo "CI_LOGS_SHA=${CI_LOGS_FULL_SHA:0:10}" >> "$GITHUB_ENV"
+          mkdir -p all-ci-logs
+          tar -czf all-ci-logs-testshells-${CI_LOGS_FULL_SHA:0:10}.tar.gz all-ci-logs
+
+      - name: Upload combined log tarball
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: all-ci-logs-testshells-${{ env.CI_LOGS_SHA }}
+          path: all-ci-logs-testshells-${{ env.CI_LOGS_SHA }}.tar.gz
+          if-no-files-found: warn
