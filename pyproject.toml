@@ -33,6 +33,12 @@ all = [
     'pybind11 >= 2.10.4',
     'cmake >= 3.24.2'
 ]
+#For running the test suite in devel/tests/suite (see devel/runtests.x):
+test = [
+    'pytest >= 7',
+    'pytest-xdist',
+    'ruff',
+]
 
 [project.urls]
 "Homepage" = "https://mctools.github.io/simplebuild/"
@@ -43,3 +49,13 @@ sb = "_simple_build_system._cli:main"
 unwrapped_simplebuild = "_simple_build_system._cli:unwrapped_main"
 sbenv = "_simple_build_system._cli:sbenv_main"
 sbrun = "_simple_build_system._cli:sbrun_main"
+
+[tool.pytest.ini_options]
+testpaths = [ "devel/tests/suite" ]
+addopts = "-ra --strict-markers"
+markers = [
+    "unit: Fast tests of python code, not invoking any build.",
+    "integration: Tests invoking sb, sbrun, sbenv, etc.",
+    "shells: Tests of the shell snippet in various shells.",
+    "incremental: Class of tests which must run in order.",
+]
