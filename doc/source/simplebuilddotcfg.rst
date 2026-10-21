@@ -142,10 +142,41 @@ bundle which is simply being used by another bundle, will be completely ignored.
   extended, and is discussed in a dedicated section :ref:`below <sbpkgfilterspec>`.
 
 * ``mode`` (string): A string which must be either ``"release"`` (the default),
-  ``"reldbg"``, or ``"debug"``. The ``"release"`` mode enables all binaries to
-  be build with debug symbols enabled, which is sometimes useful for
-  expert-level debugging. The ``debug`` mode additionally reduces the level of
-  compiler optimisations, enables ``assert(..)`` statements in C/C++ code, etc.
+  ``"reldbg"``, or ``"debug"``. The ``"reldbg"`` mode is like ``"release"``,
+  but enables all binaries to be build with debug symbols enabled, which is
+  sometimes useful for expert-level debugging. The ``"debug"`` mode
+  additionally reduces the level of compiler optimisations, enables
+  ``assert(..)`` statements in C/C++ code, etc. The mode can be overridden on
+  the command line, by the ``-r``, ``-g``, or ``-d`` flags of ``sb``, ``sbrun``,
+  and ``sbenv`` (see :ref:`build variants <sbbuildvariants>`).
+
+* ``extra_cflags`` (string or array of string): Extra flags to use when
+  compiling C and C++ code. They are added after all other flags, so they can
+  override flags otherwise used by simplebuild (e.g. ``-O2`` will override the
+  ``-O3`` used in ``"release"`` mode). Each string is split into individual
+  flags in the same way as a shell would do it, so the following are
+  equivalent:
+
+  .. code-block:: toml
+
+    extra_cflags = '-ffp-contract=off -DMYFLAG=1'
+    extra_cflags = ['-ffp-contract=off','-DMYFLAG=1']
+
+  For safety, the resulting flags can only contain letters, digits, and the
+  characters ``_+-.,:=/@%``. Builds with extra flags are carried out in
+  separate cache directories, and the flags can be ignored with the ``-x`` flag
+  of ``sb``, ``sbrun``, and ``sbenv`` (see :ref:`build variants
+  <sbbuildvariants>`). This makes it easy to compare results with and without
+  a given set of flags, without needing to edit the cfg file and rebuild
+  everything each time.
+
+* ``extra_ldflags`` (string or array of string): Like ``extra_cflags``, but for
+  flags which should be used when linking libraries and executables.
+
+* ``max_cachedirs`` (integer): The maximum number of build variants (i.e. a
+  given build mode, with or without extra flags) for which build output is
+  kept in the cache directory. When more are needed, the least recently used
+  ones are removed. The value must be from 1 to 20, and the default is 5.
 
 
 .. _sbpkgfilterspec:
