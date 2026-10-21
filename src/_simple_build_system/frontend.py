@@ -121,6 +121,16 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
     from . import envcfg
     from . import cachedirs
 
+    if opt.testreport is not None and not opt.runtests:
+        #Report results of the last test run, without building anything:
+        from .testlauncher import print_report
+        ec = print_report( dirs.testdir, dirs.installdir / 'tests' / 'testref',
+                           opt.nexcerpts, opt.testreport,
+                           filters = _parse_testfilter( opt.testfilter )[0],
+                           post_factum = True )
+        unlock()
+        sys.exit(ec)
+
     if opt.clean:
         #Remove the cache dirs of all build variants (not just the selected
         #one):
@@ -513,15 +523,7 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
 
     if opt.runtests:
         utils.remove_within( conf.test_dir(), conf.build_dir() )
-        _testfilter=None
-        do_pycoverage = False
-        if opt.testfilter:
-            _testfilter = [ fltr.strip()
-                            for fltr in opt.testfilter.split(',')
-                            if fltr.strip() ]
-            while 'COVERAGE' in _testfilter:
-                _testfilter.remove('COVERAGE')
-                do_pycoverage = True
+        _testfilter, do_pycoverage = _parse_testfilter( opt.testfilter )
         from .testlauncher import perform_tests
         ec = perform_tests( testdir = dirs.testdir,
                             installdir = dirs.installdir,
@@ -529,7 +531,8 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
                             nexcerpts = opt.nexcerpts,
                             filters = _testfilter,
                             do_pycoverage = do_pycoverage,
-                            pkgloader = pkgloader )
+                            pkgloader = pkgloader,
+                            report_spec = opt.testreport )
 
         from . import env
         from . import col
@@ -560,3 +563,12 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
     #Release the lock already now, since the caller might continue to run for a
     #long time (e.g. sbrun launching a command):
     unlock()
+
+def _parse_testfilter( testfilter ):
+    """Parse value of --testfilter into a list of patterns (or None) and a flag
+    indicating whether coverage testing was requested (by the special entry
+    "COVERAGE")."""
+    patterns = [ e.strip() for e in ( testfilter or '' ).split(',') if e.strip() ]
+    do_pycoverage = 'COVERAGE' in patterns
+    patterns = [ e for e in patterns if e != 'COVERAGE' ]
+    return ( patterns or None ), do_pycoverage

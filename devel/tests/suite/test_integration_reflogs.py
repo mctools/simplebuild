@@ -77,3 +77,55 @@ def test_excerpts( reflogproj ):
     assert '(24 lines omitted)' in out
     assert 'line 28\nline 29\nline 30\n' in out
     assert 'line 4\n' not in out
+
+def test_testreport( reflogproj ):
+    d = reflogproj
+    write_files( d, { 'OtherPkg/pkg.info' : 'package()\n',
+                      'OtherPkg/scripts/testslow' : '#!/usr/bin/env bash\nsleep 1\n' } )
+    ( d / 'OtherPkg' / 'scripts' / 'testslow' ).chmod( 0o755 )
+    #No results yet:
+    res = run( 'sb --testreport', d, expect_ec = 1 )
+    assert 'No test results are available for this build variant' in res.out
+    live = run( 'sb -t', d, expect_ec = 73 )
+    rows = _result_rows( live.out )
+    assert len(rows) == 6
+    #Report afterwards is the same:
+    res = run( 'sb --testreport', d, expect_ec = 73 )
+    assert 'Report of test results from ' in res.out
+    assert _result_rows( res.out ) == rows
+    assert list( _result_rows( res.out ) ) == sorted( rows )
+    assert 'WARNING' not in res.out
+    #Sorting:
+    res = run( 'sb --testreport=time', d, expect_ec = 73 )
+    assert list( _result_rows( res.out ) )[0] == 'sb_otherpkg_testslow'
+    res = run( 'sb --testreport=pkg', d, expect_ec = 73 )
+    assert list( _result_rows( res.out ) )[-1] == 'sb_otherpkg_testslow'
+    #Only failed, and filters:
+    res = run( 'sb --testreport=failed,name', d, expect_ec = 73 )
+    assert sorted( _result_rows( res.out ) ) == sorted( k for k,v in rows.items()
+                                                       if 'FAIL' in v )
+    assert '(2 of the 6 tests are not shown)' in res.out
+    res = run( "sb --testreport --testfilter='*same,*slow'", d )
+    assert sorted( _result_rows( res.out ) ) == [ 'sb_mypkg_same', 'sb_otherpkg_testslow' ]
+    assert 'All tests completed without failures!' in res.out
+    #Also applies when running tests:
+    res = run( 'sb -t --testreport=failed', d, expect_ec = 73 )
+    assert len( _result_rows( res.out ) ) == 4
+    #Results of each build variant are separate:
+    res = run( 'sb -d --testreport', d, expect_ec = 1 )
+    run( 'sb -d -t --testfilter=sb_mypkg_same', d )
+    assert list( _result_rows( run( 'sb -d --testreport', d ).out ) ) == [ 'sb_mypkg_same' ]
+    res = run( 'sb --testreport', d, expect_ec = 73 )
+    assert _result_rows( res.out ) == rows
+    #Warning when the results might be outdated:
+    ( d / 'OtherPkg' / 'scripts' / 'testslow' ).write_text( '#!/usr/bin/env bash\n' )
+    run( 'sb', d )
+    res = run( 'sb --testreport', d, expect_ec = 73 )
+    assert 'packages were changed' in res.out and 'OtherPkg' in res.out
+    #Invalid usage:
+    res = run( 'sb --testreport=bad', d, expect_ec = 2 )
+    assert 'Invalid keyword "bad" in --testreport' in res.out
+    res = run( 'sb --testreport=time,pkg', d, expect_ec = 2 )
+    assert 'Only one sort order' in res.out
+    res = run( 'sb --testreport --pkginfo MyPkg', d, expect_ec = 2 )
+    assert 'mutually exclusive' in res.out

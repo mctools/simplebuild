@@ -195,6 +195,15 @@ $> {_p} --init dgcode PKGFILTER::SomeFilter
                            action="store_true", dest="runtests",
                            help="Run unit tests after the build.")
     exclusive.add(('--tests','runtests'))
+    group_test.add_argument("--testreport", nargs='?', const='', default=None,
+                            dest="testreport", metavar="SPEC",
+                            help=('Print report of the test results from the'
+                                  ' last run\nof tests (without building or'
+                                  ' running tests),\nor customise the report'
+                                  ' when used with -t.\nOptional SPEC is a'
+                                  ' comma separated list of\n"name", "pkg", or'
+                                  ' "time" (sort order), and\n"failed" (only'
+                                  ' show failed tests).'))
     group_test.add_argument("--testexcerpts", type=int, dest="nexcerpts",
                             default=0,metavar="N",
                             help=("Print N first+last lines of failed test log"
@@ -266,6 +275,11 @@ $> {_p} --init dgcode PKGFILTER::SomeFilter
             flag,attr=a
         if bool(getattr(args,attr)):
             present_exclusive.add(flag)
+    if args.testreport is not None:
+        args.testreport = parse_testreport_spec( args.testreport, parser.error )
+        if not args.runtests:
+            #Reporting results without running tests is a mode of its own:
+            present_exclusive.add('--testreport')
     if len(present_exclusive)>1:
         f1=list(present_exclusive)[0]
         f2=list(present_exclusive)[1]
@@ -353,3 +367,26 @@ $> {_p} --init dgcode PKGFILTER::SomeFilter
         return parser, args
     else:
         return args
+
+testreport_sort_keys = ('name','pkg','time')
+
+def parse_testreport_spec( spec, error_fct ):
+    """Parse the SPEC of --testreport[=SPEC] into a dictionary with keys "sort"
+    (one of testreport_sort_keys) and "failedonly" (bool)."""
+    res = dict( sort = 'name', failedonly = False )
+    nsort = 0
+    for e in ( spec or '' ).split(','):
+        e = e.strip().lower()
+        if not e:
+            continue
+        if e in testreport_sort_keys:
+            res['sort'] = e
+            nsort += 1
+        elif e == 'failed':
+            res['failedonly'] = True
+        else:
+            _ = ', '.join( f'"{k}"' for k in testreport_sort_keys + ('failed',) )
+            error_fct(f'Invalid keyword "{e}" in --testreport (valid keywords: {_})')
+    if nsort > 1:
+        error_fct('Only one sort order can be specified in --testreport')
+    return res
