@@ -85,11 +85,11 @@ def perform_tests(testdir,
                 _pos_filters.append( fltr )
         def filter_fct( testname ):
             if _pos_filters:
-                if not any( fnmatch.fnmatch(runnable,fltr)
+                if not any( fnmatch.fnmatch(testname,fltr)
                             for fltr in _pos_filters ):
                     return False
             if _neg_filters:
-                if any( fnmatch.fnmatch(runnable,fltr)
+                if any( fnmatch.fnmatch(testname,fltr)
                         for fltr in _neg_filters ):
                     return False
             return True
@@ -122,7 +122,8 @@ def perform_tests(testdir,
 
     mkdir_p(testdir)
     _pyexec = shlex.quote( sys.executable or 'python3' )
-    mf=open(_ospathjoin(testdir,'Makefile'),'w')
+    import io
+    mf = io.StringIO()
 
     mf.write('TESTDIR:=%s\n\n'%os.path.abspath(testdir))
 
@@ -147,7 +148,7 @@ def perform_tests(testdir,
         bn=os.path.basename(t)
         td=_ospathjoin(testdir,bn)
         mkdir_p(td)
-        tf=open(_ospathjoin(td,'run.sh'),'w')
+        tf = io.StringIO()
         tf.write('#!/usr/bin/env bash\n')
         cmdstr = bn
         if do_pycoverage:
@@ -168,7 +169,7 @@ def perform_tests(testdir,
             tf.write("""if [ $EC == 0 ]; then
       diff -a --ignore-all-space %s ../output.log > ../refdiff.log || diff -a --ignore-all-space -y %s ../output.log > ../refdiff_sidebyside.log; EC=$?; echo $EC > ../ecdiff.txt
     fi"""%(ref,ref))
-        tf.close()
+        pathlib.Path(td,'run.sh').write_text( tf.getvalue() )
 
         alltests+=[bn]
         mf.write('.PHONY: %s\n\n'%bn)
@@ -177,18 +178,27 @@ def perform_tests(testdir,
         mf.write('\n\n')
 
     mf.write('all: %s\n\n'%(' '.join(alltests)))
-    mf.close()
+    pathlib.Path(testdir,'Makefile').write_text( mf.getvalue() )
 
     from .envsetup import create_install_env_clone
     test_env = create_install_env_clone()
     test_env['DISPLAY']=''
     test_env['PYTHONUNBUFFERED']='1'
     ec_global=system('make -j%i -k -f %s/Makefile all'%(njobs,testdir), env = test_env )
+    def read_number( fn, numtype ):
+        #Missing or invalid result files can happen if tests are killed or the
+        #test run is interrupted. Returns None in that case.
+        try:
+            with open(fn) as fh:
+                return numtype(fh.read().strip())
+        except (OSError,ValueError):
+            return None
     rep=[]
     for t in alltests:
         td=_ospathjoin(testdir,t)
-        ecdiff=None if not os.path.exists(_ospathjoin(td,'ecdiff.txt')) else int(open(_ospathjoin(td,'ecdiff.txt')).read())
-        rep+=[(t,int(open(_ospathjoin(td,'ec.txt')).read()),ecdiff)]
+        ecdiff = read_number( _ospathjoin(td,'ecdiff.txt'), int )
+        ec = read_number( _ospathjoin(td,'ec.txt'), int )
+        rep+=[(t, 1 if ec is None else ec, ecdiff)]
     rep.sort()
     excerpts_to_print=[]
     if nfiltered:
@@ -196,7 +206,7 @@ def perform_tests(testdir,
         print()
     print_header()
     for t,ec,ecdiff in rep:
-        time_ms=float(open(_ospathjoin(testdir,t,'timing_ms')).read())
+        time_ms = read_number( _ospathjoin(testdir,t,'timing_ms'), float ) or 0.0
         ecstr='FAIL' if ec else ' OK '
         logdiffstr=' -- '
         if ecdiff is not None:
@@ -240,7 +250,6 @@ def perform_tests(testdir,
         testxmlwriter = testxml.TestXMLWriter()
         for testcmd in tests:
             nfo = testinfo[testcmd]
-            nfo['time_ms'] = 100.0
             test = testxml.Test(testcmd,nfo['pkgname'],nfo['time_ms']*0.001)
             if nfo['exitcode'] != 0:
                 test.set_run_failure(nfo['logfile'])

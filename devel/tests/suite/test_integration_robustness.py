@@ -148,6 +148,34 @@ def test_killed_during_build( proj ):
     res = check_ok( proj )
     assert 'Removing stale lock file' in res.out
 
+def test_test_results( tmp_path ):
+    #Test timings must be reported, and tests killed before reporting their
+    #exit code must be reported as failures (and not crash sb):
+    import xml.etree.ElementTree as ET
+    d = tmp_path / 'proj'
+    write_files( d, {
+        'simplebuild.cfg' : '[bundle]\nname = "proj"\n',
+        'MyPkg/pkg.info' : 'package()\n',
+        'MyPkg/scripts/testslow' : '#!/usr/bin/env bash\nsleep 1\n',
+        'MyPkg/scripts/testkilled' : '#!/usr/bin/env bash\nkill -9 $PPID\n',
+    } )
+    for f in ( 'testslow', 'testkilled' ):
+        ( d / 'MyPkg' / 'scripts' / f ).chmod( 0o755 )
+    res = run( 'sb -t', d, expect_ec = 73 )
+    assert 'Traceback' not in res.out
+    lines = [ e for e in res.out.splitlines() if 'sb_mypkg_test' in e ]
+    assert any( 'sb_mypkg_testkilled' in e and 'FAIL' in e for e in lines )
+    assert any( 'sb_mypkg_testslow' in e and ' OK ' in e for e in lines )
+    xmlfile = bld( d ) / 'testresults' / 'simplebuild_test_results_junitformat.xml'
+    times = { tc.get('name') : float( tc.get('time') )
+              for tc in ET.parse( xmlfile ).getroot().iter( 'testcase' ) }
+    assert times['sb_mypkg_testslow'] >= 0.9
+    #Test filters:
+    res = run( "sb -t --testfilter='*slow'", d )
+    assert 'sb_mypkg_testslow' in res.out and 'sb_mypkg_testkilled' not in res.out
+    res = run( "sb -t --testfilter='!*killed'", d )
+    assert 'sb_mypkg_testslow' in res.out and 'sb_mypkg_testkilled' not in res.out
+
 def test_makefiles_use_same_python( proj ):
     #The generated makefiles must use the python interpreter running
     #simplebuild, and not whatever "python3" is in the PATH:
