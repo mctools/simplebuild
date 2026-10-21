@@ -86,6 +86,9 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
         print("FIXME: summary mode is not yet implemented!")
         raise SystemExit
 
+    if opt.reflogupdate and not ( sys.stdin.isatty() and sys.stdout.isatty() ):
+        error.error('The --reflogupdate option requires an interactive terminal')
+
     #setup lockfile:
     from . import dirs
 
@@ -105,7 +108,15 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
     def _on_stale_lock( info ):
         print(f'Removing stale lock file (created {info.describe()} which is'
               ' no longer running).')
-    _ok, _ = lockfile.acquire( dirs.lockfile, on_stale_removal = _on_stale_lock )
+    #A parent process holding the lock can let us use it (this is used when
+    #rebuilding from within "sb --reflogupdate"):
+    _inherited = os.environ.pop( _inherited_lock_envvar, None )
+    _info = lockfile.read_lock( dirs.lockfile ) if _inherited else None
+    if _info is not None and _info.content == _inherited:
+        _ok, _ = True, _inherited
+    else:
+        _inherited = None
+        _ok, _ = lockfile.acquire( dirs.lockfile, on_stale_removal = _on_stale_lock )
     if not _ok:
         error.error('Presence of lock file indicates competing invocation of '
                     f'{progname} ({_.describe()}). Force removal'
@@ -113,7 +124,8 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
     lockfile_content = _
 
     def unlock():
-        lockfile.release( dirs.lockfile, lockfile_content )
+        if not _inherited:
+            lockfile.release( dirs.lockfile, lockfile_content )
     import atexit
     atexit.register(unlock)
 
@@ -128,6 +140,12 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
                            opt.nexcerpts, opt.testreport,
                            filters = _parse_testfilter( opt.testfilter )[0],
                            post_factum = True )
+        unlock()
+        sys.exit(ec)
+
+    if opt.reflogupdate and not opt.runtests:
+        #Review the results of the last test run, without building anything:
+        ec = _reflogupdate( opt, lockfile_content )
         unlock()
         sys.exit(ec)
 
@@ -533,6 +551,8 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
                             do_pycoverage = do_pycoverage,
                             pkgloader = pkgloader,
                             report_spec = opt.testreport )
+        if opt.reflogupdate:
+            _reflogupdate( opt, lockfile_content )
 
         from . import env
         from . import col
@@ -572,3 +592,64 @@ def _parse_testfilter( testfilter ):
     do_pycoverage = 'COVERAGE' in patterns
     patterns = [ e for e in patterns if e != 'COVERAGE' ]
     return ( patterns or None ), do_pycoverage
+
+_inherited_lock_envvar = 'SIMPLEBUILD_INHERITED_LOCK'
+
+def _reflogupdate( opt, lockfile_content ):
+    """Interactive review and update of reference logs. Returns exit code."""
+    import os
+    import sys
+    import subprocess
+    from . import dirs
+    from . import error
+    from . import io as _io
+    from .reflogupdate import Session
+    from .testlauncher import rerun_test
+    if not ( sys.stdin.isatty() and sys.stdout.isatty() ):
+        error.error('The --reflogupdate option requires an interactive terminal')
+
+    def rerun( name ):
+        return rerun_test( dirs.testdir, dirs.installdir, dirs.blddir, name )
+
+    def rebuild():
+        #Rebuild in a child process (with the same build variant), letting it
+        #use the lock we are holding:
+        from . import variant
+        vf = variant.selected()
+        args = ( [ vf.mode_flag() ] if vf.mode else [] ) + (
+            [ '-x' ] if vf.ignore_extra_flags else [] )
+        code = ( 'import sys; sys.argv[0] = "sb"; from'
+                 ' _simple_build_system._cli import main; main()' )
+        env = dict( os.environ )
+        env[_inherited_lock_envvar] = lockfile_content
+        return subprocess.run( [ sys.executable, '-c', code, '--quiet' ] + args,
+                               env = env ).returncode == 0
+
+    session = Session( dirs.testdir, dirs.installdir,
+                       filters = _parse_testfilter( opt.testfilter )[0],
+                       rerun_fct = rerun, rebuild_fct = rebuild )
+    if not session.has_results:
+        _io.print('No test results are available for this build variant'
+                  ' (run tests with "-t" first).')
+        return 1
+    if session.nfailed_jobs:
+        _io.print(f'Note: Ignoring {session.nfailed_jobs} tests with reference'
+                  ' logs which failed to run.')
+    if not session.candidates:
+        _io.print('There are no reference logs which differ from the output'
+                  ' of the tests.')
+        return 0
+    from .reflogui import run_reflogupdate
+    try:
+        run_reflogupdate( session )
+    finally:
+        n = len( session.updated_files )
+        _io.print('Updated %i reference log%s%s'%( n, '' if n == 1 else 's',
+                                                    ':' if n else '.' ))
+        for f in session.updated_files:
+            try:
+                f = os.path.relpath( f )
+            except ValueError:
+                pass
+            _io.print(f'    {f}')
+    return 0

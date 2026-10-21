@@ -139,3 +139,128 @@ def write_files( basedir, files ):
         f = basedir / relpath
         f.parent.mkdir( parents = True, exist_ok = True )
         f.write_text( content )
+
+class PtyProcess:
+    """Run a command in a pseudo terminal, for testing interactive (e.g.
+    curses based) programs. The output is collected, and can be searched either
+    as a stream of text (with escape codes removed), or as the content of the
+    screen as it would be displayed (the latter requires the pyte module, and
+    is needed for curses based programs, which only redraw changed parts of
+    the screen)."""
+
+    def __init__( self, cmd, cwd, rows = 30, cols = 140, env_extra = None ):
+        import os
+        import pty
+        import struct
+        import fcntl
+        import termios
+        env = clean_env( env_extra )
+        env['TERM'] = 'xterm'
+        env['LINES'], env['COLUMNS'] = str(rows), str(cols)
+        env['LANG'] = env['LC_ALL'] = 'C.UTF-8'
+        self.pid, self.fd = pty.fork()
+        if self.pid == 0:
+            #Set the terminal size before the program starts:
+            fcntl.ioctl( 0, termios.TIOCSWINSZ,
+                         struct.pack( 'HHHH', rows, cols, 0, 0 ) )
+            os.chdir( cwd )
+            os.execvpe( cmd[0], cmd, env )
+        self.raw = b''
+        self.ec = None
+        self._pos = 0
+        self._rows, self._cols = rows, cols
+        self._screen = None
+
+    @property
+    def text( self ):
+        #Screen output with escape sequences removed (not an exact rendering
+        #of the screen, but good enough for finding text):
+        t = self.raw.decode( 'utf-8', errors = 'replace' )
+        t = re.sub( r'\x1b\[[0-9;?]*[A-Za-z]', ' ', t )
+        return re.sub( r'\x1b[()][A-Za-z0-9]|\x1b[=>]|\x0f|\x0e', '', t )
+
+    def _read( self, timeout ):
+        import os
+        import select
+        r, _, _ = select.select( [ self.fd ], [], [], timeout )
+        if not r:
+            return False
+        try:
+            data = os.read( self.fd, 65536 )
+        except OSError:
+            data = b''
+        if not data:
+            self._reap()
+            return False
+        self.raw += data
+        return True
+
+    def _reap( self ):
+        import os
+        if self.ec is None:
+            _, status = os.waitpid( self.pid, 0 )
+            self.ec = os.waitstatus_to_exitcode( status )
+
+    def wait_for( self, pattern, timeout = 60 ):
+        """Wait for regex pattern to appear in the output after the end of
+        the previous match (like the "expect" command), and return the
+        match."""
+        import time
+        t0 = time.time()
+        while True:
+            m = re.compile( pattern ).search( self.text, self._pos )
+            if m:
+                self._pos = m.end()
+                return m
+            if self.ec is not None or time.time() - t0 > timeout:
+                raise AssertionError( f'Pattern {pattern!r} not found. Output:\n'
+                                      + self.text[-3000:] )
+            self._read( 0.2 )
+
+    def screen( self ):
+        """The current content of the screen (requires pyte)."""
+        try:
+            import pyte
+        except ImportError:
+            #NB: Never skip tests due to missing test dependencies, since we
+            #would then be running blind:
+            pytest.fail( 'The pyte module is required for this test (install'
+                         ' the test dependencies, e.g. with "pip install'
+                         ' simple-build-system[test]")', pytrace = False )
+        if self._screen is None:
+            self._screen = pyte.Screen( self._cols, self._rows )
+            self._stream = pyte.ByteStream( self._screen )
+            self._nfed = 0
+        self._stream.feed( self.raw[self._nfed:] )
+        self._nfed = len( self.raw )
+        return '\n'.join( line.rstrip() for line in self._screen.display )
+
+    def wait_for_screen( self, pattern, timeout = 60 ):
+        """Wait for regex pattern to appear on the screen, and return the
+        match."""
+        import time
+        t0 = time.time()
+        while True:
+            self._read( 0.1 )
+            m = re.compile( pattern ).search( self.screen() )
+            if m:
+                return m
+            if self.ec is not None or time.time() - t0 > timeout:
+                raise AssertionError( f'Pattern {pattern!r} not found on'
+                                      ' screen:\n' + self.screen() )
+
+    def send( self, keys ):
+        import os
+        import time
+        os.write( self.fd, keys.encode() if isinstance( keys, str ) else keys )
+        time.sleep( 0.1 )
+
+    def wait_exit( self, timeout = 60 ):
+        import time
+        t0 = time.time()
+        while self.ec is None:
+            if time.time() - t0 > timeout:
+                raise AssertionError( 'Process did not exit. Output:\n'
+                                      + self.text[-3000:] )
+            self._read( 0.2 )
+        return self.ec

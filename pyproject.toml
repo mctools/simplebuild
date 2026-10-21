@@ -38,6 +38,7 @@ test = [
     'pytest >= 7',
     'pytest-xdist',
     'ruff',
+    'pyte',
 ]
 
 [project.urls]

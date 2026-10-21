@@ -129,3 +129,104 @@ def test_testreport( reflogproj ):
     assert 'Only one sort order' in res.out
     res = run( 'sb --testreport --pkginfo MyPkg', d, expect_ec = 2 )
     assert 'mutually exclusive' in res.out
+
+def _start_reflogupdate( d, args = () ):
+    from sbtestutils import PtyProcess
+    p = PtyProcess( [ 'sb', '--reflogupdate', *args ], d )
+    p.wait_for_screen( r'Press \? for help' )
+    return p
+
+def _confirm_code( p ):
+    m = p.wait_for_screen( r'type the code ([a-z0-9]{5}) in reverse order' )
+    return m.group(1)
+
+def test_reflogupdate( reflogproj ):
+    d = reflogproj
+    scripts = d / 'MyPkg' / 'scripts'
+    #The reference log in the package might itself be a symlink:
+    ( d / 'elsewhere.log' ).write_text( _reflogs['different'] )
+    ( scripts / 'different.log' ).unlink()
+    ( scripts / 'different.log' ).symlink_to( '../../elsewhere.log' )
+    #Non-interactive usage is not possible:
+    res = run( 'sb --reflogupdate', d, expect_ec = 1 )
+    assert 'requires an interactive terminal' in res.out
+    run( 'sb -t', d, expect_ec = 73 )
+    p = _start_reflogupdate( d )
+    p.wait_for_screen( r'\[1/4\] sb_mypkg_different' )
+    #Wrong code:
+    p.send( 'u' )
+    code = _confirm_code( p )
+    p.send( code + '\r' if code != code[::-1] else 'wrong\r' )
+    p.wait_for_screen( 'Wrong code, nothing was done' )
+    #Right code (moves on to the next test):
+    p.send( 'u' )
+    p.send( _confirm_code( p )[::-1] + '\r' )
+    p.wait_for_screen( r'Updated MyPkg/scripts/different\.log' )
+    p.wait_for_screen( r'\[2/4\] sb_mypkg_innerspace' )
+    #Disable the code requirement for the rest of the session (also requires
+    #a code), and update the remaining ones:
+    p.send( 'U' )
+    p.send( _confirm_code( p )[::-1] + '\r' )
+    p.wait_for_screen( 'Codes are no longer required' )
+    p.send( 'u' )
+    p.wait_for_screen( r'\[3/4\] sb_mypkg_nonewline' )
+    p.send( 'u' )
+    p.wait_for_screen( r'\[4/4\] sb_mypkg_trailingspace' )
+    p.send( 'u' )
+    p.wait_for_screen( 'no more reference logs to update' )
+    p.send( 'q' )
+    assert p.wait_exit() == 0
+    assert 'Updated 4 reference logs:' in p.text
+    assert 'MyPkg/scripts/innerspace.log' in p.text
+    #The files were updated (also the target of the symlink), without leaving
+    #backup files around:
+    for name in _reflogs:
+        f = scripts / f'{name}.log'
+        assert f.read_text() == 'x = 1 2\n', name
+    assert ( scripts / 'different.log' ).is_symlink()
+    assert ( d / 'elsewhere.log' ).read_text() == 'x = 1 2\n'
+    assert sorted( f.name for f in scripts.iterdir() if f.suffix not in ( '', '.log' ) ) == []
+    res = run( 'sb -t', d )
+    assert 'All tests completed without failures!' in res.out
+    #Nothing to do now:
+    res = run( 'sb --reflogupdate', d, expect_ec = None )
+    #(not a terminal, so it fails before we can see that nothing is to be done)
+    from sbtestutils import PtyProcess
+    p = PtyProcess( [ 'sb', '--reflogupdate' ], d )
+    p.wait_for( 'There are no reference logs which differ from the output' )
+    assert p.wait_exit() == 0
+
+def test_reflogupdate_rerun_and_rebuild( reflogproj ):
+    d = reflogproj
+    write_files( d, { 'MyPkg/app_hello/main.cc' : ( '#include <cstdio>\nint main()'
+                                                    ' { std::printf("value v1\\n"); return 0; }\n' ),
+                      'MyPkg/app_hello/test.log' : 'value v2\n' } )
+    p = None
+    run( 'sb -t', d, expect_ec = 73 )
+    p = _start_reflogupdate( d, [ '--testfilter=*hello,*different' ] )
+    p.wait_for_screen( r'\[1/2\] sb_mypkg_different' )
+    #Change the script and run the test again:
+    ( d / 'MyPkg' / 'scripts' / 'different' ).write_text( '#!/usr/bin/env bash\necho "x = 1 3"\n' )
+    p.send( 'r' )
+    p.wait_for_screen( 'The output is now identical to the reference log' )
+    #Change the C++ code, rebuild, and run the test again:
+    p.send( 'n' )
+    p.wait_for_screen( r'\[2/2\] sb_mypkg_hello' )
+    ( d / 'MyPkg' / 'app_hello' / 'main.cc' ).write_text(
+        '#include <cstdio>\nint main() { std::printf("value v2\\n"); return 0; }\n' )
+    p.send( 'R' )
+    p.wait_for( 'Rebuilding before running sb_mypkg_hello again' )
+    p.wait_for_screen( r'hello.*IDENTICAL', timeout = 300 )
+    p.send( 'q' )
+    assert p.wait_exit() == 0
+    assert 'Updated 0 reference logs.' in p.text
+    assert not ( d / 'simplebuild_cache' / 'bld' / '.lock' ).exists()
+    rows = _result_rows( run( "sb --testreport --testfilter='*hello,*different'", d ).out )
+    assert rows == { 'sb_mypkg_different' : ( 'OK', 'OK' ),
+                     'sb_mypkg_hello' : ( 'OK', 'OK' ) }
+
+def test_old_reflogupdate_command( reflogproj ):
+    d = reflogproj
+    run( 'sb', d )
+    res = run( 'sbenv sb_core_reflogupdate', d, expect_ec = 1 )
+    assert 'replaced by the --reflogupdate\noption of sb' in res.out
