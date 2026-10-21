@@ -76,3 +76,68 @@ def test_pkginfo_case_insensitive( lockproj ):
         assert 'Package name            : MyPkg' in res.out
     res = run( 'sb --pkginfo nosuchpkg', d, expect_ec = 1 )
     assert 'Unknown package "nosuchpkg"' in res.out
+
+def test_stale_lock_removed_automatically( lockproj ):
+    #A lock left behind by a process which no longer exists (e.g. killed with
+    #SIGKILL) is removed automatically:
+    import socket
+    import subprocess
+    d = lockproj
+    run( 'sb', d )
+    p = subprocess.Popen( [ 'true' ] )
+    p.wait()
+    lockfile = d / 'simplebuild_cache' / 'bld' / '.lock'
+    lockfile.write_text( f'{p.pid}@{socket.gethostname()}' )
+    res = run( 'sb', d )
+    assert 'Removing stale lock file' in res.out
+    assert not lockfile.exists()
+
+def test_sigterm_releases_lock( lockproj, tmp_path ):
+    #When sb is terminated (e.g. by closing the terminal), it must not leave
+    #the lock behind:
+    import signal
+    import subprocess
+    import time
+    from sbtestutils import clean_env
+    d = lockproj
+    marker = tmp_path / 'test_started'
+    write_files( d, { 'MyPkg/scripts/testslow' :
+                      f'#!/usr/bin/env bash\ntouch {marker}\nsleep 20\n' } )
+    ( d / 'MyPkg' / 'scripts' / 'testslow' ).chmod( 0o755 )
+    lockfile = d / 'simplebuild_cache' / 'bld' / '.lock'
+    for sig in ( signal.SIGTERM, signal.SIGHUP ):
+        if marker.exists():
+            marker.unlink()
+        p = subprocess.Popen( [ 'sb', '-t' ], cwd = d, env = clean_env(),
+                              stdout = subprocess.DEVNULL,
+                              stderr = subprocess.DEVNULL )
+        t0 = time.time()
+        while not marker.exists():
+            assert time.time() - t0 < 300, 'test did not start'
+            assert p.poll() is None, 'sb ended prematurely'
+            time.sleep(0.1)
+        assert lockfile.exists()
+        p.send_signal( sig )
+        assert p.wait( timeout = 60 ) == 128 + sig
+        assert not lockfile.exists()
+
+def test_lock_message_describes_holder( lockproj ):
+    #The error message about a held lock must say which process holds it:
+    import subprocess
+    from _simple_build_system import lockfile as lf
+    d = lockproj
+    run( 'sb', d )
+    holder = subprocess.Popen( [ 'sleep', '60' ] )
+    try:
+        lockfile = d / 'simplebuild_cache' / 'bld' / '.lock'
+        c = f'{holder.pid}@{lf._hostname()}@{lf._boot_id()}'
+        lockfile.write_text( c )
+        res = run( 'sb', d, expect_ec = 1 )
+        assert f'by process {holder.pid}: "sleep 60", running for' in res.out
+        assert lockfile.read_text() == c
+    finally:
+        holder.kill()
+        holder.wait()
+    #Now the holder is gone, so the lock is stale:
+    res = run( 'sb', d )
+    assert 'Removing stale lock file' in res.out
