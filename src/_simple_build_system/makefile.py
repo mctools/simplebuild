@@ -78,6 +78,10 @@ def write_main(global_targets,enabled_pkgnames,fh=None):
     fh.write('else\n')
     fh.write('  P := @\n')#silence command printing
     fh.write('endif\n\n')
+    #The python interpreter running simplebuild (which is not necessarily the
+    #same as "python3" in the PATH):
+    import sys
+    _add_var('PYTHON',shlex.quote(sys.executable or 'python3'))
     _add_var('MDIR',dirs.makefiledir)
     _add_var('INST',dirs.installdir)
     _add_var('PKG',dirs.pkgdirbase)

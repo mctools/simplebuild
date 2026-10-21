@@ -121,6 +121,7 @@ def perform_tests(testdir,
         return 0
 
     mkdir_p(testdir)
+    _pyexec = shlex.quote( sys.executable or 'python3' )
     mf=open(_ospathjoin(testdir,'Makefile'),'w')
 
     mf.write('TESTDIR:=%s\n\n'%os.path.abspath(testdir))
@@ -156,12 +157,12 @@ def perform_tests(testdir,
             if _ and _.exists() and _.read_bytes().startswith(b'#!/usr/bin/env python3'):
                 coverage_outfile = coverage_out_dir / ('%s.coverage'%bn)
                 coverage_all_out_files.append( coverage_outfile )
-                cmdstr = 'python3 -m coverage run --data-file=%s %s'%(coverage_outfile,_whichbn)
+                cmdstr = '%s -m coverage run --data-file=%s %s'%(_pyexec,coverage_outfile,_whichbn)
         tf.write('mkdir rundir && cd rundir && touch ../time_start && %s &> ../output.log \n'%cmdstr)
         tf.write('EC=$?\n')
         tf.write('touch ../time_end\n')
         tf.write('echo $EC > ../ec.txt\n')
-        tf.write('python3 -c \'import os.path;print(1000.0*(os.path.getmtime("../time_end")-os.path.getmtime("../time_start")))\' > ../timing_ms\n')
+        tf.write('%s -c \'import os.path;print(1000.0*(os.path.getmtime("../time_end")-os.path.getmtime("../time_start")))\' > ../timing_ms\n'%_pyexec)
         if bn+'.log' in logfiles:
             ref=_ospathjoin(installdir,'tests/testref/%s.log'%bn)
             tf.write("""if [ $EC == 0 ]; then
@@ -217,12 +218,12 @@ def perform_tests(testdir,
          _cov_infiles = ' '.join(shlex.quote(str(e.absolute().resolve())) for e in coverage_all_out_files)
          _cov_outfile = coverage_out_dir / 'combined.coverage'
          ec = system(f'cd {shlex.quote(str(coverage_out_dir))} && '
-                     f'python3 -mcoverage combine --keep --data-file={shlex.quote(str(_cov_outfile.name))} {_cov_infiles}')
+                     f'{_pyexec} -mcoverage combine --keep --data-file={shlex.quote(str(_cov_outfile.name))} {_cov_infiles}')
          if ec!=0:
              print("ERROR: py-coverage combine step failed!")
          else:
              reportdir_quoted = shlex.quote(str((coverage_out_dir/"htmlreport").absolute().resolve()))
-             ec = system('python3 -mcoverage html '
+             ec = system(f'{_pyexec} -mcoverage html '
                          f'--data-file={shlex.quote(str(_cov_outfile.absolute().resolve()))}'
                          f'  --directory={reportdir_quoted} --ignore-errors')
              if ec!=0:

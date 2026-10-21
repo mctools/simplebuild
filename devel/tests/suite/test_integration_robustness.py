@@ -147,3 +147,14 @@ def test_killed_during_build( proj ):
     assert ( bld( proj ) / '.lock' ).exists()
     res = check_ok( proj )
     assert 'Removing stale lock file' in res.out
+
+def test_makefiles_use_same_python( proj ):
+    #The generated makefiles must use the python interpreter running
+    #simplebuild, and not whatever "python3" is in the PATH:
+    import shlex
+    import sys
+    mf = ( bld( proj ) / 'makefiles' / 'Makefile' ).read_text()
+    assert f'PYTHON := {shlex.quote(sys.executable)}\n' in mf
+    pkgmf = ( bld( proj ) / 'makefiles' / 'Makefile_PkgB.make' ).read_text()
+    assert '${PYTHON} -m_simple_build_system.instsl ' in pkgmf
+    assert 'python3 -m' not in pkgmf

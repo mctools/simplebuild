@@ -37,7 +37,7 @@ class TargetRefLogs(target_base.Target):
         self.pkgname=pkg.name
         self.deps=[mpf]
         self.code = ['@if [ ${VERBOSE} -ge 0 ]; then echo "  %sUpdating symlinks %s/testlogs%s"; fi'%(col.bldcol('symlink'),pkg.name,col.bldend),
-                     'python3 -m%s.instsl2 %s ${VERBOSE}'%(pypkgname,mpf)]
+                     '${PYTHON} -m%s.instsl2 %s ${VERBOSE}'%(pypkgname,mpf)]
 
 def tfactory_reflogs(pkg,dirtypes):
     #Must complain about any .log file in app_* which is not test.log
