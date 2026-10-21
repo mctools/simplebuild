@@ -26,7 +26,10 @@ class Test:
         self.__failure = ( 'reflogfail', logdiff_file )
 
     def __readsafe( self, fn):
-        s = pathlib.Path(fn).read_bytes()
+        try:
+            s = pathlib.Path(fn).read_bytes()
+        except OSError:
+            return ''
         s = s.decode('utf-8','backslashreplace')
         return s if len(s)<11000 else (s[0:5000]+"\n<<<skipping to the ending>>>\n"+ s[-5000:] +"\n<<<output exceeds limit for inclusion here>>>")
 
