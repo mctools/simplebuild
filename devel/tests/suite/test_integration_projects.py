@@ -72,3 +72,19 @@ def test_compilation_failure( tmp_path ):
     res = run( 'sb', d, expect_ec = None )
     assert res.ec not in ( 0, 73 )
     assert 'Build problems encountered' in res.out
+
+def test_pybind11_gcc12_workaround( make_project ):
+    #Issue #76: Workaround for false positive warnings in pybind11 < 3.0.0
+    #(the flags are only added if supported by the compiler):
+    import re
+    import pybind11
+    d = make_project( cfg = '[bundle]\nname = "proj"\n' )
+    run( 'sb', d )
+    mf = ( d / 'simplebuild_cache' / 'bld' / 'makefiles' / 'Makefile' ).read_text()
+    flags = ''.join( line for line in mf.splitlines()
+                     if line.startswith('PYBIND11_MODULE_CFLAGS :=') )
+    assert flags
+    major = int( re.match( r'^(\d+)', pybind11.__version__ ).group(1) )
+    if major >= 3:
+        assert '-Wno-array-bounds' not in flags
+        assert '-Wno-stringop-overread' not in flags

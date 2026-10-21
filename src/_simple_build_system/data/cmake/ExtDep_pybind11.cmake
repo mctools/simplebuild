@@ -51,23 +51,28 @@ function( detect_system_pybind11
   strip_cpp_version_flags( module_cflags )
   strip_cpp_version_flags( embed_cflags )
 
-  #Temporary workaround (see https://github.com/pybind/pybind11/issues/5224):
-  include(CheckCXXCompilerFlag)
-  check_cxx_compiler_flag(
-    "-Wno-array-bounds"
-    "compiler_supports_Wno-array-bounds"
-  )
-  check_cxx_compiler_flag(
-    "-Wno-stringop-overread"
-    "compiler_supports_Wno-stringop-overread"
-  )
-  if ( compiler_supports_Wno-array-bounds )
-    list(APPEND embed_cflags "-Wno-array-bounds")
-    list(APPEND module_cflags "-Wno-array-bounds")
-  endif()
-  if ( compiler_supports_Wno-stringop-overread )
-    list(APPEND embed_cflags "-Wno-stringop-overread")
-    list(APPEND module_cflags "-Wno-stringop-overread")
+  #Workaround for false positive warnings from GCC 12 in pybind11 versions
+  #before 3.0.0 (see https://github.com/pybind/pybind11/issues/5224). This is
+  #fixed by https://github.com/pybind/pybind11/pull/5355, which is included in
+  #pybind11 3.0.0, so the workaround can be removed once we require that.
+  if ( "${pybind11_version}" VERSION_LESS "3.0.0" )
+    include(CheckCXXCompilerFlag)
+    check_cxx_compiler_flag(
+      "-Wno-array-bounds"
+      "compiler_supports_Wno-array-bounds"
+    )
+    check_cxx_compiler_flag(
+      "-Wno-stringop-overread"
+      "compiler_supports_Wno-stringop-overread"
+    )
+    if ( compiler_supports_Wno-array-bounds )
+      list(APPEND embed_cflags "-Wno-array-bounds")
+      list(APPEND module_cflags "-Wno-array-bounds")
+    endif()
+    if ( compiler_supports_Wno-stringop-overread )
+      list(APPEND embed_cflags "-Wno-stringop-overread")
+      list(APPEND module_cflags "-Wno-stringop-overread")
+    endif()
   endif()
 
   #For some reason the -DUSING_pybind11 define does not get added with the
