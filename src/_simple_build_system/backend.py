@@ -254,18 +254,6 @@ def perform_cfg( *,
             lt.symlink_to(p.dirname,target_is_directory=True)
             rd[p.name]=p.reldirname#ok to update immediately?
 
-    def nuke_pkg(pkgname):
-        if verbose:
-            print(f'Completely wiping cache for {pkgname}')
-        conf.uninstall_package(pkgname)
-        for d in ( dirs.pkg_cache_dir(pkgname),
-                   dirs.named_targets_pkg_dir(pkgname),
-                   dirs.pkg_dir(pkgname) ):#NB: the latter is a link to the pkg
-            utils.remove_within( d, dirs.blddir )
-        utils.remove_within( dirs.makefiledir / f'Makefile_{pkgname}.make',
-                             dirs.blddir )
-        db.clear_pkg(pkgname)
-
     from . import target_builder
 
     #For packages whose targets should be loaded from pickle files, make sure
@@ -301,8 +289,6 @@ def perform_cfg( *,
                 if verbose:
                     print(f'Recreating pkg targets for {p.name}')
                 target_builder.create_pkg_targets(p)#this also dumps to pickle!
-            except KeyboardInterrupt:
-                err_txt = "Halted by user interrupt (CTRL-C)"
             except Exception as e:
                 err_txt=str(e)
                 if not err_txt:
@@ -310,8 +296,13 @@ def perform_cfg( *,
                 if not isinstance(e,error.Error):
                     unclean_exception = e
             if err_txt:
-                #Error! Nuke the offending package and mark ALL packages for
-                #reconfig (since even the OK ones will not get makefiles updated).
+                #Error! Note that we exit without saving the package database
+                #(and the same happens in case of KeyboardInterrupt
+                #exceptions). Thus, all the packages processed in this
+                #invocation, including the offending one, will simply be
+                #processed again in the next invocation, while the previous
+                #build (makefiles and install area) is left untouched and
+                #consistent with the saved database:
                 from . import col
                 print()
                 print(f'{col.bad}ERROR during configuration of package {p.name}:{col.end}')
@@ -319,9 +310,6 @@ def perform_cfg( *,
                 for e in err_txt.splitlines():
                     print(f'  {e}')
                 print()
-                nuke_pkg(p.name)
-                db.db['pkg2timestamp']={}
-                db.save_to_file()
                 if unclean_exception:
                     #unknown exceptions need an ugly traceback so we can notice and try to avoid them in the future
                     error.print_traceback(unclean_exception)
@@ -400,13 +388,13 @@ def perform_cfg( *,
     if export_jsoncmds_finalise:
         export_jsoncmds_finalise()
 
+    #Remove all packages which are no longer enabled (e.g. removed or
+    #disabled) from the cache:
     enabled_pkgnames=set(enabled_pkgnames)
-    if 'enabled_pkgnames' in db.db:
-        #Test if any pkgs got disabled compared to last time and remove it from install area:
-        for disappeared_pkgname in db.db['enabled_pkgnames'].difference(enabled_pkgnames):
-            if not quiet:
-                print("Uninstalling package %s"%disappeared_pkgname)
-            nuke_pkg(disappeared_pkgname)
+    for pkgname in sorted(pkgnames_in_cache() - enabled_pkgnames):
+        if not quiet:
+            print("Uninstalling package %s"%pkgname)
+        remove_pkg_from_cache( pkgname, verbose = verbose )
     db.db['enabled_pkgnames'] = enabled_pkgnames
 
     #Save new state:
@@ -487,6 +475,40 @@ if __name__=="__main__":
         utils.write_atomic( cfgfile, content )
 
     return pl
+
+def pkgnames_in_cache():
+    """Names of all packages which have files in the build or install
+    directories. This is determined from the layout of these directories, so
+    it does not rely on the package database being complete."""
+    from . import dirs
+    from . import db
+    from . import conf
+    from .pkgutils import pkgname_valid
+    res = set( db.db.get('enabled_pkgnames') or [] )
+    #Directories with a subdirectory (or symlink) for each package:
+    for d in ( dirs.pkg_cache_dir('X').parent, dirs.named_targets_dir,
+               dirs.pkgdirbase, conf.pkg_install_dir('X').parent ):
+        if d.is_dir() and not d.is_symlink():
+            res.update( f.name for f in d.iterdir() )
+    return set( n for n in res if pkgname_valid(n) )
+
+def remove_pkg_from_cache( pkgname, verbose = False ):
+    """Remove all traces of a package from the build and install
+    directories, and the package database."""
+    from . import dirs
+    from . import db
+    from . import conf
+    from . import utils
+    if verbose:
+        from .io import print
+        print(f'Removing all files of {pkgname} from the cache')
+    conf.uninstall_package(pkgname)
+    for d in ( dirs.pkg_cache_dir(pkgname),
+               dirs.named_targets_pkg_dir(pkgname),
+               dirs.pkg_dir(pkgname),#NB: a link to the package
+               dirs.makefiledir / f'Makefile_{pkgname}.make' ):
+        utils.remove_within( d, dirs.blddir )
+    db.clear_pkg(pkgname)
 
 def calc_env_changes( old, new ):
     if set(old.keys()) != set(new.keys()):
