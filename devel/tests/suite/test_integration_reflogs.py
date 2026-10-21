@@ -230,3 +230,37 @@ def test_old_reflogupdate_command( reflogproj ):
     run( 'sb', d )
     res = run( 'sbenv sb_core_reflogupdate', d, expect_ec = 1 )
     assert 'replaced by the --reflogupdate\noption of sb' in res.out
+
+def test_slowest_tests_started_first( tmp_path ):
+    import json
+    d = tmp_path / 'proj'
+    files = { 'simplebuild.cfg' : '[bundle]\nname = "proj"\n',
+              'MyPkg/pkg.info' : 'package()\n',
+              'MyPkg/scripts/testa_fast' : '#!/usr/bin/env bash\n',
+              'MyPkg/scripts/testm_medium' : '#!/usr/bin/env bash\nsleep 0.3\n',
+              'MyPkg/scripts/testz_slow' : '#!/usr/bin/env bash\nsleep 1\n' }
+    write_files( d, files )
+    for f in ( d / 'MyPkg' / 'scripts' ).iterdir():
+        f.chmod( 0o755 )
+    def started_order():
+        mf = ( _testdir(d) / 'Makefile' ).read_text()
+        line = next( line for line in mf.splitlines() if line.startswith('all:') )
+        return [ e.split('_',2)[2] for e in line.split()[1:] ]
+    #No timings at first:
+    run( 'sb -t', d )
+    assert started_order() == [ 'testa_fast', 'testm_medium', 'testz_slow' ]
+    timings = json.loads( ( d / 'simplebuild_cache' / 'bld' / 'testtimings.json' ).read_text() )
+    assert sorted( timings ) == [ 'sb_mypkg_testa_fast', 'sb_mypkg_testm_medium',
+                                  'sb_mypkg_testz_slow' ]
+    assert timings['sb_mypkg_testz_slow'] >= 1000.0
+    run( 'sb -t', d )
+    assert started_order() == [ 'testz_slow', 'testm_medium', 'testa_fast' ]
+    #New tests (without timings) are started first, and timings of tests not
+    #run are kept:
+    write_files( d, { 'MyPkg/scripts/testb_new' : '#!/usr/bin/env bash\n' } )
+    ( d / 'MyPkg' / 'scripts' / 'testb_new' ).chmod( 0o755 )
+    run( "sb -t --testfilter='!*medium'", d )
+    assert started_order() == [ 'testb_new', 'testz_slow', 'testa_fast' ]
+    run( 'sb -t', d )
+    assert started_order() == [ 'testz_slow', 'testm_medium', 'testa_fast', 'testb_new' ] or \
+        started_order() == [ 'testz_slow', 'testm_medium', 'testb_new', 'testa_fast' ]
