@@ -211,6 +211,8 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
     if opt.insist:
         conf.safe_remove_install_and_build_dir()
         dirs.create_bld_dir()
+        #The lockfile was removed along with the build dir, so recreate it:
+        dirs.lockfile.write_text(lockfile_content)
 
     cachedirs.touch_last_used( dirs.blddir )
     if envcfg.var.extra_cflags or envcfg.var.extra_ldflags:
@@ -529,3 +531,7 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
             if not needs_env_setup:
                 print(f'To see available applications, type "{conf.runnable_prefix}" and hit the TAB key twice.')
                 print()
+
+    #Release the lock already now, since the caller might continue to run for a
+    #long time (e.g. sbrun launching a command):
+    unlock()
