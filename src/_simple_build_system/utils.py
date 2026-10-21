@@ -271,6 +271,8 @@ def _remove_symlinks( symlinks, do_print ):
                     raise
 
 def update_symlinks( oldlist, newlist, do_print ):
+    """Install the symlinks in newlist and remove those in oldlist which are not
+    also in newlist. Each list is a set of (destdir,linkname,src) tuples."""
     if do_print:
         from .io import print
     else:
@@ -287,21 +289,45 @@ def update_symlinks( oldlist, newlist, do_print ):
     #create links:
     for destdir,linkname,src in newlist:
         fn = os.path.join( destdir, linkname )
-        if os.path.lexists(fn):
-            if os.path.samefile( fn, src ):
-                #Already in place
-                continue
-            else:
-                try:
-                    os.unlink(fn)
-                except FileNotFoundError:
-                    #Removed in race condition?
-                    pass
+        if os.path.islink(fn):
+            if os.readlink(fn) == str(src):
+                continue#Already in place
+            #Wrong or dangling link (e.g. pointing to a moved file):
+            try:
+                os.unlink(fn)
+            except FileNotFoundError:
+                pass#Removed in race condition?
+        elif os.path.isdir(fn):
+            from .error import error
+            error(f'Directory found where a symlink should be installed: {fn}')
+        elif os.path.lexists(fn):
+            os.unlink(fn)#Regular file in the way
         print("Installing symlink %s"%fn)
         try:
             os.symlink(src,fn)
-        except OSError as exc:
-            if exc.errno == errno.EEXIST:
-                pass#could have been created previously before an abort
-            else:
+        except FileExistsError:
+            #Created in race condition?
+            if os.readlink(fn) != str(src):
                 raise
+
+def install_symlinks_from_pickle( pklfile, load_fct, do_print ):
+    """Used by the instsl and instsl2 modules invoked from the generated
+    makefiles. The pickle file holds the needed links, and load_fct(filename)
+    must load it into a set of (destdir,linkname,src) tuples (or return None if
+    the file is absent or broken). Links previously installed (recorded in a
+    file with the .installed suffix after each successful installation) or
+    needed (recorded in a file with the .old suffix by update_pkl_if_changed),
+    which are not needed any longer, are removed."""
+    pklfile = pathlib.Path(pklfile)
+    needed = load_fct( pklfile )
+    if needed is None:
+        from .error import error
+        error(f'Could not load {pklfile} (try to run "sb -i")')
+    installed_file = pklfile.parent / ( pklfile.name + '.installed' )
+    previous = set()
+    for f in ( installed_file, pklfile.parent / ( pklfile.name + '.old' ) ):
+        _ = load_fct( f )
+        if _ is not None:
+            previous.update( _ )
+    update_symlinks( previous, needed, do_print )
+    pkl_dump( needed, installed_file )

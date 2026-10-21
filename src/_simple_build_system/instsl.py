@@ -1,25 +1,23 @@
 def extract_filelist( fn ):
+    #Returns set of (destdir,linkname,src), or None if fn is absent or broken:
     from . import utils
     import os
-    try:
-        files,srcdir,destdir = utils.pkl_load(fn)
-    except EOFError:
-        print("ERROR: pickle file %s ended unexpectedly."%fn)
-        raise
+    data = utils.pkl_load_or_none( fn )
+    if data is None:
+        return None
+    if isinstance( data, set ):
+        return data#.installed files store the extracted sets directly
+    files,srcdir,destdir = data
     return set( (destdir, fnlink, os.path.join( srcdir, fnsrc ) )
                 for fnsrc, fnlink in files )
+
 def main():
     from . import utils
     import sys
-    import os
     fn=sys.argv[1]
     verbose=int(sys.argv[2]) if len(sys.argv)>=3 else 0
     #verbose flag: -1 quiet, 0 normal, 1 verbose.
-    do_print = verbose > 0
-    newlist = extract_filelist( fn )
-    oldfn = '%s.old'%fn
-    oldlist = extract_filelist( oldfn ) if os.path.exists(oldfn) else set()
-    utils.update_symlinks( oldlist, newlist, do_print )
+    utils.install_symlinks_from_pickle( fn, extract_filelist, verbose > 0 )
 
 if __name__=='__main__':
     import sys
@@ -28,9 +26,6 @@ if __name__=='__main__':
     except KeyboardInterrupt:
         from .io import print
         print("<<symlink installation interrupted by user!>>>")
-        #Fixme: Any way to recover state?? (if so we should also catch other errors)
         sys.stdout.flush()
         sys.stderr.flush()
-        import time
-        time.sleep(0.2)
         sys.exit(1)

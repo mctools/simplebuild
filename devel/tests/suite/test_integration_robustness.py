@@ -75,6 +75,52 @@ def test_missing_makefile( proj ):
     ( bld( proj ) / 'makefiles' / 'Makefile_PkgB.make' ).unlink()
     check_ok( proj )
 
+def test_broken_symlink_state( proj ):
+    for f in ( bld( proj ) / 'pc' / 'PkgB' / 'symlinks' ).glob( '*.pkl*' ):
+        f.write_bytes( b'garbage' )
+    #Touch a file to trigger reconfiguration of the package:
+    ( proj / 'PkgB' / 'data' / 'other.txt' ).write_text( 'x\n' )
+    check_ok( proj )
+    assert ( inst( proj ) / 'data' / 'PkgB' / 'other.txt' ).is_symlink()
+
+def test_dangling_symlink_repaired( proj ):
+    #An installed symlink pointing somewhere else (e.g. a file which was
+    #moved) is repaired when the links of the package are updated:
+    link = inst( proj ) / 'scripts' / 'sb_pkgb_testpy'
+    link.unlink()
+    link.symlink_to( proj / 'nonexisting' )
+    write_files( proj, { 'PkgB/scripts/other' : '#!/usr/bin/env bash\necho hi\n' } )
+    ( proj / 'PkgB' / 'scripts' / 'other' ).chmod( 0o755 )
+    check_ok( proj )
+    assert link.resolve() == ( proj / 'PkgB' / 'scripts' / 'testpy' ).resolve()
+
+def test_removed_parts_are_uninstalled( proj ):
+    import shutil
+    app = inst( proj ) / 'bin' / 'sb_pkgb_hello'
+    pydir = inst( proj ) / 'python' / 'PkgB'
+    assert app.is_file()
+    assert any( pydir.glob( 'cmod.*' ) )
+    #Remove the app:
+    shutil.rmtree( proj / 'PkgB' / 'app_hello' )
+    run( 'sb', proj )
+    assert not app.exists()
+    #Remove the compiled module (but keep the pure python module):
+    shutil.rmtree( proj / 'PkgB' / 'pycpp_cmod' )
+    ( proj / 'PkgB' / 'scripts' / 'testpy' ).write_text(
+        '#!/usr/bin/env python3\nimport PkgB.pymod\nprint(17,PkgB.pymod.value())\n' )
+    run( 'sb', proj )
+    assert not any( pydir.glob( 'cmod.*' ) )
+    assert ( pydir / 'pymod.py' ).exists()
+    res = run( [ 'sbenv', 'python3', '-c', 'import PkgB.cmod' ], proj,
+               expect_ec = None )
+    assert res.ec != 0 and 'No module named' in res.out
+    #Remove scripts and data entirely:
+    shutil.rmtree( proj / 'PkgB' / 'scripts' )
+    shutil.rmtree( proj / 'PkgB' / 'data' )
+    run( 'sb', proj )
+    assert not any( ( inst( proj ) / 'scripts' ).glob( 'sb_pkgb_*' ) )
+    assert not ( inst( proj ) / 'data' / 'PkgB' ).exists()
+
 def test_killed_during_build( proj ):
     #Kill sb (SIGKILL, so no cleanup is possible) in the middle of a build. The
     #next invocation must recover automatically (incl. removal of the stale

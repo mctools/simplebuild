@@ -211,7 +211,9 @@ def deinstall_parts(instdir,pkgname,current_parts,disappeared_parts):
             _runnable_name='%s%s_%s' %( runnable_prefix,
                                         pkgname.lower(),
                                         d[4:].lower() )
-            rm_tree( i / 'bin' / _runnable_name )
+            #Apps are files (or on macOS potentially .dSYM dirs):
+            rm_file( i / 'bin' / _runnable_name )
+            rm_tree( i / 'bin' / ( _runnable_name + '.dSYM' ) )
         elif d=='symlink__scripts':
             #FIXME: Next line clashes (see FIXME above)
             rm_pattern( i/'scripts',
@@ -236,7 +238,9 @@ def deinstall_parts(instdir,pkgname,current_parts,disappeared_parts):
                 rm_file( pkgcache / 'symlinks' / 'python.pkl.old' )
         elif d.startswith('pycpp_') or d=='symlink__python':
             if d.startswith('pycpp'):
-                rm_file( i / 'python' / pkgname / ( '%s.so'%d[6:] ) )
+                #NB: Compiled modules have names like
+                #mymod.cpython-312-x86_64-linux-gnu.so:
+                rm_file( i / 'python' / pkgname / ( d[6:] + __cache_pyextsuf ) )
             if not pydone:
                 pydone=True
                 if not any((e.startswith('pycpp') or e=='symlink__python') for e in current_parts):

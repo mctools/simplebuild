@@ -1,23 +1,16 @@
+def _load( fn ):
+    #Returns set of (destdir,linkname,src), or None if fn is absent or broken:
+    from . import utils
+    data = utils.pkl_load_or_none( fn )
+    return data if isinstance( data, set ) else None
+
 def main():
     import sys
-    import errno
     from . import utils
     fn=sys.argv[1]
     verbose=int(sys.argv[2]) if len(sys.argv)>=3 else 0
     #verbose flag: -1 quiet, 0 normal, 1 verbose.
-    do_print = verbose > 0
-    needed=utils.pkl_load(fn)
-    ofn='%s.old'%fn
-    try:
-        current = utils.pkl_load(ofn)
-    except EOFError:
-        current = set()
-    except IOError as e:
-        if e.errno == errno.ENOENT:#no such file or directory
-            current = set()
-        else:
-            raise
-    utils.update_symlinks( current, needed, do_print )
+    utils.install_symlinks_from_pickle( fn, _load, verbose > 0 )
 
 if __name__=='__main__':
     import sys
@@ -26,9 +19,6 @@ if __name__=='__main__':
     except KeyboardInterrupt:
         from .io import print
         print("<<symlink installation interrupted by user!>>>")
-        #Fixme: Any way to recover state?? (if so we should also catch other errors)
         sys.stdout.flush()
         sys.stderr.flush()
-        import time
-        time.sleep(0.2)
         sys.exit(1)
