@@ -56,8 +56,12 @@ def get_makefile_global_vars():
 
 def write_main(global_targets,enabled_pkgnames,fh=None):
     if fh is None:
-        with (dirs.makefiledir / 'Makefile').open('wt') as thefh:
-            return write_main(global_targets,enabled_pkgnames,thefh)
+        #Write atomically, to never leave behind a partially written file:
+        import io
+        thefh = io.StringIO()
+        res = write_main(global_targets,enabled_pkgnames,thefh)
+        utils.write_atomic( dirs.makefiledir / 'Makefile', thefh.getvalue() )
+        return res
 
     #the main makefile
     mf_var_cache = []
@@ -175,8 +179,12 @@ def write_main(global_targets,enabled_pkgnames,fh=None):
 
 def write_pkg(pkg):
     assert pkg.targets
-    with dirs.makefiledir.joinpath('Makefile_%s.make'%pkg.name).open('wt') as fh:
-        #disable implicit rules
-        fh.write('.SUFFIXES:\n\n')
-        _write_targets(fh,pkg.targets)
+    #Write atomically, to never leave behind a partially written file:
+    import io
+    fh = io.StringIO()
+    #disable implicit rules
+    fh.write('.SUFFIXES:\n\n')
+    _write_targets(fh,pkg.targets)
+    utils.write_atomic( dirs.makefiledir.joinpath('Makefile_%s.make'%pkg.name),
+                        fh.getvalue() )
 

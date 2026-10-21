@@ -189,8 +189,13 @@ class TargetBinary(target_base.Target):
             _cp = pathlib.Path(conda_prefix) / 'lib'
             if _cp.is_dir():
                 append_to_rpath( extra_flags, _cp)
-        if not os.path.exists(objlistfile) or open(objlistfile).read()!=sobjs:
-            open(objlistfile,'w').write(sobjs)
+        try:
+            with open(objlistfile) as fh:
+                current = fh.read()
+        except (OSError,UnicodeDecodeError):
+            current = None
+        if current != sobjs:
+            utils.write_atomic( objlistfile, sobjs )
         d=join('${INST}',instsubdir)
         #contains_message=True
         pattern = 'create_lib' if shlib else 'create_exe'

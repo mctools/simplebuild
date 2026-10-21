@@ -1,3 +1,17 @@
+def load_envcache():
+    """Load the cached results of the environment inspection (or None if absent
+    or broken, which will trigger a new inspection)."""
+    from . import dirs
+    from . import utils
+    d = utils.pkl_load_or_none( dirs.envcache )
+    keys = ( '_cmakeargs', '_autoreconf_environment',
+             '_actually_needed_extdeps', 'system', 'extdeps' )
+    if not isinstance(d,dict) or any( k not in d for k in keys ):
+        if d is not None:
+            utils.rm_f( dirs.envcache )
+        return None
+    return d
+
 def perform_cfg( *,
                  select_filter=None,
                  force_reconf=False,
@@ -59,9 +73,10 @@ def perform_cfg( *,
     cmakeargs = envcfg.var.cfg_cmake_defines[:]
 
     envdict = None
-    if not force_reconf and os.path.exists(dirs.envcache):
-        #load from cache:
-        envdict=utils.pkl_load(dirs.envcache)
+    if not force_reconf:
+        #load from cache (None if absent or broken):
+        envdict = load_envcache()
+    if envdict:
         current_reconf_environment = calc_current_reconf_environment(envdict)
         #check if reconf has been triggered:
         if envdict['_cmakeargs'] != cmakeargs:
@@ -85,7 +100,7 @@ def perform_cfg( *,
     if envdict and envdict.get('_pyversion',None)!=pyversionstr:
         if not quiet:
             print("Change in python environment detected => reinspecting via CMake")
-            envdict=None
+        envdict=None
 
     from . import env
     _devel_testextract = os.environ.get('SBLD_DEVEL_TESTCMAKECFG_MODE')
@@ -259,6 +274,27 @@ def perform_cfg( *,
         db.clear_pkg(pkgname)
 
     from . import target_builder
+
+    #For packages whose targets should be loaded from pickle files, make sure
+    #that this is actually possible (if not, the targets are recreated from
+    #scratch, which also triggers reconfiguration of client packages):
+    pickled_targets = {}
+    for p in pl.enabled_pkgs_iter():
+        if ( not p.files_in_pkg_changed() and not
+             ( dirs.makefiledir / f'Makefile_{p.name}.make' ).is_file() ):
+            #Missing makefile (e.g. cache dir partially removed):
+            if verbose:
+                print(f'Missing makefile for {p.name}')
+            p.set_files_in_pkg_changed()
+        if not p.files_in_pkg_changed() and p.any_parent_changed():
+            t = target_builder.load_pickled_pkg_targets(p)
+            if t is None:
+                if verbose:
+                    print(f'Could not load cached targets for {p.name}')
+                p.set_files_in_pkg_changed()
+            else:
+                pickled_targets[p.name] = t
+
     any_enabled=False
     for p in pl.enabled_pkgs_iter():
         any_enabled=True
@@ -306,8 +342,9 @@ def perform_cfg( *,
             rd[p.name] = p.reldirname
             pkgdb_directextdeps[p.name] = set(e for e in p.direct_deps_extnames)
         elif p.any_parent_changed():
-            #merely load targets from pickle!
-            target_builder.create_pkg_targets_from_pickle(p)
+            #merely use the targets loaded from pickle above:
+            assert not hasattr(p,'targets')
+            p.targets = pickled_targets[p.name]
         else:
             #nothing to be done
             pass
@@ -454,7 +491,7 @@ if __name__=="__main__":
     except FileNotFoundError:
         current_content = None
     if current_content != content:
-        cfgfile.write_text( content )
+        utils.write_atomic( cfgfile, content )
 
     return pl
 

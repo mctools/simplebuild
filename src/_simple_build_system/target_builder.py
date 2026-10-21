@@ -67,9 +67,13 @@ def create_pkg_targets(pkg):
     utils.mkdir_p(d)
     utils.pkl_dump(targets,os.path.join(d,'targets.pkl'))
 
-def create_pkg_targets_from_pickle(pkg):
-    assert not hasattr(pkg,'targets')
-    pkg.targets = utils.pkl_load(dirs.pkg_cache_dir(pkg,'targets.pkl'))
+def load_pickled_pkg_targets(pkg):
+    """Load the targets of the package from the pickle file written by
+    create_pkg_targets (or None if absent or broken)."""
+    t = utils.pkl_load_or_none(dirs.pkg_cache_dir(pkg,'targets.pkl'))
+    if not isinstance(t,list) or not t:
+        return None
+    return t
 
 class TargetGlobalSysModules(target_base.Target):
     isglobal=True

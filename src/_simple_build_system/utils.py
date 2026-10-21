@@ -115,6 +115,26 @@ def listfiles(d,filterfnc=0,error_on_no_match=True,ignore_logs=False):
 def is_executable(fn):
     return os.access(fn,os.X_OK)
 
+def write_atomic( path, data, *, mode = None ):
+    """Write data (str or bytes) to the file atomically, i.e. a crash or
+    interruption will never leave behind a partially written file. This is
+    done by writing to a temporary file in the same directory, which is then
+    moved into place. If mode is given, the file permissions are set to it."""
+    path = pathlib.Path(path)
+    tmp = path.parent / f'.{path.name}.tmp{os.getpid()}'
+    try:
+        with tmp.open( 'wb' if isinstance(data,bytes) else 'wt' ) as fh:
+            fh.write( data )
+        if mode is not None:
+            os.chmod( tmp, mode )
+        os.replace( tmp, path )
+    except BaseException:
+        try:
+            tmp.unlink()
+        except OSError:
+            pass
+        raise
+
 def pkl_load(fn_or_fh):
     import pickle
     if hasattr(fn_or_fh,'read'):
@@ -125,6 +145,25 @@ def pkl_load(fn_or_fh):
         with pathlib.Path(fn_or_fh).open('rb') as fh:
             return pickle.load(fh)
 
+def pkl_load_or_none( fn, *, warn_if_broken = True ):
+    """Load the pickle file if it exists and can be loaded, otherwise return
+    None. A broken file (e.g. truncated or from an incompatible version) gives a
+    warning (unless warn_if_broken is False), and is removed."""
+    fn = pathlib.Path(fn)
+    try:
+        return pkl_load( fn )
+    except FileNotFoundError:
+        return None
+    except Exception as e:
+        if warn_if_broken:
+            from .io import print
+            print(f'WARNING: Ignoring broken file {fn} ({e.__class__.__name__})')
+        try:
+            fn.unlink()
+        except OSError:
+            pass
+        return None
+
 def pkl_dump(data,fn_or_fh):
     import pickle
     if hasattr(fn_or_fh,'write'):
@@ -133,31 +172,19 @@ def pkl_dump(data,fn_or_fh):
         fn_or_fh.flush()
         return d
     else:
-        #argument is filename:
-        with pathlib.Path(fn_or_fh).open('wb') as fh:
-            d=pickle.dump(data,fh)
-        return d
+        #argument is filename (write atomically):
+        write_atomic( fn_or_fh, pickle.dumps(data) )
 
 def update_pkl_if_changed(pklcont,filename):
-    old = os.path.exists(filename)
-    readold = False
-    oldcont = None
-    changed = True
-    if old:
-        try:
-            oldcont=pkl_load(filename)
-            readold = True
-        except EOFError:
-            from . import io as _io
-            _io.print( "WARNING: Old pickle file %s ended unexpectedly"%filename)
-            oldcont = None
-            readold = False
-        if readold and oldcont == pklcont:
-            changed = False
-    if not changed:
+    """Write the pickle file if the content changed (to avoid triggering
+    makefile targets unnecessarily). The previous file is kept with an extra
+    .old suffix. Returns the previous content (None if absent or broken)."""
+    filename = pathlib.Path(filename)
+    oldcont = pkl_load_or_none( filename )
+    if oldcont is not None and oldcont == pklcont:
         return oldcont
-    if old:
-        os.rename(filename,str(filename)+'.old')
+    if oldcont is not None:
+        os.replace( filename, str(filename)+'.old' )
     pkl_dump(pklcont,filename)
     return oldcont
 
