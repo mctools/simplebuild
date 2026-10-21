@@ -98,22 +98,22 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
     if opt.removelock and dirs.lockfile.exists():
         os.remove(dirs.lockfile)
 
-    lockfile_content = str(os.getpid())
-    if dirs.lockfile.exists():
-        locking_pid = dirs.lockfile.read_text()
-        error.error('Presence of lock file indicates competing invocation of '
-                    f'{progname} (by pid {locking_pid}). Force removal'
-                    f' with {progname} --removelock if you are sure this is incorrect.')
+    from . import lockfile
+    #Make sure the lock is also released when the process is terminated:
+    lockfile.exit_cleanly_on_termination_signals()
     dirs.create_bld_dir()
-    dirs.lockfile.write_text(lockfile_content)
-
-    assert dirs.lockfile.read_text()==lockfile_content
+    def _on_stale_lock( info ):
+        print(f'Removing stale lock file (created {info.describe()} which is'
+              ' no longer running).')
+    _ok, _ = lockfile.acquire( dirs.lockfile, on_stale_removal = _on_stale_lock )
+    if not _ok:
+        error.error('Presence of lock file indicates competing invocation of '
+                    f'{progname} ({_.describe()}). Force removal'
+                    f' with {progname} --removelock if you are sure this is incorrect.')
+    lockfile_content = _
 
     def unlock():
-        expected_content = lockfile_content
-        if ( dirs.lockfile.exists()
-             and dirs.lockfile.read_text()==expected_content ):
-            dirs.lockfile.unlink()
+        lockfile.release( dirs.lockfile, lockfile_content )
     import atexit
     atexit.register(unlock)
 

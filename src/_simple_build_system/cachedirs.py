@@ -44,7 +44,9 @@ class CacheDir:
         return 0.0
 
     def is_locked( self ):
-        return ( self.blddir / '.lock' ).exists()
+        #Stale locks (from processes which no longer exist) do not count:
+        from .lockfile import is_locked
+        return is_locked( self.blddir / '.lock' )
 
     def can_remove( self ):
         #Only remove directories with the expected fingerprint files, to avoid
