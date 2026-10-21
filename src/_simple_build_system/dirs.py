@@ -58,10 +58,29 @@ def pkg_dir(pkg,*subpaths):
 def makefile_pkg_dir(pkg,*subpaths):
     return os.path.join('${PKG}',_pkgname(pkg),*subpaths)
 
-#sanity:
-for d in [str(x) for x in [blddir, *pkgsearchpath, installdir]]:
-    assert ' ' not in d, 'Spaces not allowed in directory names. Illegal path is: "%s"'%d
-    assert len(d)>3,f"suspiciously short path name: {d}"
+#Characters which would break the generated makefiles and shell commands, in
+#which the build and install directories are used unquoted:
+_unsafe_chars_blddir = set( '$#:;%\'"\\`*?[](){}|&<>!' )
+
+def check_path( path, descr, unsafe_chars = None ):
+    """Check that a directory path can be used, with a clear error message if
+    not."""
+    p = str(path)
+    bad = sorted( c for c in set(p)
+                  if c.isspace() or ( unsafe_chars and c in unsafe_chars ) )
+    if bad:
+        from . import error
+        _ = ' '.join( repr(c) for c in bad )
+        error.error(f'The {descr} path contains unsupported characters ({_}),'
+                    f' please use a different location: {p}')
+    if len(p) <= 3:
+        from . import error
+        error.error(f'Suspiciously short {descr} path: {p}')
+
+check_path( blddir, 'build directory', _unsafe_chars_blddir )
+check_path( installdir, 'install directory', _unsafe_chars_blddir )
+for _ in pkgsearchpath:
+    check_path( _, 'package search' )
 
 def create_bld_dir():
     fingerprint = blddir  / '.sbbuilddir'

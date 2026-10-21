@@ -193,3 +193,16 @@ def test_reinspect_on_flag_env_changes( proj ):
     assert 'CXXFLAGS' in res.out
     res = run( 'sb', proj, env_extra = { 'CXXFLAGS' : '-DSBTEST_DUMMY_FLAG=1' } )
     assert 'Change in environment detected' not in res.out
+
+@pytest.mark.parametrize( 'badchar', [ '$', ':', '#', '(', ' ' ] )
+def test_unsafe_cachedir_path( tmp_path, badchar ):
+    d = tmp_path / 'proj'
+    write_files( d, {
+        'simplebuild.cfg' : ( '[bundle]\nname = "proj"\n[build]\n'
+                              f'cachedir = "./cache{badchar}dir"\n' ),
+        'MyPkg/pkg.info' : 'package()\n',
+    } )
+    res = run( 'sb', d, expect_ec = 1 )
+    assert ( 'path contains unsupported characters' in res.out
+             or 'Colons not allowed in cache dir' in res.out )
+    assert 'Traceback' not in res.out
