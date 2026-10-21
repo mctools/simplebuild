@@ -56,3 +56,24 @@ def test_exact_comparison( reflogproj ):
             assert ( diff.startswith( 'NOTE: The output differs from the'
                                       ' reference log only in whitespace' )
                      == ( name != 'different' ) ), name
+
+def test_excerpts( reflogproj ):
+    d = reflogproj
+    write_files( d, { 'MyPkg/scripts/testfails' :
+                      '#!/usr/bin/env bash\nfor i in $(seq 1 30); do echo "line $i"; done\nexit 1\n' } )
+    ( d / 'MyPkg' / 'scripts' / 'testfails' ).chmod( 0o755 )
+    res = run( 'sb -t --testexcerpts=3', d, expect_ec = 73 )
+    out = res.out
+    #Differences, with changed words marked (no colours since the output is
+    #not a terminal):
+    assert 'All 4 lines of differences between reference log and output of sb_mypkg_innerspace' in out
+    assert '-x = [-12-]\n+x = {+1 2+}\n' in out
+    assert ( 'NOTE: The output differs from the reference log only in whitespace'
+             in out.split('sb_mypkg_innerspace:')[1] )
+    assert '-x = 1 [-3-]\n+x = 1 {+2+}\n' in out
+    #Output of a failed test is shortened:
+    assert 'First 3 lines of output of sb_mypkg_testfails' in out
+    assert 'line 1\nline 2\nline 3\n' in out
+    assert '(24 lines omitted)' in out
+    assert 'line 28\nline 29\nline 30\n' in out
+    assert 'line 4\n' not in out
