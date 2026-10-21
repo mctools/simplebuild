@@ -39,7 +39,7 @@ class TargetPyInit(target_base.Target):
         self.pkgname=pkg.name
         self.deps=[mpf]
         self.code = ['@if [ ${VERBOSE} -ge 0 ]; then echo "%s  Generating %s/__init__.py%s"; fi'%(col.bldcol('pymod'),pkg.name,col.bldend),
-                     'python3 -m%s.instsl2 %s ${VERBOSE}'%(pypkgname,mpf)]
+                     '${PYTHON} -m%s.instsl2 %s ${VERBOSE}'%(pypkgname,mpf)]
 
 _python_patterns = set(['pycp', 'pyth'])#todo: to conf
 def tfactory_pyinit(pkg,dirtypes):
