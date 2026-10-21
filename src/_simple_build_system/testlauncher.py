@@ -273,12 +273,8 @@ def perform_tests(testdir,
 
     if excerpts_to_print:
         for t,testdir,logname in excerpts_to_print:
-            print('\n====>\n====> First %i lines from %s/%s:\n====>'%(nexcerpts,t,logname))
-            system('head -%i %s'%(nexcerpts,_ospathjoin(testdir,t,logname)))
-            print('====> (end of %s/%s)\n'%(t,logname))
-            print('\n====>\n====> Last %i lines from %s/%s:\n====>'%(nexcerpts,t,logname))
-            system('tail -%i %s'%(nexcerpts,_ospathjoin(testdir,t,logname)))
-            print('====> (end of %s/%s)\n'%(t,logname))
+            print_excerpt( t, testdir, logname, nexcerpts,
+                           reflog = _ospathjoin(logdir,t+'.log') )
 
     sys.stdout.flush()
     sys.stderr.flush()
@@ -291,3 +287,56 @@ def perform_tests(testdir,
         print()
     #Used special exit code (73) to indicate test failures.
     return 0 if ec_global==0 else 73
+
+def excerpt_lines( lines, nexcerpts ):
+    """The first and last nexcerpts lines (all lines if there are not more
+    than twice that number of lines). Returns (head,nomitted,tail)."""
+    if len(lines) <= 2*nexcerpts:
+        return lines, 0, []
+    return lines[:nexcerpts], len(lines) - 2*nexcerpts, lines[-nexcerpts:]
+
+def print_excerpt( testname, testdir, logname, nexcerpts, reflog ):
+    """Print excerpt of the output log of a failed test, or of the differences
+    between the output and the reference log of the test."""
+    import os
+    import sys
+    from . import io as _io
+    from . import col
+    from . import reflogdiff
+    from . import diffrender
+    color = bool(col.end)
+    td = os.path.join(testdir,testname)
+    output = os.path.join(td,'output.log')
+    try:
+        if logname == 'refdiff.log':
+            ref_lines = reflogdiff.read_lines( reflog )
+            out_lines = reflogdiff.read_lines( output )
+            note = ( reflogdiff.whitespace_only_note
+                     if reflogdiff.differs_only_in_whitespace( ref_lines, out_lines )
+                     else None )
+            lines = [ diffrender.segments_to_text( row, color ) for row in
+                      diffrender.changes_rows( ref_lines, out_lines,
+                                               note = note ) ]
+            descr = 'differences between reference log and output'
+        else:
+            lines = [ diffrender.visible_text( line.rstrip('\n') ) for line
+                      in reflogdiff.read_lines( output ) ]
+            descr = 'output'
+    except OSError as e:
+        _io.print(f'Could not read results of test {testname}: {e}')
+        return
+    head, nomitted, tail = excerpt_lines( lines, nexcerpts )
+    sys.stdout.flush()
+    def emit( title, ll ):
+        _io.print('\n====>\n====> %s:\n====>'%title)
+        sys.stdout.flush()
+        for line in ll:
+            sys.stdout.write( line + '\n' )
+        sys.stdout.flush()
+    if not nomitted:
+        emit( 'All %i lines of %s of %s'%(len(lines),descr,testname), head )
+    else:
+        emit( 'First %i lines of %s of %s'%(nexcerpts,descr,testname), head )
+        _io.print('====> (%i lines omitted)'%nomitted)
+        emit( 'Last %i lines of %s of %s'%(nexcerpts,descr,testname), tail )
+    _io.print('====> (end of %s of %s)\n'%(descr,testname))
