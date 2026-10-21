@@ -199,6 +199,45 @@ def perform_tests(testdir,
     return print_report( testdir, logdir, nexcerpts, report_spec,
                          notes = notes, failed = ( ec_make != 0 ) )
 
+def rerun_test( testdir, installdir, blddir, name ):
+    """Run a single test from the last test run again (with the current
+    installation), and update its results. Returns the exit code of the test
+    (or None if it could not be run)."""
+    import os
+    import json
+    import pathlib
+    import subprocess
+    from .utils import remove_within
+    from .envsetup import create_install_env_clone
+    testdir = pathlib.Path(testdir)
+    td = testdir / name
+    if not ( td / 'run.sh' ).is_file() or not ( testdir / 'Makefile' ).is_file():
+        return None
+    for f in td.iterdir():
+        if f.name != 'run.sh':
+            remove_within( f, blddir )
+    test_env = create_install_env_clone()
+    test_env['DISPLAY']=''
+    test_env['PYTHONUNBUFFERED']='1'
+    subprocess.run( [ 'make', '-f', str(testdir/'Makefile'), name ],
+                    env = test_env, stdin = subprocess.DEVNULL,
+                    stdout = subprocess.DEVNULL, stderr = subprocess.DEVNULL )
+    ec = _read_number( td / 'ec.txt', int )
+    reflog = pathlib.Path(installdir) / 'tests' / 'testref' / f'{name}.log'
+    if ec == 0 and reflog.exists():
+        from .reflogdiff import compare_and_write_diff
+        same = compare_and_write_diff( reflog, td/'output.log', td/'refdiff.log' )
+        ( td / 'ecdiff.txt' ).write_text('0\n' if same else '1\n')
+    #Record in the information about the test run:
+    try:
+        with open( os.path.join( testdir, _runinfo_filename ) ) as fh:
+            runinfo = json.load( fh )
+        runinfo.setdefault( 'reruns', {} )[name] = _now()
+        _write_runinfo( testdir, runinfo )
+    except (OSError,ValueError):
+        pass
+    return ec
+
 def _now():
     import datetime
     return datetime.datetime.now().isoformat( timespec = 'seconds' )

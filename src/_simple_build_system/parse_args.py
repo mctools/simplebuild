@@ -204,6 +204,14 @@ $> {_p} --init dgcode PKGFILTER::SomeFilter
                                   ' comma separated list of\n"name", "pkg", or'
                                   ' "time" (sort order), and\n"failed" (only'
                                   ' show failed tests).'))
+    group_test.add_argument("--reflogupdate", action='store_true',
+                            dest="reflogupdate",
+                            help=('Interactively review differences between'
+                                  ' the\noutput of tests and their reference'
+                                  ' logs from the\nlast run of tests (or the'
+                                  ' run triggered by -t),\nand update the'
+                                  ' reference logs. Use --testfilter\nto'
+                                  ' select tests.'))
     group_test.add_argument("--testexcerpts", type=int, dest="nexcerpts",
                             default=0,metavar="N",
                             help=("Print N first+last lines of failed test log"
@@ -280,6 +288,8 @@ $> {_p} --init dgcode PKGFILTER::SomeFilter
         if not args.runtests:
             #Reporting results without running tests is a mode of its own:
             present_exclusive.add('--testreport')
+    if args.reflogupdate and not args.runtests:
+        present_exclusive.add('--reflogupdate')
     if len(present_exclusive)>1:
         f1=list(present_exclusive)[0]
         f2=list(present_exclusive)[1]

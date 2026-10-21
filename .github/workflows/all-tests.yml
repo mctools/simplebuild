@@ -126,7 +126,7 @@ jobs:
            #(one side-effect of this is that we no longer have the simplebuild
            #conda activation script!):
            conda remove --yes --force simple-build-system
-           conda install --yes pytest pytest-xdist ruff
+           conda install --yes pytest pytest-xdist ruff pyte
            python3 -m pip install .
            conda list
            sb --version
