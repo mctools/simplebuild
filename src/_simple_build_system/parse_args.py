@@ -214,6 +214,13 @@ $> {_p} --init dgcode PKGFILTER::SomeFilter
                                   ' run triggered by -t),\nand update the'
                                   ' reference logs. Use --testfilter\nto'
                                   ' select tests.'))
+    group_test.add_argument("--testorder", choices=('slowest','fastest'),
+                            default='slowest', dest="testorder",
+                            help=('Order in which tests are started, based on'
+                                  ' their\ntimings in previous runs:'
+                                  ' "slowest" first (the\ndefault, for the'
+                                  ' shortest total time), or\n"fastest" first'
+                                  ' (to get results quickly).'))
     group_test.add_argument("--testexcerpts", type=int, dest="nexcerpts",
                             default=0,metavar="N",
                             help=("Print N first+last lines of failed test log"

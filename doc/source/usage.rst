@@ -213,8 +213,15 @@ excerpts. With ``sb --testreport=interactive`` (which can also be combined with
 ``-t``), the results can instead be browsed interactively: the output of tests,
 or the differences between their output and their reference logs, can be
 inspected, and tests can be run again, optionally after rebuilding (press ``?``
-for a list of keys). When running tests, the slowest tests (as measured in previous runs)
-are started first, to avoid ending up waiting for a single slow test at the end.
+for a list of keys). When running tests, the slowest tests (as measured in
+previous runs) are started first, to avoid ending up waiting for a single slow
+test at the end (with ``--testorder=fastest``, the fastest tests are instead
+started first, to get results as quickly as possible). When running tests in a
+terminal, the progress is shown while they run, including an estimate of the
+remaining time (based on previous runs), and pressing ``i`` opens the
+interactive view, in which results appear as tests finish (finished tests can
+be inspected while other tests are still running). The interactive view can
+also run the shown tests again in the background (``t``).
 
 Reference logs must match the output exactly, including whitespace. If the
 output differs from a reference log only in whitespace (e.g. due to an editor

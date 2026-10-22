@@ -1,7 +1,15 @@
 #!/usr/bin/env python3
 def perform_tests(testdir,
                   installdir, njobs, nexcerpts, filters,
-                  do_pycoverage, pkgloader=None, report_spec=None):
+                  do_pycoverage, pkgloader=None, report_spec=None,
+                  interactive_ui=None, start_interactive=False,
+                  test_order='slowest'):
+    #When running in a terminal, the tests are run in the background, while
+    #showing their progress. If interactive_ui is given, the user can press a
+    #key to call interactive_ui(run,stop_on_quit=False), where run is the
+    #BackgroundTestRun object (to browse results as they become available). If
+    #start_interactive is True, interactive_ui(run,stop_on_quit=True) is called
+    #directly, and the report is then not printed.
     import os
     import sys
     import shlex
@@ -110,15 +118,7 @@ def perform_tests(testdir,
         coverage_out_dir.mkdir(parents=True, exist_ok=False)
         coverage_all_out_files = []
 
-    #Start the slowest tests first (based on their timings in previous runs),
-    #to avoid ending up waiting for a slow test started late. Tests without
-    #previous timings might also be slow, so they are started first:
-    timings = load_test_timings()
-    def _slowest_first( t ):
-        tprev = timings.get( t )
-        return ( 0, 0.0, t ) if tprev is None else ( 1, -tprev, t )
-
-    for t in sorted( tests, key = _slowest_first ):
+    for t in order_tests( tests, test_order ):
         bn=os.path.basename(t)
         td=_ospathjoin(testdir,bn)
         mkdir_p(td)
@@ -149,11 +149,24 @@ def perform_tests(testdir,
     mf.write('all: %s\n\n'%(' '.join(alltests)))
     pathlib.Path(testdir,'Makefile').write_text( mf.getvalue() )
 
-    from .envsetup import create_install_env_clone
-    test_env = create_install_env_clone()
-    test_env['DISPLAY']=''
-    test_env['PYTHONUNBUFFERED']='1'
-    ec_make=system('make -j%i -k -f %s/Makefile all'%(njobs,testdir), env = test_env )
+    show_progress = ( not start_interactive and sys.stdout.isatty()
+                      and sys.stdin.isatty() and not _io.is_quiet() )
+    if start_interactive or show_progress:
+        save_runinfo()#so the results can be shown while the tests run
+        run = BackgroundTestRun( testdir, installdir, dirs.blddir, alltests,
+                                 njobs, is_rerun = False, order = test_order )
+        run.start()
+        try:
+            if start_interactive:
+                interactive_ui( run, stop_on_quit = True )
+            else:
+                _show_progress( run, interactive_ui )
+        finally:
+            run.stop()
+        ec_make = 1 if run.stopped else 0
+    else:
+        ec_make=system('make -j%i -k -f %s/Makefile all'%(njobs,testdir),
+                       env = test_environment() )
     #Compare the output of successful tests with their reference logs (if
     #any). This is done exactly, but with a note in the refdiff.log file if
     #there are only differences in whitespace:
@@ -216,45 +229,277 @@ def perform_tests(testdir,
     return print_report( testdir, logdir, nexcerpts, report_spec,
                          notes = notes, failed = ( ec_make != 0 ) )
 
+def _show_progress( run, interactive_ui = None ):
+    """Show progress of tests running in the background, on a single line which
+    is updated in place. If interactive_ui is given, pressing "i" opens the
+    interactive test report (while the tests continue to run)."""
+    import sys
+    import select
+    import termios
+    import tty
+    from .testreportui import format_duration
+    fd = sys.stdin.fileno()
+    try:
+        old_attrs = termios.tcgetattr( fd )
+    except termios.error:
+        old_attrs = None
+    prevlen = [0]
+    def show( final = False ):
+        ndone, nrunning, ntot = run.counts()
+        nfailed = sum( 1 for n in run.names if run.status( n ) == 'done'
+                       and ( _read_number( run.testdir / n / 'ec.txt', int ) != 0
+                             or _read_number( run.testdir / n / 'ecdiff.txt', int ) ) )
+        line = f'  Tests done: {ndone}/{ntot}'
+        if nrunning:
+            line += f', {nrunning} running'
+        if nfailed:
+            line += f', {nfailed} failed'
+        eta, nunknown = run.time_remaining()
+        if not final and eta is not None:
+            line += f', ~{format_duration(eta)} left'
+            if nunknown:
+                line += f' (+{nunknown} without previous timings)'
+        if not final and interactive_ui:
+            line += '  [press i for interactive view]'
+        sys.stdout.write( '\r' + line.ljust( prevlen[0] ) + ( '\n' if final else '' ) )
+        sys.stdout.flush()
+        prevlen[0] = len(line)
+    def cbreak():
+        if old_attrs is not None:
+            tty.setcbreak( fd )
+    def restore():
+        if old_attrs is not None:
+            termios.tcsetattr( fd, termios.TCSADRAIN, old_attrs )
+    cbreak()
+    try:
+        while run.poll():
+            show()
+            r, _, _ = select.select( [ fd ], [], [], 0.5 )
+            if r:
+                key = sys.stdin.read( 1 )
+                if interactive_ui and key in ( 'i', 'I' ):
+                    restore()
+                    sys.stdout.write( '\n' )
+                    interactive_ui( run, stop_on_quit = False )
+                    prevlen[0] = 0
+                    cbreak()
+        show( final = True )
+        prevlen[0] = 0
+    finally:
+        restore()
+        if prevlen[0]:
+            #Interrupted (e.g. by CTRL-C), so end the progress line before
+            #any other output:
+            sys.stdout.write( '\n' )
+            sys.stdout.flush()
+
+test_orders = ( 'slowest', 'fastest' )
+
+def order_tests( names, order, timings = None ):
+    """Order tests for starting them, based on their timings in previous runs.
+    By default ("slowest"), the slowest tests are started first, to avoid
+    ending up waiting for a slow test started late. Tests without previous
+    timings might also be slow, so they are started first. With "fastest", the
+    fastest tests are started first (to get results as quickly as possible),
+    and those without previous timings last."""
+    assert order in test_orders
+    if timings is None:
+        timings = load_test_timings()
+    def key( t ):
+        tprev = timings.get( t )
+        if order == 'fastest':
+            return ( 1, 0.0, t ) if tprev is None else ( 0, tprev, t )
+        return ( 0, 0.0, t ) if tprev is None else ( 1, -tprev, t )
+    return sorted( names, key = key )
+
+def test_environment():
+    """Environment in which tests are run."""
+    from .envsetup import create_install_env_clone
+    test_env = create_install_env_clone()
+    test_env['DISPLAY']=''
+    test_env['PYTHONUNBUFFERED']='1'
+    return test_env
+
+def _clear_test_results( testdir, blddir, name ):
+    #Remove results of a previous run of the test (but keep the run.sh script):
+    from .utils import remove_within
+    td = testdir / name
+    for f in td.iterdir():
+        if f.name != 'run.sh':
+            remove_within( f, blddir )
+
+def _compare_with_reflog( testdir, installdir, name ):
+    #Compare the output of the test with its reference log (if any, and if the
+    #test succeeded):
+    import pathlib
+    td = pathlib.Path(testdir) / name
+    reflog = pathlib.Path(installdir) / 'tests' / 'testref' / f'{name}.log'
+    if _read_number( td / 'ec.txt', int ) == 0 and reflog.exists():
+        from .reflogdiff import compare_and_write_diff
+        same = compare_and_write_diff( reflog, td/'output.log', td/'refdiff.log' )
+        ( td / 'ecdiff.txt' ).write_text('0\n' if same else '1\n')
+
+def _record_reruns( testdir, names ):
+    #Record in the information about the test run that tests were run again:
+    import json
+    try:
+        with ( testdir / _runinfo_filename ).open() as fh:
+            runinfo = json.load( fh )
+        t = _now()
+        for name in names:
+            runinfo.setdefault( 'reruns', {} )[name] = t
+        _write_runinfo( testdir, runinfo )
+    except (OSError,ValueError):
+        pass
+
 def rerun_test( testdir, installdir, blddir, name ):
     """Run a single test from the last test run again (with the current
     installation), and update its results. Returns the exit code of the test
     (or None if it could not be run)."""
-    import os
-    import json
     import pathlib
     import subprocess
-    from .utils import remove_within
-    from .envsetup import create_install_env_clone
     testdir = pathlib.Path(testdir)
     td = testdir / name
     if not ( td / 'run.sh' ).is_file() or not ( testdir / 'Makefile' ).is_file():
         return None
-    for f in td.iterdir():
-        if f.name != 'run.sh':
-            remove_within( f, blddir )
-    test_env = create_install_env_clone()
-    test_env['DISPLAY']=''
-    test_env['PYTHONUNBUFFERED']='1'
+    _clear_test_results( testdir, blddir, name )
     subprocess.run( [ 'make', '-f', str(testdir/'Makefile'), name ],
-                    env = test_env, stdin = subprocess.DEVNULL,
+                    env = test_environment(), stdin = subprocess.DEVNULL,
                     stdout = subprocess.DEVNULL, stderr = subprocess.DEVNULL )
-    ec = _read_number( td / 'ec.txt', int )
-    reflog = pathlib.Path(installdir) / 'tests' / 'testref' / f'{name}.log'
-    if ec == 0 and reflog.exists():
-        from .reflogdiff import compare_and_write_diff
-        same = compare_and_write_diff( reflog, td/'output.log', td/'refdiff.log' )
-        ( td / 'ecdiff.txt' ).write_text('0\n' if same else '1\n')
+    _compare_with_reflog( testdir, installdir, name )
     update_test_timings( testdir, [ name ] )
-    #Record in the information about the test run:
-    try:
-        with open( os.path.join( testdir, _runinfo_filename ) ) as fh:
-            runinfo = json.load( fh )
-        runinfo.setdefault( 'reruns', {} )[name] = _now()
-        _write_runinfo( testdir, runinfo )
-    except (OSError,ValueError):
-        pass
-    return ec
+    _record_reruns( testdir, [ name ] )
+    return _read_number( td / 'ec.txt', int )
+
+class BackgroundTestRun:
+
+    """Run tests from the Makefile of the last test run in the background
+    (used by the interactive test report, to show results as they become
+    available). Tests are started with the slowest first (based on previous
+    timings), and their output is compared with any reference logs as they
+    finish."""
+
+    def __init__( self, testdir, installdir, blddir, names, njobs,
+                  is_rerun = True, order = 'slowest' ):
+        import pathlib
+        self.testdir = pathlib.Path(testdir)
+        self.installdir = installdir
+        self.blddir = blddir
+        self.njobs = max( 1, njobs )
+        self.is_rerun = is_rerun
+        self.timings = load_test_timings()#from before this run
+        self.names = order_tests( names, order, self.timings )
+        self._proc = None
+        self._compared = set()
+        self._finished = False
+        self.stopped = False
+
+    def start( self ):
+        import subprocess
+        if self.is_rerun:
+            for name in self.names:
+                _clear_test_results( self.testdir, self.blddir, name )
+        with ( self.testdir / 'make_output.log' ).open( 'wb' ) as fh:
+            self._proc = subprocess.Popen(
+                [ 'make', '-j%i'%self.njobs, '-k', '-f',
+                  str( self.testdir / 'Makefile' ) ] + self.names,
+                env = test_environment(), stdin = subprocess.DEVNULL,
+                stdout = fh, stderr = subprocess.STDOUT,
+                start_new_session = True )
+
+    def status( self, name ):
+        """One of 'waiting', 'running', or 'done'."""
+        td = self.testdir / name
+        if ( td / 'ec.txt' ).exists():
+            return 'done'
+        if ( td / 'time_start' ).exists() and not self._finished:
+            return 'running'
+        return 'done' if self._finished else 'waiting'
+
+    @property
+    def active( self ):
+        return self._proc is not None and not self._finished
+
+    def poll( self ):
+        """Update the results of finished tests. Returns True while the run is
+        still active."""
+        if self._finished or self._proc is None:
+            return False
+        running = self._proc.poll() is None
+        for name in self.names:
+            if name not in self._compared and self.status( name ) == 'done':
+                if ( self.testdir / name / 'timing_ms' ).exists() or not running:
+                    _compare_with_reflog( self.testdir, self.installdir, name )
+                    self._compared.add( name )
+        if not running:
+            self._finish()
+        return running
+
+    def counts( self ):
+        """Returns (ndone,nrunning,ntotal)."""
+        st = [ self.status( n ) for n in self.names ]
+        return st.count('done'), st.count('running'), len(st)
+
+    def time_remaining( self ):
+        """Estimated remaining time in seconds (based on the timings of the
+        tests in previous runs), and the number of unfinished tests without
+        previous timings (which are not included in the estimate). Returns
+        (None,n) if there is no information at all."""
+        import time
+        work, longest, nunknown, nknown = 0.0, 0.0, 0, 0
+        for name in self.names:
+            st = self.status( name )
+            if st == 'done':
+                continue
+            tprev = self.timings.get( name )
+            if tprev is None:
+                nunknown += 1
+                continue
+            nknown += 1
+            remaining = tprev * 0.001
+            if st == 'running':
+                try:
+                    started = ( self.testdir / name / 'time_start' ).stat().st_mtime
+                    remaining = max( 0.0, remaining - ( time.time() - started ) )
+                except OSError:
+                    pass
+            work += remaining
+            longest = max( longest, remaining )
+        if not nknown:
+            return None, nunknown
+        return max( longest, work / self.njobs ), nunknown
+
+    def stop( self ):
+        """Stop the run (if still active)."""
+        import os
+        import signal
+        if not self.active:
+            return
+        self.stopped = True
+        try:
+            os.killpg( self._proc.pid, signal.SIGTERM )
+        except OSError:
+            pass
+        try:
+            self._proc.wait( timeout = 5 )
+        except Exception:
+            try:
+                os.killpg( self._proc.pid, signal.SIGKILL )
+            except OSError:
+                pass
+            self._proc.wait()
+        self.poll()
+
+    def wait( self ):
+        import time
+        while self.poll():
+            time.sleep( 0.2 )
+
+    def _finish( self ):
+        self._finished = True
+        update_test_timings( self.testdir, self.names )
+        if self.is_rerun:
+            _record_reruns( self.testdir, self.names )
 
 def _test_timings_file():
     #Kept outside the test results directory, which is removed for each run:
