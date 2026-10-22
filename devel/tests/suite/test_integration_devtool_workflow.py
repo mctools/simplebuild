@@ -143,6 +143,33 @@ def devrepo( tmp_path ):
     env = { 'SIMPLEBUILD_CFG' : str( sbdir / 'cfgs' / 'simplebuild_reldbg.cfg' ) }
     return repo, elsewhere, env
 
+def test_devtool_workflow( devrepo ):
+    repo, elsewhere, env = devrepo
+    #Like "ncdevtool sbrun <cmd>":
+    run( [ 'unwrapped_simplebuild', '--quiet' ], elsewhere, env_extra = env )
+    res = run( [ 'sbenv', 'python3', '-c', 'import GenLib; print(GenLib.value())' ],
+               elsewhere, env_extra = env )
+    assert res.stdout.strip() == '42'
+    #The cache directory is in the place specified in the cfg file:
+    cache = repo / 'devel' / 'simplebuild' / 'simplebuild_cache' / 'cache_cfg_reldbg'
+    assert ( cache / 'install_reldbg' ).is_dir() and ( cache / 'bld_reldbg' ).is_dir()
+    #Environment paths from the dynamic bundle:
+    res = run( [ 'sbenv', 'mydevtool' ], elsewhere, env_extra = env )
+    assert res.stdout.strip() == 'mydevtool ok'
+    #(NB: env_paths entries are prepended to path lists):
+    res = run( [ 'sbenv', 'bash', '-c', 'cat "${MYDEV_DATA_PATH%%:*}/GenLib/somedata.txt"' ],
+               elsewhere, env_extra = env )
+    assert res.stdout.strip() == 'some data'
+    #Like "ncdevtool sb -t":
+    res = run( [ 'unwrapped_simplebuild', '-t' ], elsewhere, env_extra = env )
+    assert 'All tests completed without failures!' in res.out
+    #Also via sbrun, and again after changes to the generated package:
+    gen = repo / 'devel' / 'simplebuild' / 'sbgenerate.py'
+    gen.write_text( gen.read_text().replace( 'return 42;', 'return 17;' ) )
+    res = run( [ 'sbrun', 'python3', '-c', 'import GenLib; print(GenLib.value())' ],
+               elsewhere, env_extra = env )
+    assert res.stdout.strip() == '17'
+
 def test_apps_find_files_relative_to_their_location( devrepo ):
     #Applications must be installed in the bin directory of the installation
     #(not merely symlinked from there), since applications like ncrystal-config
