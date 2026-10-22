@@ -152,3 +152,87 @@ class ScreenBase:
         finally:
             c.reset_prog_mode()
             self.scr.refresh()
+
+    def getkey( self ):
+        """Get the next key press. Letters are converted to lowercase, so keys
+        work in the same way independently of Shift and Caps Lock."""
+        ch = self.scr.getch()
+        if ord('A') <= ch <= ord('Z'):
+            ch += ord('a') - ord('A')
+        return ch
+
+    def show_build_log( self, path, failed ):
+        """Show the output of the last rebuild (path is None if there was
+        none)."""
+        if not path or not path.exists():
+            self.message = 'No rebuild was done in this session'
+            return
+        OutputView( self.scr, ( 'The build FAILED. Output of the build:'
+                                if failed else 'Output of the last build:' ),
+                    path, start_at_end = True ).run()
+        self.repaint_fully()
+
+class OutputView( ScreenBase ):
+
+    """Scrollable view of a text file (e.g. the output of a test)."""
+
+    def __init__( self, stdscr, title, path, start_at_end = False ):
+        super().__init__( stdscr )
+        from .reflogdiff import read_lines
+        from .diffrender import visible_text
+        self.title = title
+        try:
+            self.lines = [ visible_text( line.rstrip('\n') ) for line in read_lines( path ) ]
+        except OSError:
+            self.lines = None
+        self.y = len( self.lines or [] ) if start_at_end else 0
+        self.x = 0
+
+    def draw( self ):
+        self.scr.erase()
+        h, w = self.scr.getmaxyx()
+        self._put( 0, 0, f' {self.title}'.ljust( w ), self.attrs['title'] )
+        height = max( 1, h - 3 )
+        if self.lines is None:
+            self._put( 1, 0, 'The output is not available.' )
+            lines = []
+        else:
+            lines = self.lines
+            if not lines:
+                self._put( 1, 0, 'The output is empty.', self.attrs['dim'] )
+        self.y = max( 0, min( self.y, max( 0, len(lines) - height ) ) )
+        nlno = len( str( max( 1, len(lines) ) ) )
+        for i, line in enumerate( lines[self.y:self.y+height] ):
+            self._put( 1 + i, 0, str( self.y + i + 1 ).rjust( nlno ), self.attrs['dim'] )
+            self._put( 1 + i, nlno + 1, line[self.x:] )
+        self._put( h - 2, 0, self.message, self.attrs['meta'] )
+        self._put( h - 1, 0, 'q:back  arrows, j k h l:scroll  PgUp/PgDn  Home/End'.ljust( w ),
+                   self.attrs['title'] )
+        self.scr.refresh()
+
+    def run( self ):
+        c = self.curses
+        self.repaint_fully()
+        while True:
+            self.draw()
+            ch = self.getkey()
+            height = max( 1, self.scr.getmaxyx()[0] - 3 )
+            if ch in ( ord('q'), 27, c.KEY_BACKSPACE, 127 ):
+                self.repaint_fully()
+                return
+            elif ch in ( c.KEY_DOWN, ord('j') ):
+                self.y += 1
+            elif ch in ( c.KEY_UP, ord('k') ):
+                self.y = max( 0, self.y - 1 )
+            elif ch in ( c.KEY_NPAGE, ord(' ') ):
+                self.y += height - 1
+            elif ch == c.KEY_PPAGE:
+                self.y = max( 0, self.y - height + 1 )
+            elif ch == c.KEY_HOME:
+                self.y = 0
+            elif ch == c.KEY_END:
+                self.y = len( self.lines or [] )
+            elif ch in ( c.KEY_RIGHT, ord('l') ):
+                self.x += 8
+            elif ch in ( c.KEY_LEFT, ord('h') ):
+                self.x = max( 0, self.x - 8 )

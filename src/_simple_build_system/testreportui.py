@@ -3,88 +3,26 @@
 # of tests or differences with reference logs can be inspected, and tests can
 # be run again.
 
-from .cursesbase import ScreenBase, run_curses_app
+from .cursesbase import ScreenBase, OutputView, run_curses_app
 
 _sort_orders = ( 'name', 'pkg', 'time' )
 
 _keyhelp = [
     ( 'q', 'Quit' ),
-    ( 'arrows, j k', 'Select test (also PgUp/PgDn/Space, Home/End or g/G)' ),
+    ( 'arrows, j k', 'Select test (also PgUp/PgDn/Space and Home/End)' ),
     ( 'Enter', 'Show differences with the reference log (if any), otherwise the output' ),
     ( 'o', 'Show the output of the test' ),
     ( 's', 'Change sort order (by name, by package, slowest first)' ),
     ( 'f', 'Show only failed tests, or all tests' ),
     ( 'r', 'Run the selected test again' ),
-    ( 'R', 'Rebuild (as with "sb"), and run the selected test again' ),
+    ( 'b', 'Rebuild (as with "sb"), and run the selected test again' ),
+    ( 'e', 'Show the output of the last rebuild (e.g. compilation errors)' ),
     ( '?', 'Show this help' ),
+    ( '', 'Letter keys work the same independently of Shift and Caps Lock.' ),
 ]
 
 _statusbar = ( 'q:quit  Enter:inspect  o:output  s:sort  f:failed only'
-               '  r:rerun  R:rebuild+rerun  ?:help' )
-
-class OutputView( ScreenBase ):
-
-    """Scrollable view of a text file (e.g. the output of a test)."""
-
-    def __init__( self, stdscr, title, path ):
-        super().__init__( stdscr )
-        from .reflogdiff import read_lines
-        from .diffrender import visible_text
-        self.title = title
-        try:
-            self.lines = [ visible_text( line.rstrip('\n') ) for line in read_lines( path ) ]
-        except OSError:
-            self.lines = None
-        self.y = self.x = 0
-
-    def draw( self ):
-        self.scr.erase()
-        h, w = self.scr.getmaxyx()
-        self._put( 0, 0, f' {self.title}'.ljust( w ), self.attrs['title'] )
-        height = max( 1, h - 3 )
-        if self.lines is None:
-            self._put( 1, 0, 'The output is not available.' )
-            lines = []
-        else:
-            lines = self.lines
-            if not lines:
-                self._put( 1, 0, 'The output is empty.', self.attrs['dim'] )
-        self.y = max( 0, min( self.y, max( 0, len(lines) - height ) ) )
-        nlno = len( str( max( 1, len(lines) ) ) )
-        for i, line in enumerate( lines[self.y:self.y+height] ):
-            self._put( 1 + i, 0, str( self.y + i + 1 ).rjust( nlno ), self.attrs['dim'] )
-            self._put( 1 + i, nlno + 1, line[self.x:] )
-        self._put( h - 2, 0, self.message, self.attrs['meta'] )
-        self._put( h - 1, 0, 'q:back  arrows, j k h l:scroll  g/G:top/bottom'.ljust( w ),
-                   self.attrs['title'] )
-        self.scr.refresh()
-
-    def run( self ):
-        c = self.curses
-        self.repaint_fully()
-        while True:
-            self.draw()
-            ch = self.scr.getch()
-            height = max( 1, self.scr.getmaxyx()[0] - 3 )
-            if ch in ( ord('q'), ord('Q'), 27, c.KEY_BACKSPACE, 127 ):
-                self.repaint_fully()
-                return
-            elif ch in ( c.KEY_DOWN, ord('j') ):
-                self.y += 1
-            elif ch in ( c.KEY_UP, ord('k') ):
-                self.y = max( 0, self.y - 1 )
-            elif ch in ( c.KEY_NPAGE, ord(' ') ):
-                self.y += height - 1
-            elif ch in ( c.KEY_PPAGE, ord('b') ):
-                self.y = max( 0, self.y - height + 1 )
-            elif ch in ( c.KEY_HOME, ord('g') ):
-                self.y = 0
-            elif ch in ( c.KEY_END, ord('G') ):
-                self.y = len( self.lines or [] )
-            elif ch in ( c.KEY_RIGHT, ord('l') ):
-                self.x += 8
-            elif ch in ( c.KEY_LEFT, ord('h') ):
-                self.x = max( 0, self.x - 8 )
+               '  r:rerun  b:rebuild+rerun  e:build log  ?:help' )
 
 class TestReportUI( ScreenBase ):
 
@@ -209,17 +147,17 @@ class TestReportUI( ScreenBase ):
         self._load()
         self.select_name( r.name )
 
+    def build_log_path( self ):
+        return getattr( self.report.rebuild_fct, 'log_path', None )
+
     def rerun( self, r, rebuild ):
-        from .reflogui import wait_for_enter_after_failed_build
         rep = self.report
         if rebuild:
             def do_rebuild():
                 print(f'Rebuilding before running {r.name} again...', flush = True)
-                ok = rep.rebuild_fct()
-                if not ok:
-                    wait_for_enter_after_failed_build()
-                return ok
+                return rep.rebuild_fct()
             if not self.run_outside_curses( do_rebuild ):
+                self.show_build_log( self.build_log_path(), failed = True )
                 self.message = 'Build failed'
                 return
         self.message = f'Running {r.name} again...'
@@ -243,11 +181,11 @@ class TestReportUI( ScreenBase ):
         self.message = 'Press ? for help'
         while True:
             self.draw()
-            ch = self.scr.getch()
+            ch = self.getkey()
             _, height, _ = self.body_geometry()
             self.message = ''
             sel = self.selected
-            if ch in ( ord('q'), ord('Q') ):
+            if ch == ord('q'):
                 return
             elif ch in ( c.KEY_DOWN, ord('j') ):
                 self.isel += 1
@@ -255,11 +193,11 @@ class TestReportUI( ScreenBase ):
                 self.isel = max( 0, self.isel - 1 )
             elif ch in ( c.KEY_NPAGE, ord(' ') ):
                 self.isel += height - 1
-            elif ch in ( c.KEY_PPAGE, ord('b') ):
+            elif ch == c.KEY_PPAGE:
                 self.isel = max( 0, self.isel - height + 1 )
-            elif ch in ( c.KEY_HOME, ord('g') ):
+            elif ch == c.KEY_HOME:
                 self.isel = 0
-            elif ch in ( c.KEY_END, ord('G') ):
+            elif ch == c.KEY_END:
                 self.isel = len( self.rows() )
             elif ch == ord('s'):
                 name = sel.name if sel else None
@@ -275,6 +213,8 @@ class TestReportUI( ScreenBase ):
             elif ch == ord('?'):
                 self.show_help( 'Keys in sb --testreport', _keyhelp )
                 self.repaint_fully()
+            elif ch == ord('e'):
+                self.show_build_log( self.build_log_path(), failed = False )
             elif sel is None:
                 continue
             elif ch in ( 10, 13, c.KEY_ENTER ):
@@ -283,7 +223,7 @@ class TestReportUI( ScreenBase ):
                 self.show_output( sel )
             elif ch == ord('r'):
                 self.rerun( sel, rebuild = False )
-            elif ch == ord('R'):
+            elif ch == ord('b'):
                 self.rerun( sel, rebuild = True )
 
 class InteractiveReport:

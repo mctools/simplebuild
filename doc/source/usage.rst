@@ -223,8 +223,9 @@ explicitly. If there was a problem with a reference log (the ``Log-diff``
 column), you can use ``sb --reflogupdate`` to review the differences in an
 interactive viewer, which highlights changed words and whitespace (press ``?``
 in the viewer for a list of keys). From the viewer, you can also run the test
-again (``r``), or rebuild and then run the test again (``R``), for instance
-after editing the code producing the output. Finally, the viewer can update
+again (``r``), or rebuild and then run the test again (``b``), for instance
+after editing the code producing the output (if the build fails, its output is
+shown, and it can be shown again later with ``e``). Finally, the viewer can update
 the reference log in the package with the new output, but you should not
 actually do so unless you are the developer maintaining it. To make you think
 before updating, a randomly generated code must be typed in reverse order for

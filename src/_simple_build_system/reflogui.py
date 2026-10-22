@@ -10,19 +10,22 @@ _views = ( ( 'sbs', 'side by side' ),
 
 _keyhelp = [
     ( 'q', 'Quit' ),
-    ( 'n / p', 'Next / previous test' ),
-    ( 'd / D', 'Next / previous difference' ),
+    ( '+ / -', 'Next / previous test' ),
+    ( 'n / p', 'Next / previous difference' ),
     ( 'v', 'Change view (side by side, side by side with changes only, changed lines)' ),
-    ( 'arrows, j k h l', 'Scroll (also PgUp/PgDn/Space, Home/End or g/G)' ),
+    ( 'arrows, j k h l', 'Scroll (also PgUp/PgDn/Space and Home/End)' ),
     ( 'u', 'Update the reference log in the package with the output of the test' ),
-    ( 'U', 'Stop requiring codes for updates for the rest of this session' ),
+    ( 'x', 'Stop requiring codes for updates for the rest of this session' ),
+    ( 'o', 'Show the complete output of the test' ),
     ( 'r', 'Run the test again' ),
-    ( 'R', 'Rebuild (as with "sb"), and run the test again' ),
+    ( 'b', 'Rebuild (as with "sb"), and run the test again' ),
+    ( 'e', 'Show the output of the last rebuild (e.g. compilation errors)' ),
     ( '?', 'Show this help' ),
+    ( '', 'Letter keys work the same independently of Shift and Caps Lock.' ),
 ]
 
-_statusbar = ( 'q:quit  n/p:test  d/D:diff  v:view  u:update  U:no codes'
-               '  r:rerun  R:rebuild+rerun  ?:help' )
+_statusbar = ( 'q:quit  +/-:test  n/p:diff  v:view  u:update  x:no codes'
+               '  o:output  r:rerun  b:rebuild+rerun  e:build log  ?:help' )
 
 
 class ReflogUI( ScreenBase ):
@@ -192,17 +195,25 @@ class ReflogUI( ScreenBase ):
         if rebuild:
             def rebuild_and_rerun():
                 print(f'Rebuilding before running {c.name} again...', flush = True)
-                ok, msg = self.session.rerun( c, rebuild = True )
-                if not ok and msg == 'Build failed':
-                    wait_for_enter_after_failed_build()
-                return ok, msg
+                return self.session.rerun( c, rebuild = True )
             ok, msg = self.run_outside_curses( rebuild_and_rerun )
+            if not ok and msg == 'Build failed':
+                self.show_build_log( self.build_log_path(), failed = True )
         else:
             self.message = f'Running {c.name} again...'
             self.draw()
             ok, msg = self.session.rerun( c )
         self.message = msg
         self._rows_cache = {}
+
+    def build_log_path( self ):
+        return getattr( self.session.rebuild_fct, 'log_path', None )
+
+    def show_output( self ):
+        from .cursesbase import OutputView
+        c = self.cand
+        OutputView( self.scr, f'Output of {c.name}', c.output ).run()
+        self.repaint_fully()
 
     def scroll( self, dy = 0, dx = 0 ):
         self.y = max( 0, self.y + dy )
@@ -226,18 +237,18 @@ class ReflogUI( ScreenBase ):
         self.message = 'Press ? for help'
         while True:
             self.draw()
-            ch = self.scr.getch()
+            ch = self.getkey()
             _, height, _ = self.body_geometry()
             self.message = ''
-            if ch in ( ord('q'), ord('Q') ):
+            if ch == ord('q'):
                 return
-            elif ch == ord('n'):
+            elif ch in ( ord('+'), ord('=') ):
                 self.goto_candidate( self.icand + 1 )
-            elif ch == ord('p'):
+            elif ch in ( ord('-'), ord('_') ):
                 self.goto_candidate( self.icand - 1 )
-            elif ch == ord('d'):
+            elif ch == ord('n'):
                 self.next_diff( +1 )
-            elif ch == ord('D'):
+            elif ch == ord('p'):
                 self.next_diff( -1 )
             elif ch == ord('v'):
                 self.iview = ( self.iview + 1 ) % len(_views)
@@ -249,11 +260,11 @@ class ReflogUI( ScreenBase ):
                 self.scroll( dy = -1 )
             elif ch in ( c.KEY_NPAGE, ord(' ') ):
                 self.scroll( dy = height - 1 )
-            elif ch in ( c.KEY_PPAGE, ord('b') ):
+            elif ch == c.KEY_PPAGE:
                 self.scroll( dy = -( height - 1 ) )
-            elif ch in ( c.KEY_HOME, ord('g') ):
+            elif ch == c.KEY_HOME:
                 self.y = 0
-            elif ch in ( c.KEY_END, ord('G') ):
+            elif ch == c.KEY_END:
                 self.y = len( self.rows() )
             elif ch in ( c.KEY_RIGHT, ord('l') ):
                 self.scroll( dx = 8 )
@@ -261,24 +272,21 @@ class ReflogUI( ScreenBase ):
                 self.scroll( dx = -8 )
             elif ch == ord('u'):
                 self.do_update()
-            elif ch == ord('U'):
+            elif ch == ord('x'):
                 self.do_unlock()
+            elif ch == ord('o'):
+                self.show_output()
             elif ch == ord('r'):
                 self.do_rerun( rebuild = False )
-            elif ch == ord('R'):
+            elif ch == ord('b'):
                 self.do_rerun( rebuild = True )
+            elif ch == ord('e'):
+                self.show_build_log( self.build_log_path(), failed = False )
             elif ch == ord('?'):
                 self.show_help( f'Keys in {self.title}', _keyhelp )
                 self.repaint_fully()
             elif ch == c.KEY_RESIZE:
                 pass
-
-def wait_for_enter_after_failed_build():
-    try:
-        input('\nThe build failed (see above). Press ENTER to return to the'
-              ' viewer.')
-    except EOFError:
-        pass
 
 def run_reflogupdate( session ):
     """Run the interactive user interface. Returns when the user quits."""

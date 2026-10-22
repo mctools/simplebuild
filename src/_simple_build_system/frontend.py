@@ -628,8 +628,18 @@ def _rerun_and_rebuild_fcts( lockfile_content ):
                  ' _simple_build_system._cli import main; main()' )
         env = dict( os.environ )
         env[_inherited_lock_envvar] = lockfile_content
-        return subprocess.run( [ sys.executable, '-c', code, '--quiet' ] + args,
-                               env = env ).returncode == 0
+        #Show the output, but also keep it in a log file (so it can be inspected
+        #after returning to the user interface):
+        p = subprocess.Popen( [ sys.executable, '-c', code, '--quiet' ] + args,
+                              env = env, stdout = subprocess.PIPE,
+                              stderr = subprocess.STDOUT )
+        with rebuild.log_path.open( 'wb' ) as fh:
+            for line in p.stdout:
+                fh.write( line )
+                sys.stdout.buffer.write( line )
+                sys.stdout.flush()
+        return p.wait() == 0
+    rebuild.log_path = dirs.blddir / 'rebuild_output.log'
 
     return rerun, rebuild
 
