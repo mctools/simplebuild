@@ -209,7 +209,11 @@ build variant can be selected with e.g. ``-d``, and the results of each build
 variant are kept separately). The report can be customised, e.g. ``sb
 --testreport=failed,time`` shows only the failed tests, with the slowest first,
 and ``--testfilter`` and ``--testexcerpts`` can be used to select tests and show
-excerpts. When running tests, the slowest tests (as measured in previous runs)
+excerpts. With ``sb --testreport=interactive`` (which can also be combined with
+``-t``), the results can instead be browsed interactively: the output of tests,
+or the differences between their output and their reference logs, can be
+inspected, and tests can be run again, optionally after rebuilding (press ``?``
+for a list of keys). When running tests, the slowest tests (as measured in previous runs)
 are started first, to avoid ending up waiting for a single slow test at the end.
 
 Reference logs must match the output exactly, including whitespace. If the

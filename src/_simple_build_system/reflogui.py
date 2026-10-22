@@ -2,6 +2,7 @@
 # reflogupdate.py, and the rendering of differences in diffrender.py).
 
 from . import diffrender
+from .cursesbase import ScreenBase, relpath as _relpath, run_curses_app
 
 _views = ( ( 'sbs', 'side by side' ),
            ( 'sbs3', 'side by side, changes only' ),
@@ -23,89 +24,24 @@ _keyhelp = [
 _statusbar = ( 'q:quit  n/p:test  d/D:diff  v:view  u:update  U:no codes'
                '  r:rerun  R:rebuild+rerun  ?:help' )
 
-def _relpath( path ):
-    import os
-    try:
-        return os.path.relpath( path )
-    except ValueError:
-        return str(path)
 
-class ReflogUI:
+class ReflogUI( ScreenBase ):
 
-    def __init__( self, stdscr, session ):
-        import curses
-        import locale
-        self.curses = curses
-        self.scr = stdscr
+    def __init__( self, stdscr, session, title = 'sb --reflogupdate' ):
+        super().__init__( stdscr )
         self.session = session
+        self.title = title
         self.icand = 0
         self.iview = 0
         self.y = 0
         self.x = 0
-        self.message = ''
         self._rows_cache = {}
-        enc = locale.getpreferredencoding( False ) or 'ascii'
-        self._encoding = enc if enc.lower().replace('-','') == 'utf8' else 'ascii'
-        self._init_attrs()
-
-    def _init_attrs( self ):
-        c = self.curses
-        a = dict( ctx = c.A_NORMAL, del_ = c.A_NORMAL, ins = c.A_NORMAL,
-                  delhl = c.A_REVERSE | c.A_BOLD, inshl = c.A_REVERSE | c.A_UNDERLINE,
-                  meta = c.A_BOLD, dim = c.A_DIM, title = c.A_REVERSE,
-                  gutter = c.A_BOLD )
-        if c.has_colors():
-            c.start_color()
-            try:
-                c.use_default_colors()
-                bg = -1
-            except c.error:
-                bg = c.COLOR_BLACK
-            pairs = [ ( 'del_', c.COLOR_RED, bg, 0 ),
-                      ( 'ins', c.COLOR_GREEN, bg, 0 ),
-                      ( 'delhl', c.COLOR_WHITE, c.COLOR_RED, c.A_BOLD ),
-                      ( 'inshl', c.COLOR_BLACK, c.COLOR_GREEN, 0 ),
-                      ( 'meta', c.COLOR_CYAN, bg, 0 ),
-                      ( 'title', c.COLOR_BLACK, c.COLOR_CYAN, 0 ),
-                      ( 'gutter', c.COLOR_YELLOW, bg, c.A_BOLD ) ]
-            for i, ( name, fg, bgc, extra ) in enumerate( pairs ):
-                try:
-                    c.init_pair( i + 1, fg, bgc )
-                    a[name] = c.color_pair( i + 1 ) | extra
-                except c.error:
-                    pass
-        a['del'] = a.pop('del_')
-        self.attrs = a
 
     #Helpers:
 
     @property
     def cand( self ):
         return self.session.candidates[self.icand]
-
-    def _text( self, s ):
-        if self._encoding == 'ascii':
-            return s.encode( 'ascii', errors = 'replace' ).decode( 'ascii' )
-        return s
-
-    def _put( self, y, x, text, attr = 0 ):
-        h, w = self.scr.getmaxyx()
-        if y < 0 or y >= h or x >= w - 1:
-            return
-        text = self._text( text )[:max(0, w - 1 - x)]
-        try:
-            self.scr.addstr( y, x, text, attr )
-        except self.curses.error:
-            pass
-
-    def _put_segments( self, y, x, segs, width ):
-        for text, style in segs:
-            if width <= 0:
-                break
-            text = text[:width]
-            self._put( y, x, text, self.attrs[style] )
-            x += len(text)
-            width -= len(text)
 
     def rows( self ):
         c = self.cand
@@ -144,7 +80,7 @@ class ReflogUI:
         status = ( 'UPDATED' if c.updated else
                    ( 'TEST FAILED' if c.job_failed else
                      ( 'IDENTICAL' if c.identical else 'DIFFERS' ) ) )
-        title = ' sb --reflogupdate   [%i/%i] %s (%s)   %s'%( self.icand + 1,
+        title = ' %s   [%i/%i] %s (%s)   %s'%( self.title, self.icand + 1,
                                                               len(s.candidates),
                                                               c.name, c.pkgname, status )
         right = 'view: %s '%_views[self.iview][1]
@@ -206,36 +142,6 @@ class ReflogUI:
 
     #Input:
 
-    def prompt( self, text ):
-        """Ask for input on the message line. Returns None if cancelled."""
-        c = self.curses
-        typed = ''
-        try:
-            c.curs_set(1)
-        except c.error:
-            pass
-        try:
-            while True:
-                self.message = ''
-                self.draw()
-                h, w = self.scr.getmaxyx()
-                self._put( h - 2, 0, ( text + typed ).ljust( w - 1 ), self.attrs['meta'] )
-                self.scr.move( h - 2, min( w - 2, len(text) + len(typed) ) )
-                ch = self.scr.getch()
-                if ch in ( 10, 13, c.KEY_ENTER ):
-                    return typed
-                if ch == 27:
-                    return None
-                if ch in ( c.KEY_BACKSPACE, 127, 8 ):
-                    typed = typed[:-1]
-                elif 32 <= ch < 127:
-                    typed += chr(ch)
-        finally:
-            try:
-                c.curs_set(0)
-            except c.error:
-                pass
-
     def confirm_with_code( self, what ):
         code = self.session.new_code()
         typed = self.prompt( f'To {what}, type the code {code} in reverse'
@@ -284,19 +190,13 @@ class ReflogUI:
     def do_rerun( self, rebuild ):
         c = self.cand
         if rebuild:
-            curses = self.curses
-            curses.def_prog_mode()
-            curses.endwin()
-            print(f'Rebuilding before running {c.name} again...', flush = True)
-            ok, msg = self.session.rerun( c, rebuild = True )
-            if not ok and msg == 'Build failed':
-                try:
-                    input('\nThe build failed (see above). Press ENTER to return'
-                          ' to the reference log viewer.')
-                except EOFError:
-                    pass
-            curses.reset_prog_mode()
-            self.scr.refresh()
+            def rebuild_and_rerun():
+                print(f'Rebuilding before running {c.name} again...', flush = True)
+                ok, msg = self.session.rerun( c, rebuild = True )
+                if not ok and msg == 'Build failed':
+                    wait_for_enter_after_failed_build()
+                return ok, msg
+            ok, msg = self.run_outside_curses( rebuild_and_rerun )
         else:
             self.message = f'Running {c.name} again...'
             self.draw()
@@ -318,24 +218,11 @@ class ReflogUI:
                 return
         self.message = 'No more differences in this direction'
 
-    def show_help( self ):
-        self.scr.erase()
-        self._put( 0, 0, ' Keys in sb --reflogupdate '.ljust( self.scr.getmaxyx()[1] ),
-                   self.attrs['title'] )
-        for i, ( k, d ) in enumerate( _keyhelp ):
-            self._put( i + 2, 2, k.ljust( 18 ), self.attrs['meta'] )
-            self._put( i + 2, 21, d )
-        self._put( len(_keyhelp) + 3, 2, 'Press any key to return.', self.attrs['dim'] )
-        self.scr.refresh()
-        self.scr.getch()
-
     def run( self ):
         c = self.curses
-        try:
-            c.curs_set(0)
-        except c.error:
-            pass
+        self.hide_cursor()
         self.scr.keypad( True )
+        self.repaint_fully()
         self.message = 'Press ? for help'
         while True:
             self.draw()
@@ -355,6 +242,7 @@ class ReflogUI:
             elif ch == ord('v'):
                 self.iview = ( self.iview + 1 ) % len(_views)
                 self.y = 0
+                self.repaint_fully()
             elif ch in ( c.KEY_DOWN, ord('j') ):
                 self.scroll( dy = 1 )
             elif ch in ( c.KEY_UP, ord('k') ):
@@ -380,15 +268,18 @@ class ReflogUI:
             elif ch == ord('R'):
                 self.do_rerun( rebuild = True )
             elif ch == ord('?'):
-                self.show_help()
+                self.show_help( f'Keys in {self.title}', _keyhelp )
+                self.repaint_fully()
             elif ch == c.KEY_RESIZE:
                 pass
 
+def wait_for_enter_after_failed_build():
+    try:
+        input('\nThe build failed (see above). Press ENTER to return to the'
+              ' viewer.')
+    except EOFError:
+        pass
+
 def run_reflogupdate( session ):
     """Run the interactive user interface. Returns when the user quits."""
-    import os
-    import curses
-    import locale
-    locale.setlocale( locale.LC_ALL, '' )
-    os.environ.setdefault( 'ESCDELAY', '25' )
-    curses.wrapper( lambda stdscr : ReflogUI( stdscr, session ).run() )
+    run_curses_app( lambda stdscr : ReflogUI( stdscr, session ).run() )

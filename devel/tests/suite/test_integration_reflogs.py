@@ -267,3 +267,70 @@ def test_slowest_tests_started_first( tmp_path ):
     run( 'sb -t', d )
     assert started_order() == [ 'testz_slow', 'testm_medium', 'testa_fast', 'testb_new' ] or \
         started_order() == [ 'testz_slow', 'testm_medium', 'testb_new', 'testa_fast' ]
+
+def test_interactive_testreport( reflogproj ):
+    from sbtestutils import PtyProcess
+    d = reflogproj
+    write_files( d, { 'MyPkg/scripts/testfails' :
+                      '#!/usr/bin/env bash\necho "this test fails"\nexit 3\n' } )
+    ( d / 'MyPkg' / 'scripts' / 'testfails' ).chmod( 0o755 )
+    #Non-interactive usage is not possible:
+    res = run( 'sb --testreport=interactive', d, expect_ec = 1 )
+    assert 'requires an interactive terminal' in res.out
+    run( 'sb -t', d, expect_ec = 73 )
+    p = PtyProcess( [ 'sb', '--testreport=interactive',
+                      "--testfilter=*testfails,*same,*innerspace" ], d )
+    p.wait_for_screen( r'Press \? for help' )
+    p.wait_for_screen( r'sb --testreport +3 tests, 2 failed +sort: name' )
+    assert 'sb_mypkg_trailingspace' not in p.screen()
+    #Only failed tests, sorted by name:
+    p.send( 'f' )
+    p.wait_for_screen( r'only failed tests shown' )
+    rows = [ line.split()[0] for line in p.screen().splitlines() if line.startswith('  sb_') ]
+    assert rows == [ 'sb_mypkg_innerspace', 'sb_mypkg_testfails' ]
+    #Output of the failed test:
+    p.send( 'j' )
+    p.send( '\r' )
+    p.wait_for_screen( r'Output of sb_mypkg_testfails \(exit code 3\)' )
+    p.wait_for_screen( r'1 this test fails' )
+    p.send( 'q' )
+    #Differences with the reference log, and update of the reference log:
+    p.send( 'k' )
+    p.send( '\r' )
+    p.wait_for_screen( r'sb --testreport +\[1/1\] sb_mypkg_innerspace' )
+    p.send( 'u' )
+    m = p.wait_for_screen( r'type the code ([a-z0-9]{5}) in reverse order' )
+    p.send( m.group(1)[::-1] + '\r' )
+    p.wait_for_screen( 'Updated MyPkg/scripts/innerspace.log' )
+    p.send( 'q' )
+    p.wait_for_screen( r'3 tests, 1 failed' )
+    #Fix the failing test and run it again:
+    ( d / 'MyPkg' / 'scripts' / 'testfails' ).write_text( '#!/usr/bin/env bash\necho fixed\n' )
+    p.send( 'r' )
+    p.wait_for_screen( 'sb_mypkg_testfails now passes' )
+    p.wait_for_screen( r'3 tests, 0 failed' )
+    #Sort order:
+    p.send( 'f' )
+    p.send( 's' )
+    p.wait_for_screen( r'sort: pkg' )
+    p.send( 'q' )
+    assert p.wait_exit() == 0
+    #The usual report follows, and reflects the changes:
+    assert 'Updated 1 reference log:' in p.text
+    assert 'All tests completed without failures!' in p.text
+    assert ( d / 'MyPkg' / 'scripts' / 'innerspace.log' ).read_text() == 'x = 1 2\n'
+    rows = _result_rows( run( "sb --testreport --testfilter=*testfails,*innerspace", d ).out )
+    assert rows == { 'sb_mypkg_innerspace' : ( 'OK', 'OK' ),
+                     'sb_mypkg_testfails' : ( 'OK', '--' ) }
+
+def test_interactive_testreport_with_tests( reflogproj ):
+    from sbtestutils import PtyProcess
+    d = reflogproj
+    p = PtyProcess( [ 'sb', '-t', '--testreport=interactive,failed',
+                      '--testfilter=*same,*different' ], d )
+    p.wait_for_screen( r'sb --testreport +2 tests, 1 failed', timeout = 300 )
+    rows = [ line.split()[0] for line in p.screen().splitlines() if line.startswith('  sb_') ]
+    assert rows == [ 'sb_mypkg_different' ]
+    p.send( 'q' )
+    assert p.wait_exit() == 73
+    assert 'ERROR: Some tests failed!' in p.text
