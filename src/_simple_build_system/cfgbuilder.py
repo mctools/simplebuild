@@ -8,6 +8,52 @@ def load_builtin_cfgs():
              ( pd / 'pkgs-core_val' / 'simplebuild.cfg' ).absolute().resolve() ]
     return [ ( p, SingleCfg.create_from_toml_file(p,ignore_build=True) ) for p in cfgs ]
 
+def _invoke_dynamic_generator( cmd, script, descr, quiet ):
+    """Invoke a dynamic_generator script. In quiet mode, the output of the
+    script is only shown (on stderr) if it fails. Concurrent invocations of the
+    same script (e.g. from simultaneous invocations of sbenv) are serialised,
+    since generators typically remove and create files."""
+    import subprocess
+    import sys
+    try:
+        with _exclusive_flock( script ):
+            rv = subprocess.run( cmd, capture_output = quiet )
+    except OSError as e:
+        error.error(f'Could not invoke dynamic_generator script {script}{descr}: {e}')
+    if rv.returncode != 0:
+        if quiet:
+            for out in ( rv.stdout, rv.stderr ):
+                if out:
+                    sys.stderr.write( out.decode( errors = 'replace' ) )
+                    if not out.endswith(b'\n'):
+                        sys.stderr.write( '\n' )
+            sys.stderr.flush()
+        error.error(f'dynamic_generator script {script}{descr} failed'
+                    f' (exit code {rv.returncode})')
+
+class _exclusive_flock:
+    """Context manager holding an exclusive flock on a (readable) file while
+    active. This is merely a precaution, so failures to lock are ignored."""
+
+    def __init__( self, path ):
+        self._path = path
+        self._fh = None
+
+    def __enter__( self ):
+        try:
+            import fcntl
+            self._fh = open( self._path, 'rb' )
+            fcntl.flock( self._fh.fileno(), fcntl.LOCK_EX )
+        except (ImportError, OSError):
+            if self._fh:
+                self._fh.close()
+                self._fh = None
+        return self
+
+    def __exit__( self, *exc ):
+        if self._fh:
+            self._fh.close()#also releases the lock
+
 class CfgBuilder:
 
     """Class which, based on an initial "main" simplebuild.cfg, can locate and
@@ -80,25 +126,21 @@ class CfgBuilder:
             self.__invoke_dynamic_generators()
 
     def __invoke_dynamic_generators( self ):
-        from .io import print
+        from .io import print, is_quiet
         import sys
-        import subprocess
         assert self.__dyngenscripts
         pyexec = sys.executable or 'python3'
         for bundle_name, script in self.__dyngenscripts:
             if not script.name.endswith('.py'):
                 error.error('dynamic_generator script name must end in .py')
             descr = f' from {bundle_name}' if bundle_name else ''
-            from .io import is_quiet
-            is_quiet_val = is_quiet()
-            if not is_quiet_val:
+            quiet = is_quiet()
+            if not quiet:
                 print(f"Invoking {script}{descr}")
-            rv = subprocess.run( [ pyexec, '-BI', script,
-                                   str(self.__install_dir_resolved),
-                                   str(self.__build_mode) ],
-                                 capture_output = is_quiet_val )
-            if rv.returncode!=0:
-                error.error('dynamic_generator script invocation failed')
+            _invoke_dynamic_generator( [ pyexec, '-BI', str(script),
+                                         str(self.__install_dir_resolved),
+                                         str(self.__build_mode) ],
+                                       script, descr, quiet )
 
     def __print_verbose( self, *a,**kw ):
         if self.__is_verbose():
@@ -161,7 +203,7 @@ class CfgBuilder:
                 self.__cfg_names_missing.add( cfgname )
         for sp in cfg.depend_search_path:
             if not sp.exists():
-                error.error
+                error.error(f'Missing file: {sp}')
             assert sp.is_file()
             sp = sp.absolute()
             if sp in self.__used_cfg_files:

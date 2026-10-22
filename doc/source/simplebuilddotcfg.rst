@@ -95,7 +95,15 @@ Information about the associated package bundle.
   dynamically generate code in simplebuild packages. This feature is obviously
   for rather advanced users only. One use-case could be to include code from
   repositories whose layout does not match that required by a simplebuild
-  package.
+  package. The script is invoked (with the same Python interpreter as
+  simplebuild itself, in isolated mode, and from the current working directory)
+  by all of ``sb``, ``sbrun``, and ``sbenv`` before anything else is done, with
+  the installation directory and the build mode as arguments. It should
+  therefore be fast, and only modify files when something actually changed. If
+  the script fails (exits with a non-zero exit code), so does the simplebuild
+  command (also showing the output of the script in ``--quiet`` mode, where it
+  is otherwise hidden). Simultaneous invocations of the script are avoided
+  (e.g. when ``sbenv`` is invoked in several terminals at the same time).
 
 * ``extdep_root`` (string): Path to a directory containing additional CMake
   files for defining external dependencies (expert-only).
