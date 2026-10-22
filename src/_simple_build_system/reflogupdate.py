@@ -116,6 +116,13 @@ class Session:
         write_atomic( target, data, mode = mode )
         candidate.updated = True
         candidate.forget_lines()
+        #Also update the comparison in the test results, so reports show that
+        #the output now matches the reference log:
+        from .reflogdiff import compare_and_write_diff
+        td = self.testdir / candidate.name
+        same = compare_and_write_diff( candidate.installed_reflog, candidate.output,
+                                       td / 'refdiff.log' )
+        write_atomic( td / 'ecdiff.txt', '0\n' if same else '1\n' )
         if shown not in self.updated_files:
             self.updated_files.append( shown )
         return shown
