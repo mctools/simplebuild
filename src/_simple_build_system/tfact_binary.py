@@ -125,7 +125,7 @@ class TargetBinaryObject(target_base.Target):
 
 class TargetBinary(target_base.Target):
 
-    def __init__(self,pkg,subdir,lang,shlib,object_targets,instsubdir,namefct,descrfct=None,checkfct=None,symlinkdir=None):
+    def __init__(self,pkg,subdir,lang,shlib,object_targets,instsubdir,namefct,descrfct=None,checkfct=None,ownerdir=None):
         is_py_mod = subdir.startswith('pycpp_')#todo better way?
         db.db['pkg2parts'][pkg.name].add(subdir)
         langinfo=env.env['system']['langs'][lang]
@@ -208,12 +208,11 @@ class TargetBinary(target_base.Target):
                                       sobjs,
                                       join(d,filename))]
         self._icode_link = len(self.code) - 1#for setup()
-        if symlinkdir:
-            #Also make the file available in a shared directory via a relative
-            #symlink:
-            _ = os.path.relpath( join(instsubdir,filename), symlinkdir )
-            self.code += [ 'mkdir -p ${INST}/%s'%symlinkdir,
-                           'ln -sf %s ${INST}/%s/%s'%(_,symlinkdir,filename) ]
+        if ownerdir:
+            #Record that the file belongs to the package, by placing an empty
+            #file with the same name in a directory belonging to the package:
+            self.code += [ 'mkdir -p ${INST}/%s'%ownerdir,
+                           'touch ${INST}/%s/%s'%(ownerdir,filename) ]
 
     def setup(self,pkg):
         ll=[]
@@ -230,7 +229,7 @@ class TargetBinary(target_base.Target):
         _ = self._icode_link
         self.code[_]=self.code[_]%(' '.join(ll))
 
-def create_tfactory_binary(instsubdir=None,pkglib=False,shlib=False,allowed_langs=None,namefct=None,flagfct=None,descrfct=None,checkfct=None,symlinkdir=None):
+def create_tfactory_binary(instsubdir=None,pkglib=False,shlib=False,allowed_langs=None,namefct=None,flagfct=None,descrfct=None,checkfct=None,ownerdir=None):
     if not allowed_langs:
         allowed_langs = langs.langs
     if pkglib:
@@ -285,7 +284,8 @@ def create_tfactory_binary(instsubdir=None,pkglib=False,shlib=False,allowed_lang
         tb=TargetBinary(pkg,subdir,langspresent,
                         shlib=shlib,object_targets=tgts,
                         instsubdir=instsubdir,namefct=namefct,descrfct=descrfct,
-                        checkfct=checkfct,symlinkdir=symlinkdir)
+                        checkfct=checkfct,
+                        ownerdir=( ownerdir%pkg.name if ownerdir else None ))
         if pkglib:
             pkg.libtarget=tb
         tgts+=[tb]
