@@ -313,8 +313,9 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
 
     if err_txt:
         #fixme: unprefixed printouts?:
-        print("\n\nERROR during configuration:\n\n  %s\n\n"
-              "Aborting."%(err_txt.replace('\n','\n  ')))
+        from .io import print_error
+        print_error("\n\nERROR during configuration:\n\n  %s\n\n"
+                    "Aborting."%(err_txt.replace('\n','\n  ')))
         #NB: The package database is not saved, so the next invocation will
         #redo everything which was not completed (as is also the case for
         #KeyboardInterrupt exceptions, which are simply passed on).

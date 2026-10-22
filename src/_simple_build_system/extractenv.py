@@ -195,6 +195,14 @@ def extractenv(*,cmakeargs,actually_needed_extdeps,quiet=True,verbose=False):
     t1 = time.time()
     print("Environment inspection done (%.2g seconds)"%(t1-t0))
     if ec!=0:
+        if _io.is_quiet():
+            #Errors must not be silent, so show the output of CMake:
+            import sys
+            try:
+                sys.stderr.write( output_file.read_text( errors = 'replace' ) )
+                sys.stderr.flush()
+            except OSError:
+                pass
         return
     with output_file.open('rt') as fh:
         printedinfo = parse_stdouterr( fh )

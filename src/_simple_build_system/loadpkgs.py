@@ -328,7 +328,9 @@ class PackageLoader:
         for pd,basedir in pkgdirs.items():
             pkg_reldir = os.path.relpath(pd,basedir)
             pkg_name = os.path.basename(pd)
-            assert len(pkg_name)>=3
+            pkgnameerrmsg = pkgname_valid_or_errmsg(pkg_name)
+            if pkgnameerrmsg is not None:
+                error.error(f'{pkgnameerrmsg} (package in {pd})')
             p=Package(basedir,pkg_reldir,default_enabled)
             pkgs+=[p]
             ln=p.name.lower()

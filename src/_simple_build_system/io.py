@@ -13,6 +13,13 @@ def print_no_prefix( *args, **kwargs ):
     return _printfct[0]( *args, **kwargs )
 def raw_print_ignore_quiet( *args, **kwargs ):
     return _orig_printfct( *args, **kwargs )
+def print_error( *args, **kwargs ):
+    """Like print(), but for error messages, which must never be silenced:
+    in quiet mode they are printed on stderr instead."""
+    if _quiet[0]:
+        import sys
+        return _orig_printfct( print_prefix, *args, file = sys.stderr, **kwargs )
+    return print( *args, **kwargs )
 def make_quiet():
     if not _quiet[0]:
         _quiet[0] = True
