@@ -74,22 +74,21 @@ class CfgBuilder:
     """
 
     def __init__(self, main_cfg : SingleCfg, main_cfg_file, *,
-                 build_mode, cachedir_suffix ):
+                 build_mode, cachedir, cachedir_suffix ):
         #Input:
         #Take build settings straight from main_cfg, except for the build mode
         #and cache dir names which depends on the selected variant (see
-        #variant.py):
+        #variant.py), and the cache dir which might be overridden by an
+        #environment variable (see envcfg.py):
         from . import io as _io
         print_prefix = f'{_io.print_prefix}cfgbuilder:'
         self.__print = lambda *a,**kw: _io.print_no_prefix(print_prefix,*a,**kw)
         self.__is_verbose = _io.is_verbose
         self.__build_mode = build_mode
         #self.__build_njobs = main_cfg.build_njobs
-        self.__build_cachedir = main_cfg.build_cachedir
-        self.__build_dir_resolved = ( main_cfg.build_cachedir
-                                      / f'bld{cachedir_suffix}' )
-        self.__install_dir_resolved = ( main_cfg.build_cachedir
-                                        / f'install{cachedir_suffix}' )
+        self.__build_cachedir = cachedir
+        self.__build_dir_resolved = cachedir / f'bld{cachedir_suffix}'
+        self.__install_dir_resolved = cachedir / f'install{cachedir_suffix}'
 
         self.__build_pkg_filter = main_cfg.build_pkg_filter
         #self.__build_extdep_ignore = main_cfg.build_extdep_ignore

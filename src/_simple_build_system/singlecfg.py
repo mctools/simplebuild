@@ -437,6 +437,7 @@ def decode_with_schema_and_apply_result_to_obj( cfg : dict,
             v = decodefct(ctx,v)
             setattr( targetobj, f'{section}_{k}', v )
     #Apply default values:
+    defaulted = set()
     for sectionname, sectiondata in schema.items():
         if ignore_build and sectionname=='build':
             continue
@@ -446,8 +447,12 @@ def decode_with_schema_and_apply_result_to_obj( cfg : dict,
                 ctx.set_item_name(f'DEFAULT::{sectionname}.{k}')
                 v = None if defval is None else decodefct(ctx,defval)
                 setattr( targetobj,attrname, v )
+                defaulted.add( attrname )
 
     setattr(targetobj, '_cfg_file', cfg_file )
+    #Names of attributes (like "build_cachedir") which were not specified in
+    #the cfg, and therefore have their default values:
+    setattr(targetobj, 'defaulted_items', frozenset(defaulted) )
 
 
     return cfg

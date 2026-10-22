@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 set -eu
+#The tests rely on the default location of the cache directories:
+unset SIMPLEBUILD_CACHE_ROOT
 REPOROOT_DIR="$( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && cd ../../ && pwd )"
 export SBTEST_SHELLSNIPPET="${REPOROOT_DIR}/resources/shellrc_snippet.sh"
 export SBTEST_SHELLSNIPPET_DEACTIVATE="${REPOROOT_DIR}/resources/shellrc_snippet_deactivate.sh"

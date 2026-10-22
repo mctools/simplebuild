@@ -112,6 +112,25 @@ def remove_all( cachedir, current_blddir ):
         removed.append( cd )
     return removed, skipped
 
+#File in the cache directory (the parent of the bld* and install* dirs)
+#recording the full path of the simplebuild.cfg file of the bundle using it:
+cfgpath_filename = 'simplebuild_cfg_path.txt'
+
+def read_cachedir_owner( cachedir ):
+    """The path to the simplebuild.cfg file recorded in the cache directory
+    (or None if not recorded)."""
+    try:
+        return ( cachedir / cfgpath_filename ).read_text().strip() or None
+    except (OSError,UnicodeDecodeError):
+        return None
+
+def record_cachedir_owner( cachedir, cfgfile ):
+    """Record the path to the simplebuild.cfg file in the cache directory, for
+    the benefit of humans and to detect clashes."""
+    from .utils import write_atomic
+    if read_cachedir_owner( cachedir ) != str(cfgfile):
+        write_atomic( cachedir / cfgpath_filename, f'{cfgfile}\n' )
+
 def write_extra_flags_file( blddir, extra_cflags, extra_ldflags ):
     """Record the extra flags used in a given cache dir, for the benefit of
     humans inspecting the cache directory."""

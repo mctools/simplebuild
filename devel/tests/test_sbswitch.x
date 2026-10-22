@@ -1,5 +1,7 @@
 #!/bin/bash
 set -eu
+#The tests rely on the default location of the cache directories:
+unset SIMPLEBUILD_CACHE_ROOT
 
 # Added this test to investigate issues (although could not reproduce the
 # issues, the test seems like a good test to have).

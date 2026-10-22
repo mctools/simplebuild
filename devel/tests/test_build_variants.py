@@ -14,6 +14,9 @@ import shlex
 import subprocess
 import sys
 
+#The tests rely on the default location of the cache directories:
+os.environ.pop( 'SIMPLEBUILD_CACHE_ROOT', None )
+
 workdir = pathlib.Path('sbtest_build_variants').absolute()
 cachedir = workdir / 'simplebuild_cache'
 
@@ -64,7 +67,14 @@ def n_compiled( out ):
                 if line.strip().startswith('Building ') )
 
 def cachedir_names():
-    return sorted( f.name for f in cachedir.iterdir() ) if cachedir.is_dir() else []
+    """Names of the build variant directories in the cache dir."""
+    if not cachedir.is_dir():
+        return []
+    names = sorted( f.name for f in cachedir.iterdir() )
+    #The cache dir also records the location of the simplebuild.cfg file:
+    if names and 'simplebuild_cfg_path.txt' not in names:
+        fail('Missing simplebuild_cfg_path.txt in cache dir')
+    return [ n for n in names if n != 'simplebuild_cfg_path.txt' ]
 
 def write_cfg( build_section_lines ):
     lines = [ '[bundle]', "  name = 'variantstest'", '[build]' ]
