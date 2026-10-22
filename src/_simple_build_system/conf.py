@@ -68,23 +68,42 @@ def descrfct_app(pkg,subdir,name):
 
 def pkg_install_dir( pkgname ):
     """Directory in the install area holding files belonging exclusively to
-    the package (currently just applications)."""
+    the package. Currently this is just an "apps" subdirectory, with an empty
+    file for each application installed by the package in the shared bin/
+    directory."""
     return install_dir() / 'pkgs' / pkgname
 
 def _symlink_owned_by_pkg( f, pkgname ):
     """Whether f is a symlink installed for the given package in one of the
-    install directories shared between packages (bin/, scripts/, or
-    tests/testref/). Such symlinks point to files in the package itself (e.g.
-    <blddir>/pkgs/<pkgname>/scripts/<scriptname>), or to applications in the
-    install area of the package (<instdir>/pkgs/<pkgname>/bin/<appname>). Note
-    that a name pattern like "sb_<pkgname>_*" is not enough to determine
-    this, since packages named e.g. Foo and Foo_Bar would clash."""
+    install directories shared between packages (scripts/ or tests/testref/).
+    Such symlinks point to files in the package itself (e.g.
+    <blddir>/pkgs/<pkgname>/scripts/<scriptname>). Note that a name pattern like
+    "sb_<pkgname>_*" is not enough to determine this, since packages named e.g.
+    Foo and Foo_Bar would clash."""
     from . import dirs
     if not f.is_symlink():
         return False
     target = pathlib.Path(os.path.normpath(f.parent / os.readlink(f)))
-    return target.parent.parent in ( dirs.pkg_dir(pkgname),
-                                     pkg_install_dir(pkgname) )
+    return target.parent.parent == dirs.pkg_dir(pkgname)
+
+def _remove_apps_owned_by_pkg( pkgname, names = None ):
+    """Remove applications installed in the shared bin/ directory by the
+    package (as recorded in the install dir of the package). NB: Applications
+    are installed directly in bin/ (rather than e.g. symlinked from there),
+    since some applications locate other files (e.g. ../lib) relative to their
+    own location."""
+    from . import utils
+    instdir = install_dir()
+    markerdir = pkg_install_dir( pkgname ) / 'apps'
+    if not markerdir.is_dir() or markerdir.is_symlink():
+        return
+    for marker in sorted( markerdir.iterdir() ):
+        if names is not None and marker.name not in names:
+            continue
+        #Apps are files (or on macOS potentially also .dSYM dirs):
+        for f in ( marker.name, marker.name + '.dSYM' ):
+            utils.remove_within( instdir / 'bin' / f, instdir )
+        utils.remove_within( marker, instdir )
 
 def _remove_symlinks_owned_by_pkg( directory, pkgname, names = None ):
     from . import utils
@@ -100,12 +119,14 @@ def uninstall_package(pkgname):
     #completely remove all traces of a pkg from the install area. This does not
     #depend on any information in the package database, but only on the
     #layout of the install area (files of a package are either in directories
-    #belonging to that package, have names which are unique to the package, or
-    #are symlinks pointing into the package):
+    #belonging to that package, have names which are unique to the package, are
+    #symlinks pointing into the package, or are applications recorded in the
+    #install dir of the package):
     from . import utils
     instdir = install_dir()
     if not ( instdir / '.sbinstalldir' ).exists():
         return
+    _remove_apps_owned_by_pkg( pkgname )
     for d in ( pkg_install_dir(pkgname),
                instdir / 'data' / pkgname,
                instdir / 'include' / pkgname,
@@ -113,7 +134,7 @@ def uninstall_package(pkgname):
         utils.remove_within( d, instdir )
     #NB: Package names never contain "__":
     utils.remove_glob_within( instdir / 'lib', f'*PKG__{pkgname}.*', instdir )
-    for d in ( 'bin', 'scripts', 'tests/testref' ):
+    for d in ( 'scripts', 'tests/testref' ):
         _remove_symlinks_owned_by_pkg( instdir / d, pkgname )
 
 #Get paths to all packages (including the framework and user packages)
@@ -174,10 +195,10 @@ def target_factories_for_patterns():
                                        checkfct=checkfct_pycpp,
                                        flagfct = lambda pkg,subdir
                                        :['-DPYMODNAME=%s'%subdir[6:]]))]
-    #Applications are installed in a separate directory per package, and
-    #symlinked into a shared bin directory (which is in the PATH):
-    ll += [('app_.+', tfb.create_tfactory_binary(instsubdir='pkgs/%s/bin',
-                                                 symlinkdir='bin',
+    #Applications are installed in the shared bin directory (which is in the
+    #PATH), and recorded in the install dir of the package:
+    ll += [('app_.+', tfb.create_tfactory_binary(instsubdir='bin',
+                                                 ownerdir='pkgs/%s/apps',
                                                  namefct=namefct_app,
                                                  descrfct=descrfct_app))]
     ll += [('libsrc', tfb.create_tfactory_binary(pkglib=True,
@@ -232,13 +253,7 @@ def deinstall_parts(instdir,pkgname,current_parts,disappeared_parts):
             _runnable_name='%s%s_%s' %( runnable_prefix,
                                         pkgname.lower(),
                                         d[4:].lower() )
-            #Apps are files (or on macOS potentially .dSYM dirs) in the
-            #install dir of the package, symlinked into the bin dir:
-            _remove_symlinks_owned_by_pkg( i / 'bin', pkgname,
-                                           names = [ _runnable_name ] )
-            _ = pkg_install_dir(pkgname) / 'bin'
-            rm_file( _ / _runnable_name )
-            rm_tree( _ / ( _runnable_name + '.dSYM' ) )
+            _remove_apps_owned_by_pkg( pkgname, names = [ _runnable_name ] )
         elif d=='symlink__scripts':
             _remove_symlinks_owned_by_pkg( i / 'scripts', pkgname )
             (pkgcache/'symlinks'/'scripts.pkl').touch()

@@ -23,7 +23,7 @@ incdirname='include'
 
 #Increase whenever the layout of the build or install directories changes in
 #an incompatible manner (triggering complete rebuilds of existing caches):
-cache_layout_version = '2'
+cache_layout_version = '3'
 
 envcache = blddir / 'env.cache'
 systimestamp_cache=blddir / 'systimestamp.cache'
