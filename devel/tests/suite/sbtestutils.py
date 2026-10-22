@@ -253,10 +253,23 @@ class PtyProcess:
             self._read( 0.1 )
             m = re.compile( pattern ).search( self.screen() )
             if m:
-                return m
+                #The program might be in the middle of redrawing the screen,
+                #so wait for the output to settle before returning (to make
+                #sure that subsequent inspections of the screen see all of
+                #it):
+                self._settle()
+                return re.compile( pattern ).search( self.screen() ) or m
             if self.ec is not None or time.time() - t0 > timeout:
                 raise AssertionError( f'Pattern {pattern!r} not found on'
                                       ' screen:\n' + self.screen() )
+
+    def _settle( self, quiet_time = 0.3, max_time = 3.0 ):
+        """Read output until there is none for quiet_time seconds (or
+        max_time passed, in case of continuous updates)."""
+        import time
+        t0 = time.time()
+        while time.time() - t0 < max_time and self._read( quiet_time ):
+            pass
 
     def send( self, keys ):
         import os
