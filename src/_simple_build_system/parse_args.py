@@ -202,8 +202,10 @@ $> {_p} --init dgcode PKGFILTER::SomeFilter
                                   ' running tests),\nor customise the report'
                                   ' when used with -t.\nOptional SPEC is a'
                                   ' comma separated list of\n"name", "pkg", or'
-                                  ' "time" (sort order), and\n"failed" (only'
-                                  ' show failed tests).'))
+                                  ' "time" (sort order),\n"failed" (only'
+                                  ' show failed tests), and\n"interactive"'
+                                  ' (browse results, inspect\noutput and'
+                                  ' reference logs, and rerun tests).'))
     group_test.add_argument("--reflogupdate", action='store_true',
                             dest="reflogupdate",
                             help=('Interactively review differences between'
@@ -382,8 +384,9 @@ testreport_sort_keys = ('name','pkg','time')
 
 def parse_testreport_spec( spec, error_fct ):
     """Parse the SPEC of --testreport[=SPEC] into a dictionary with keys "sort"
-    (one of testreport_sort_keys) and "failedonly" (bool)."""
-    res = dict( sort = 'name', failedonly = False )
+    (one of testreport_sort_keys), "failedonly" (bool), and "interactive"
+    (bool)."""
+    res = dict( sort = 'name', failedonly = False, interactive = False )
     nsort = 0
     for e in ( spec or '' ).split(','):
         e = e.strip().lower()
@@ -394,8 +397,11 @@ def parse_testreport_spec( spec, error_fct ):
             nsort += 1
         elif e == 'failed':
             res['failedonly'] = True
+        elif e == 'interactive':
+            res['interactive'] = True
         else:
-            _ = ', '.join( f'"{k}"' for k in testreport_sort_keys + ('failed',) )
+            _ = ', '.join( f'"{k}"' for k in testreport_sort_keys
+                           + ('failed','interactive') )
             error_fct(f'Invalid keyword "{e}" in --testreport (valid keywords: {_})')
     if nsort > 1:
         error_fct('Only one sort order can be specified in --testreport')

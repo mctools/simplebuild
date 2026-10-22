@@ -86,8 +86,11 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
         print("FIXME: summary mode is not yet implemented!")
         raise SystemExit
 
-    if opt.reflogupdate and not ( sys.stdin.isatty() and sys.stdout.isatty() ):
-        error.error('The --reflogupdate option requires an interactive terminal')
+    _interactive_report = bool( opt.testreport and opt.testreport['interactive'] )
+    if ( ( opt.reflogupdate or _interactive_report )
+         and not ( sys.stdin.isatty() and sys.stdout.isatty() ) ):
+        _ = '--reflogupdate' if opt.reflogupdate else '--testreport=interactive'
+        error.error(f'The {_} option requires an interactive terminal')
 
     #setup lockfile:
     from . import dirs
@@ -132,6 +135,11 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
     from . import conf
     from . import envcfg
     from . import cachedirs
+
+    if opt.testreport is not None and not opt.runtests and _interactive_report:
+        ec = _interactive_testreport( opt, lockfile_content )
+        unlock()
+        sys.exit(ec)
 
     if opt.testreport is not None and not opt.runtests:
         #Report results of the last test run, without building anything:
@@ -551,6 +559,8 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
                             do_pycoverage = do_pycoverage,
                             pkgloader = pkgloader,
                             report_spec = opt.testreport )
+        if _interactive_report:
+            ec = _interactive_testreport( opt, lockfile_content )
         if opt.reflogupdate:
             _reflogupdate( opt, lockfile_content )
 
@@ -595,18 +605,14 @@ def _parse_testfilter( testfilter ):
 
 _inherited_lock_envvar = 'SIMPLEBUILD_INHERITED_LOCK'
 
-def _reflogupdate( opt, lockfile_content ):
-    """Interactive review and update of reference logs. Returns exit code."""
+def _rerun_and_rebuild_fcts( lockfile_content ):
+    """Functions for running a test again, and for rebuilding, from within the
+    interactive user interfaces."""
     import os
     import sys
     import subprocess
     from . import dirs
-    from . import error
-    from . import io as _io
-    from .reflogupdate import Session
     from .testlauncher import rerun_test
-    if not ( sys.stdin.isatty() and sys.stdout.isatty() ):
-        error.error('The --reflogupdate option requires an interactive terminal')
 
     def rerun( name ):
         return rerun_test( dirs.testdir, dirs.installdir, dirs.blddir, name )
@@ -625,6 +631,57 @@ def _reflogupdate( opt, lockfile_content ):
         return subprocess.run( [ sys.executable, '-c', code, '--quiet' ] + args,
                                env = env ).returncode == 0
 
+    return rerun, rebuild
+
+def _print_updated_reflogs( updated_files ):
+    import os
+    from . import io as _io
+    n = len( updated_files )
+    _io.print('Updated %i reference log%s%s'%( n, '' if n == 1 else 's',
+                                                ':' if n else '.' ))
+    for f in updated_files:
+        try:
+            f = os.path.relpath( f )
+        except ValueError:
+            pass
+        _io.print(f'    {f}')
+
+def _interactive_testreport( opt, lockfile_content ):
+    """Interactive test report, followed by the usual report. Returns exit
+    code."""
+    from . import dirs
+    from .testlauncher import load_results, packages_changed_since, print_report
+    from .testreportui import InteractiveReport, run_interactive_report
+    rerun, rebuild = _rerun_and_rebuild_fcts( lockfile_content )
+    runinfo, _ = load_results( dirs.testdir )
+    reflogdir = dirs.installdir / 'tests' / 'testref'
+    filters = _parse_testfilter( opt.testfilter )[0]
+    if runinfo is not None:
+        changed = packages_changed_since( runinfo )
+        warning = ( 'WARNING: The results might be outdated, since these packages'
+                    ' were changed after the tests were run: ' + ' '.join(changed)
+                    if changed else None )
+        report = InteractiveReport( dirs.testdir, dirs.installdir, opt.testreport,
+                                    filters, warning, rerun, rebuild )
+        try:
+            run_interactive_report( report )
+        finally:
+            if report.updated_files:
+                _print_updated_reflogs( report.updated_files )
+    spec = dict( opt.testreport, interactive = False )
+    return print_report( dirs.testdir, reflogdir, opt.nexcerpts, spec,
+                         filters = filters, post_factum = True )
+
+def _reflogupdate( opt, lockfile_content ):
+    """Interactive review and update of reference logs. Returns exit code."""
+    import sys
+    from . import dirs
+    from . import error
+    from . import io as _io
+    from .reflogupdate import Session
+    if not ( sys.stdin.isatty() and sys.stdout.isatty() ):
+        error.error('The --reflogupdate option requires an interactive terminal')
+    rerun, rebuild = _rerun_and_rebuild_fcts( lockfile_content )
     session = Session( dirs.testdir, dirs.installdir,
                        filters = _parse_testfilter( opt.testfilter )[0],
                        rerun_fct = rerun, rebuild_fct = rebuild )
@@ -643,13 +700,5 @@ def _reflogupdate( opt, lockfile_content ):
     try:
         run_reflogupdate( session )
     finally:
-        n = len( session.updated_files )
-        _io.print('Updated %i reference log%s%s'%( n, '' if n == 1 else 's',
-                                                    ':' if n else '.' ))
-        for f in session.updated_files:
-            try:
-                f = os.path.relpath( f )
-            except ValueError:
-                pass
-            _io.print(f'    {f}')
+        _print_updated_reflogs( session.updated_files )
     return 0

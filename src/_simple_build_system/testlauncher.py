@@ -83,6 +83,8 @@ def perform_tests(testdir,
 
     if not tests:
         save_runinfo()
+        if report_spec and report_spec.get('interactive'):
+            return None
         return print_report( testdir, logdir, nexcerpts, report_spec )
 
     _pyexec = shlex.quote( sys.executable or 'python3' )
@@ -205,6 +207,12 @@ def perform_tests(testdir,
 
     sys.stdout.flush()
     sys.stderr.flush()
+    if report_spec and report_spec.get('interactive'):
+        #The report is printed after the interactive session:
+        for n in notes:
+            print(f'  {n}')
+            print()
+        return None
     return print_report( testdir, logdir, nexcerpts, report_spec,
                          notes = notes, failed = ( ec_make != 0 ) )
 
@@ -339,6 +347,14 @@ def _pkg_timestamps( db ):
     #were changed (and thus rebuilt) after the tests were run:
     return dict( ( k, repr(v) ) for k,v in db.get('pkg2timestamp',{}).items() )
 
+def packages_changed_since( runinfo ):
+    """Names of packages which were changed (and thus rebuilt) after the test
+    run described by runinfo."""
+    from . import db
+    _ts = _pkg_timestamps( db.db )
+    return sorted( p for p,t in ( runinfo.get('pkg2timestamp') or {} ).items()
+                   if _ts.get(p,t) != t )
+
 class TestResult:
 
     def __init__( self, name, pkgname, has_reflog, ec, ecdiff, time_ms ):
@@ -409,10 +425,7 @@ def print_report( testdir, logdir, nexcerpts, spec, *, filters = None,
             runinfo.get('time_finished','<unknown>').replace('T',' '),
             f' (tests run with filter "{_}")' if _ else ''))
         print()
-        from . import db
-        _ts = _pkg_timestamps( db.db )
-        changed = sorted( p for p,t in ( runinfo.get('pkg2timestamp') or {} ).items()
-                          if _ts.get(p,t) != t )
+        changed = packages_changed_since( runinfo )
         if changed:
             print('%sWARNING%s The results might be outdated, since the following'
                   ' packages were changed\n        after the tests were run: %s'%(
