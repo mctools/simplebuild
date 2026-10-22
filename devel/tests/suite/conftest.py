@@ -1,8 +1,14 @@
+import os
 import pathlib
 
 import pytest
 
 import sbtestutils
+
+#Settings in the environment of the user which affect the location of the
+#cache directories (which the tests rely on) must be ignored. This is done here,
+#so it also applies to scripts launched by the tests:
+os.environ.pop( 'SIMPLEBUILD_CACHE_ROOT', None )
 
 def pytest_report_header( config ):
     import _simple_build_system

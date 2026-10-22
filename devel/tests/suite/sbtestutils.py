@@ -71,7 +71,8 @@ def clean_env( extra = None ):
     env = os.environ.copy()
     for k in list(env.keys()):
         if ( k.startswith('SBLD_') or k in ('_SIMPLEBUILD_CURRENT_ENV',
-                                             'SIMPLEBUILD_CFG') ):
+                                             'SIMPLEBUILD_CFG',
+                                             'SIMPLEBUILD_CACHE_ROOT') ):
             del env[k]
     bindir = str( pathlib.Path(sys.executable).parent )
     env['PATH'] = bindir + ( ':' + env['PATH'] if env.get('PATH') else '' )

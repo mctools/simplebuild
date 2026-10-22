@@ -104,6 +104,20 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
     if opt.removelock and dirs.lockfile.exists():
         os.remove(dirs.lockfile)
 
+    from . import envcfg
+    from . import cachedirs
+    if envcfg.var.build_cachedir_from_env:
+        #The name of the cache dir contains a hash of the path to the
+        #simplebuild.cfg file, so it should never be used by another bundle
+        #(this would require a hash collision, or a manually copied
+        #directory):
+        _owner = cachedirs.read_cachedir_owner( envcfg.var.build_cachedir )
+        if _owner and _owner != str(envcfg.var.main_cfg_file_resolved):
+            error.error(f'The cache directory {envcfg.var.build_cachedir} (placed'
+                        f' due to the {envcfg.cache_root_envvar} environment'
+                        f' variable) is already used by {_owner}. Please remove it'
+                        ' manually.')
+
     from . import lockfile
     #Make sure the lock is also released when the process is terminated:
     lockfile.exit_cleanly_on_termination_signals()
@@ -131,6 +145,9 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
             lockfile.release( dirs.lockfile, lockfile_content )
     import atexit
     atexit.register(unlock)
+
+    cachedirs.record_cachedir_owner( envcfg.var.build_cachedir,
+                                     envcfg.var.main_cfg_file_resolved )
 
     from . import conf
     from . import envcfg
@@ -180,7 +197,13 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
         #compromise, we remove it only if it is in the default location with
         #the default name (users messing with pkg_root or cachedir are anyway
         #expected to be more advanced):
-        if ( dcache == ( envcfg.var.main_bundle_pkg_root / 'simplebuild_cache' )
+        #The cache dirs placed due to SIMPLEBUILD_CACHE_ROOT are removed as
+        #well (they are not created manually by users):
+        _owner_file = dcache / cachedirs.cfgpath_filename
+        if dcache.is_dir() and [ f.name for f in dcache.iterdir() ] == [ _owner_file.name ]:
+            _owner_file.unlink()
+        if ( ( envcfg.var.build_cachedir_from_env or
+               dcache == ( envcfg.var.main_bundle_pkg_root / 'simplebuild_cache' ) )
              and dcache.is_dir() and not any( dcache.iterdir() ) ):
             dcache.rmdir()
         raise SystemExit

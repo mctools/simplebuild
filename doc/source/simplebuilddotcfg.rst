@@ -138,7 +138,8 @@ bundle which is simply being used by another bundle, will be completely ignored.
 
 * ``cachedir`` (string): A relative path to the temporary directory in which
   simplebuild will place temporary build output. Defaults to
-  ``"./simplebuild_cache"``.
+  ``"./simplebuild_cache"`` (see also :ref:`the SIMPLEBUILD_CACHE_ROOT variable
+  <sbcacheroot>`).
 
 * ``pkg_filter`` (array of string): A list of filter expressions, which can be
   used to selectively enable only some packages in the enabled bundles for
@@ -273,6 +274,38 @@ with appropriate entries in the ``[depend]`` section and set::
 
   export SIMPLEBUILD_CFG=/some/where/simplebuild_everything.cfg
 
+
+.. _sbcacheroot:
+
+The SIMPLEBUILD_CACHE_ROOT variable
+-----------------------------------
+
+Users who prefer to keep temporary build output away from their bundles, e.g.
+on a dedicated scratch disk, can set the ``SIMPLEBUILD_CACHE_ROOT``
+environment variable (e.g. in their ``~/.bashrc``) to the absolute path of a
+directory in which simplebuild will then place the cache directories::
+
+  export SIMPLEBUILD_CACHE_ROOT=/scratch/myusername/sbcache
+
+The cache directory of a bundle will then be a subdirectory with a name like
+``sb_<bundlename>_<hash>``, where the hash is calculated from the full path to
+the main ``simplebuild.cfg`` file. Thus, each checkout of a bundle gets its own
+cache directory, which is always the same as long as the checkout is not moved.
+The full path to the ``simplebuild.cfg`` file is recorded in a file named
+``simplebuild_cfg_path.txt`` in the cache directory (which is also used to
+detect clashes). Note that since the cache directory of a checkout which is
+moved or removed is not removed automatically, it might be a good idea to
+occasionally clean up the directory.
+
+By default, ``SIMPLEBUILD_CACHE_ROOT`` is only used for bundles whose main
+``simplebuild.cfg`` file does not specify a ``cachedir``. To use it for all
+bundles, add a ``force::`` prefix to the value::
+
+  export SIMPLEBUILD_CACHE_ROOT=force::/scratch/myusername/sbcache
+
+Note that the variable must be set in the same way whenever simplebuild commands
+like ``sb``, ``sbrun``, and ``sbenv`` are used, since they would otherwise look
+for the build output in different places.
 
 .. _sbpymodsearchpath:
 
