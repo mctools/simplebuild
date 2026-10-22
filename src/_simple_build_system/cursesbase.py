@@ -178,15 +178,20 @@ class OutputView( ScreenBase ):
 
     def __init__( self, stdscr, title, path, start_at_end = False ):
         super().__init__( stdscr )
-        from .reflogdiff import read_lines
-        from .diffrender import visible_text
         self.title = title
-        try:
-            self.lines = [ visible_text( line.rstrip('\n') ) for line in read_lines( path ) ]
-        except OSError:
-            self.lines = None
+        self.path = path
+        self._load()
         self.y = len( self.lines or [] ) if start_at_end else 0
         self.x = 0
+
+    def _load( self ):
+        from .reflogdiff import read_lines
+        from .diffrender import visible_text
+        try:
+            self.lines = [ visible_text( line.rstrip('\n') )
+                           for line in read_lines( self.path ) ]
+        except OSError:
+            self.lines = None
 
     def draw( self ):
         self.scr.erase()
@@ -217,7 +222,11 @@ class OutputView( ScreenBase ):
             self.draw()
             ch = self.getkey()
             height = max( 1, self.scr.getmaxyx()[0] - 3 )
-            if ch in ( ord('q'), 27, c.KEY_BACKSPACE, 127 ):
+            if ch == -1:
+                #Timeout (when tests are running in the background), so the
+                #file might have grown:
+                self._load()
+            elif ch in ( ord('q'), 27, c.KEY_BACKSPACE, 127 ):
                 self.repaint_fully()
                 return
             elif ch in ( c.KEY_DOWN, ord('j') ):

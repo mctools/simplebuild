@@ -17,12 +17,22 @@ _keyhelp = [
     ( 'r', 'Run the selected test again' ),
     ( 'b', 'Rebuild (as with "sb"), and run the selected test again' ),
     ( 'e', 'Show the output of the last rebuild (e.g. compilation errors)' ),
+    ( 't', 'Run the shown tests again in the background (results appear as they finish)' ),
+    ( 'c', 'Cancel tests running in the background' ),
     ( '?', 'Show this help' ),
     ( '', 'Letter keys work the same independently of Shift and Caps Lock.' ),
 ]
 
 _statusbar = ( 'q:quit  Enter:inspect  o:output  s:sort  f:failed only'
-               '  r:rerun  b:rebuild+rerun  e:build log  ?:help' )
+               '  r:rerun  b:rebuild+rerun  e:build log  t:run tests  c:cancel  ?:help' )
+
+def format_duration( seconds ):
+    s = int( seconds + 0.5 )
+    if s < 60:
+        return f'{s}s'
+    if s < 3600:
+        return '%im%02is'%( s // 60, s % 60 )
+    return '%ih%02im'%( s // 3600, ( s % 3600 ) // 60 )
 
 class TestReportUI( ScreenBase ):
 
@@ -41,8 +51,13 @@ class TestReportUI( ScreenBase ):
         filter_fct = make_filter_fct( self.report.filters )
         self.all_results = [ r for r in ( results or [] ) if filter_fct( r.name ) ]
 
+    def _is_pending( self, r ):
+        run = self.report.run
+        return bool( run and r.name in run.names and run.status( r.name ) != 'done' )
+
     def rows( self ):
-        rr = [ r for r in self.all_results if r.failed or not self.failedonly ]
+        rr = [ r for r in self.all_results
+               if not self.failedonly or ( r.failed and not self._is_pending( r ) ) ]
         if self.sort == 'pkg':
             rr.sort( key = lambda r : ( r.pkgname or '', r.name ) )
         elif self.sort == 'time':
@@ -72,13 +87,28 @@ class TestReportUI( ScreenBase ):
         self.scr.erase()
         h, w = self.scr.getmaxyx()
         rows = self.rows()
-        nfailed = sum( 1 for r in self.all_results if r.failed )
-        title = ' sb --testreport   %i tests, %i failed   sort: %s%s'%(
-            len(self.all_results), nfailed, self.sort,
-            '   (only failed tests shown)' if self.failedonly else '' )
+        run = self.report.run
+        if run and run.active:
+            ndone, nrunning, ntot = run.counts()
+            eta, nunknown = run.time_remaining()
+            progress = f'running tests: {ndone}/{ntot} done'
+            if eta is not None:
+                progress += f', ~{format_duration(eta)} left'
+                if nunknown:
+                    progress += f' (+{nunknown} without previous timings)'
+            title = f' sb --testreport   {progress}   sort: {self.sort}'
+        else:
+            nfailed = sum( 1 for r in self.all_results if r.failed )
+            title = ' sb --testreport   %i tests, %i failed   sort: %s'%(
+                len(self.all_results), nfailed, self.sort )
+        if self.failedonly:
+            title += '   (only failed tests shown)'
         self._put( 0, 0, title.ljust( w ), self.attrs['title'] )
-        info = 'Results of test run finished %s'%( ( self.runinfo or {} ).get(
-            'time_finished', '<unknown>' ).replace('T',' ') )
+        if run and run.active:
+            info = 'Tests are running in the background'
+        else:
+            info = 'Results of test run finished %s'%( ( self.runinfo or {} ).get(
+                'time_finished', '<unknown>' ).replace('T',' ') )
         _ = ', '.join( ( self.runinfo or {} ).get('filters') or [] )
         if _:
             info += f' (tests run with filter "{_}")'
@@ -104,7 +134,16 @@ class TestReportUI( ScreenBase ):
         if not rows:
             self._put( top, 2, 'No tests to show.' if not self.failedonly
                        else 'No failed tests.', self.attrs['dim'] )
+        run = self.report.run
         for i, r in enumerate( rows[self.ytop:self.ytop+height] ):
+            st = run.status( r.name ) if ( run and r.name in run.names ) else 'done'
+            if st != 'done':
+                line = fmt( r.name, r.pkgname or '', '', st.upper(), '' )
+                attr = self.attrs['dim'] if st == 'waiting' else self.attrs['meta']
+                if r is sel:
+                    attr = self.attrs['selected']
+                self._put( top + i, 0, line.ljust( w ), attr )
+                continue
             logdiff = '--' if r.ecdiff is None else ( 'FAIL' if r.ecdiff else 'OK' )
             line = fmt( r.name, r.pkgname or '', '%.0f'%r.time_ms,
                         'FAIL' if r.ec else 'OK', logdiff )
@@ -147,6 +186,18 @@ class TestReportUI( ScreenBase ):
         self._load()
         self.select_name( r.name )
 
+    def start_tests( self, names ):
+        rep = self.report
+        if rep.run and rep.run.active:
+            self.message = 'Tests are already running'
+            return
+        if not names or not rep.start_run_fct:
+            self.message = 'No tests to run'
+            return
+        rep.run = rep.start_run_fct( names )
+        self._load()
+        self.message = f'Running {len(names)} tests in the background'
+
     def build_log_path( self ):
         return getattr( self.report.rebuild_fct, 'log_path', None )
 
@@ -180,13 +231,34 @@ class TestReportUI( ScreenBase ):
         self.scr.keypad( True )
         self.message = 'Press ? for help'
         while True:
+            run = self.report.run
+            self.scr.timeout( 500 if ( run and run.active ) else -1 )
             self.draw()
             ch = self.getkey()
             _, height, _ = self.body_geometry()
+            if ch == -1:
+                #Timeout while tests are running in the background:
+                if run and not run.poll():
+                    self.message = ( 'The tests were cancelled' if run.stopped
+                                     else 'All tests finished' )
+                self._load()
+                continue
             self.message = ''
             sel = self.selected
             if ch == ord('q'):
+                if run and run.active and ( self.report.stop_on_quit
+                                            or run is not self.report.initial_run ):
+                    run.stop()
                 return
+            elif ch == ord('t'):
+                self.start_tests( [ r.name for r in self.rows() ] )
+            elif ch == ord('c'):
+                if run and run.active:
+                    run.stop()
+                    self._load()
+                    self.message = 'The tests were cancelled'
+                else:
+                    self.message = 'No tests are running'
             elif ch in ( c.KEY_DOWN, ord('j') ):
                 self.isel += 1
             elif ch in ( c.KEY_UP, ord('k') ):
@@ -221,6 +293,8 @@ class TestReportUI( ScreenBase ):
                 self.inspect( sel )
             elif ch == ord('o'):
                 self.show_output( sel )
+            elif ch in ( ord('r'), ord('b') ) and run and run.active:
+                self.message = 'Please wait for the running tests to finish (or press c)'
             elif ch == ord('r'):
                 self.rerun( sel, rebuild = False )
             elif ch == ord('b'):
@@ -231,7 +305,7 @@ class InteractiveReport:
     """Settings and shared state of an interactive test report session."""
 
     def __init__( self, testdir, installdir, spec, filters, warning,
-                  rerun_fct, rebuild_fct ):
+                  rerun_fct, rebuild_fct, run = None, start_run_fct = None ):
         self.testdir = testdir
         self.installdir = installdir
         self.spec = spec
@@ -239,6 +313,12 @@ class InteractiveReport:
         self.warning = warning
         self.rerun_fct = rerun_fct
         self.rebuild_fct = rebuild_fct
+        #Tests running in the background (BackgroundTestRun object), and a
+        #function starting a new run of the given tests:
+        self.run = run
+        self.initial_run = run
+        self.start_run_fct = start_run_fct
+        self.stop_on_quit = True
         self.code_required = True
         self.updated_files = []
 

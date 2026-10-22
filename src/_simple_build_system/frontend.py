@@ -558,9 +558,14 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
                             filters = _testfilter,
                             do_pycoverage = do_pycoverage,
                             pkgloader = pkgloader,
-                            report_spec = opt.testreport )
+                            report_spec = opt.testreport,
+                            interactive_ui = lambda run, stop_on_quit :
+                            _interactive_session( opt, lockfile_content, run,
+                                                  stop_on_quit ),
+                            start_interactive = _interactive_report,
+                            test_order = opt.testorder )
         if _interactive_report:
-            ec = _interactive_testreport( opt, lockfile_content )
+            ec = _print_testreport_after_session( opt )
         if opt.reflogupdate:
             _reflogupdate( opt, lockfile_content )
 
@@ -656,31 +661,54 @@ def _print_updated_reflogs( updated_files ):
             pass
         _io.print(f'    {f}')
 
-def _interactive_testreport( opt, lockfile_content ):
-    """Interactive test report, followed by the usual report. Returns exit
-    code."""
+def _interactive_session( opt, lockfile_content, run = None,
+                          stop_on_quit = True ):
+    """Interactive test report. If run is given, it is a BackgroundTestRun
+    object with tests running in the background."""
     from . import dirs
-    from .testlauncher import load_results, packages_changed_since, print_report
+    from .testlauncher import ( load_results, packages_changed_since,
+                                BackgroundTestRun )
     from .testreportui import InteractiveReport, run_interactive_report
     rerun, rebuild = _rerun_and_rebuild_fcts( lockfile_content )
     runinfo, _ = load_results( dirs.testdir )
-    reflogdir = dirs.installdir / 'tests' / 'testref'
-    filters = _parse_testfilter( opt.testfilter )[0]
-    if runinfo is not None:
-        changed = packages_changed_since( runinfo )
-        warning = ( 'WARNING: The results might be outdated, since these packages'
-                    ' were changed after the tests were run: ' + ' '.join(changed)
-                    if changed else None )
-        report = InteractiveReport( dirs.testdir, dirs.installdir, opt.testreport,
-                                    filters, warning, rerun, rebuild )
-        try:
-            run_interactive_report( report )
-        finally:
-            if report.updated_files:
-                _print_updated_reflogs( report.updated_files )
+    if runinfo is None:
+        return
+    def start_run( names ):
+        r = BackgroundTestRun( dirs.testdir, dirs.installdir, dirs.blddir,
+                               names, opt.njobs, order = opt.testorder )
+        r.start()
+        return r
+    changed = packages_changed_since( runinfo )
+    warning = ( 'WARNING: The results might be outdated, since these packages'
+                ' were changed after the tests were run: ' + ' '.join(changed)
+                if changed else None )
+    spec = opt.testreport or dict( sort = 'name', failedonly = False,
+                                   interactive = True )
+    report = InteractiveReport( dirs.testdir, dirs.installdir, spec,
+                                _parse_testfilter( opt.testfilter )[0],
+                                warning, rerun, rebuild, run = run,
+                                start_run_fct = start_run )
+    report.stop_on_quit = stop_on_quit
+    try:
+        run_interactive_report( report )
+    finally:
+        if report.updated_files:
+            _print_updated_reflogs( report.updated_files )
+
+def _print_testreport_after_session( opt ):
+    from . import dirs
+    from .testlauncher import print_report
     spec = dict( opt.testreport, interactive = False )
-    return print_report( dirs.testdir, reflogdir, opt.nexcerpts, spec,
-                         filters = filters, post_factum = True )
+    return print_report( dirs.testdir, dirs.installdir / 'tests' / 'testref',
+                         opt.nexcerpts, spec,
+                         filters = _parse_testfilter( opt.testfilter )[0],
+                         post_factum = True )
+
+def _interactive_testreport( opt, lockfile_content ):
+    """Interactive test report, followed by the usual report. Returns exit
+    code."""
+    _interactive_session( opt, lockfile_content )
+    return _print_testreport_after_session( opt )
 
 def _reflogupdate( opt, lockfile_content ):
     """Interactive review and update of reference logs. Returns exit code."""

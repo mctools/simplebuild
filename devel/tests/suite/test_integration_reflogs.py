@@ -367,3 +367,100 @@ def test_interactive_rebuild_failure_shows_build_log( reflogproj ):
     p.send( 'q' )
     p.send( 'q' )
     assert p.wait_exit() == 73
+
+@pytest.fixture
+def slowproj( tmp_path ):
+    d = tmp_path / 'proj'
+    files = { 'simplebuild.cfg' : '[bundle]\nname = "proj"\n',
+              'LivePkg/pkg.info' : 'package()\n',
+              'LivePkg/scripts/testbad' : '#!/usr/bin/env bash\necho bad\nexit 2\n' }
+    for i in range(1,5):
+        files[f'LivePkg/scripts/testslow{i}'] = f'#!/usr/bin/env bash\nsleep {i}\necho t{i}\n'
+    write_files( d, files )
+    for f in ( d / 'LivePkg' / 'scripts' ).iterdir():
+        f.chmod( 0o755 )
+    return d
+
+def test_progress_line_and_interactive_view( slowproj ):
+    #When running tests in a terminal, the progress is shown (including an
+    #estimate of the remaining time, once timings from previous runs are
+    #available), and "i" opens the interactive view while tests continue:
+    from sbtestutils import PtyProcess
+    d = slowproj
+    p = PtyProcess( [ 'sb', '-t', '-j2' ], d )
+    p.wait_for( r'Tests done: \d/5[^\r\n]*\[press i for interactive view\]', timeout = 300 )
+    p.wait_for( r'Tests done: 5/5, 1 failed' )
+    assert p.wait_exit() == 73
+    assert 'ERROR: Some tests failed!' in p.text
+    #Now with timings from the previous run:
+    p = PtyProcess( [ 'sb', '-t', '-j2' ], d )
+    p.wait_for( r'Tests done: \d/5[^\r\n]*~\d+s left', timeout = 300 )
+    p.send( 'I' )
+    p.wait_for_screen( r'running tests: \d/5 done, ~\d+s left' )
+    p.wait_for_screen( r'Tests are running in the background' )
+    p.wait_for_screen( r'(RUNNING|WAITING)' )
+    p.wait_for_screen( r'All tests finished', timeout = 60 )
+    p.wait_for_screen( r'5 tests, 1 failed' )
+    p.send( 'q' )
+    assert p.wait_exit() == 73
+    rows = _result_rows( p.text.split('Tests done: 5/5')[-1] )
+    assert len( rows ) == 5 and rows['sb_livepkg_testbad'] == ( 'FAIL', '--' )
+
+def test_interactive_live_results( slowproj ):
+    from sbtestutils import PtyProcess
+    d = slowproj
+    p = PtyProcess( [ 'sb', '-t', '-j2', '--testreport=interactive' ], d )
+    p.wait_for_screen( r'running tests: \d/5 done', timeout = 300 )
+    p.wait_for_screen( r'All tests finished', timeout = 60 )
+    p.wait_for_screen( r'5 tests, 1 failed' )
+    #Run the shown tests again in the background, and cancel them:
+    p.send( 't' )
+    p.wait_for_screen( r'Running 5 tests in the background' )
+    p.wait_for_screen( r'running tests: \d/5 done, ~\d+s left' )
+    p.send( 'c' )
+    p.wait_for_screen( r'The tests were cancelled' )
+    p.send( 'q' )
+    assert p.wait_exit() == 73
+    assert 'ERROR: Some tests failed!' in p.text
+    #Cancelled tests are reported as failed:
+    res = run( 'sb --testreport=failed', d, expect_ec = 73 )
+    assert len( _result_rows( res.out ) ) >= 2
+    #Running everything again (non-interactively, so without progress line):
+    res = run( 'sb -t', d, expect_ec = 73 )
+    assert 'Tests done:' not in res.out
+    assert len( [ v for v in _result_rows( res.out ).values() if v[0] == 'FAIL' ] ) == 1
+
+def test_fastest_first_and_inspecting_during_run( slowproj ):
+    #The output of finished tests (failed or not) can be inspected while other
+    #tests are still running, and --testorder=fastest starts the fastest tests
+    #first (to get results quickly):
+    from sbtestutils import PtyProcess
+    d = slowproj
+    run( 'sb -t', d, expect_ec = 73 )#record timings
+    def started_order():
+        mf = ( _testdir(d) / 'Makefile' ).read_text()
+        line = next( line for line in mf.splitlines() if line.startswith('all:') )
+        return [ e.split('_',2)[2] for e in line.split()[1:] ]
+    run( 'sb -t --testorder=fastest', d, expect_ec = 73 )
+    assert started_order() == [ 'testbad', 'testslow1', 'testslow2',
+                                'testslow3', 'testslow4' ]
+    p = PtyProcess( [ 'sb', '-t', '-j1', '--testreport=interactive',
+                      '--testorder=fastest' ], d )
+    #testbad and testslow1 finish first, while testslow4 is still waiting:
+    p.wait_for_screen( r'running tests: [2-4]/5 done', timeout = 300 )
+    screen = p.screen()
+    assert 'WAITING' in screen.split('sb_livepkg_testslow4')[1].splitlines()[0]
+    #Output of a failed test (the first row):
+    p.send( '\r' )
+    p.wait_for_screen( r'Output of sb_livepkg_testbad \(exit code 2\)' )
+    p.wait_for_screen( r'1 bad' )
+    p.send( 'q' )
+    #Output of a successful test:
+    p.send( 'j' )
+    p.send( 'o' )
+    p.wait_for_screen( r'Output of sb_livepkg_testslow1' )
+    p.wait_for_screen( r'1 t1' )
+    p.send( 'q' )
+    p.wait_for_screen( r'All tests finished', timeout = 60 )
+    p.send( 'q' )
+    assert p.wait_exit() == 73

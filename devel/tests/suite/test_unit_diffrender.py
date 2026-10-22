@@ -83,3 +83,10 @@ def test_clip_segments():
 def test_segments_to_text_color():
     s = dr.segments_to_text( [ ( 'a', 'ctx' ), ( 'b', 'inshl' ) ], color = True )
     assert s == 'a\033[30;42mb\033[0m'
+
+def test_format_duration():
+    from _simple_build_system.testreportui import format_duration
+    assert format_duration( 0.2 ) == '0s'
+    assert format_duration( 59.4 ) == '59s'
+    assert format_duration( 61 ) == '1m01s'
+    assert format_duration( 3725 ) == '1h02m'
