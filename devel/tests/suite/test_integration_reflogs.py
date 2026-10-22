@@ -165,7 +165,7 @@ def test_reflogupdate( reflogproj ):
     p.wait_for_screen( r'\[2/4\] sb_mypkg_innerspace' )
     #Disable the code requirement for the rest of the session (also requires
     #a code), and update the remaining ones:
-    p.send( 'U' )
+    p.send( 'X' )
     p.send( _confirm_code( p )[::-1] + '\r' )
     p.wait_for_screen( 'Codes are no longer required' )
     p.send( 'u' )
@@ -213,11 +213,11 @@ def test_reflogupdate_rerun_and_rebuild( reflogproj ):
     p.send( 'r' )
     p.wait_for_screen( 'The output is now identical to the reference log' )
     #Change the C++ code, rebuild, and run the test again:
-    p.send( 'n' )
+    p.send( '+' )
     p.wait_for_screen( r'\[2/2\] sb_mypkg_hello' )
     ( d / 'MyPkg' / 'app_hello' / 'main.cc' ).write_text(
         '#include <cstdio>\nint main() { std::printf("value v2\\n"); return 0; }\n' )
-    p.send( 'R' )
+    p.send( 'b' )
     p.wait_for( 'Rebuilding before running sb_mypkg_hello again' )
     p.wait_for_screen( r'hello.*IDENTICAL', timeout = 300 )
     p.send( 'q' )
@@ -310,10 +310,10 @@ def test_interactive_testreport( reflogproj ):
     p.wait_for_screen( 'sb_mypkg_testfails now passes' )
     p.wait_for_screen( r'3 tests, 0 failed' )
     #Sort order:
-    p.send( 'f' )
+    p.send( 'F' )
     p.send( 's' )
     p.wait_for_screen( r'sort: pkg' )
-    p.send( 'q' )
+    p.send( 'Q' )
     assert p.wait_exit() == 0
     #The usual report follows, and reflects the changes:
     assert 'Updated 1 reference log:' in p.text
@@ -334,3 +334,36 @@ def test_interactive_testreport_with_tests( reflogproj ):
     p.send( 'q' )
     assert p.wait_exit() == 73
     assert 'ERROR: Some tests failed!' in p.text
+
+def test_interactive_rebuild_failure_shows_build_log( reflogproj ):
+    #When a rebuild from the interactive interfaces fails, the output of the
+    #build (e.g. compilation errors) is shown, and can be shown again later:
+    from sbtestutils import PtyProcess
+    d = reflogproj
+    write_files( d, { 'MyPkg/app_hello/main.cc' : ( '#include <cstdio>\nint main()'
+                                                    ' { std::printf("value v1\\n"); return 0; }\n' ),
+                      'MyPkg/app_hello/test.log' : 'value v2\n' } )
+    run( 'sb -t', d, expect_ec = 73 )
+    p = PtyProcess( [ 'sb', '--testreport=interactive', '--testfilter=*hello' ], d )
+    p.wait_for_screen( r'sb --testreport +1 tests, 1 failed' )
+    #Introduce a compilation error, and rebuild+rerun:
+    ( d / 'MyPkg' / 'app_hello' / 'main.cc' ).write_text( 'int main() { this_is_an_error; }\n' )
+    p.send( 'b' )
+    p.wait_for_screen( r'The build FAILED\. Output of the build:', timeout = 300 )
+    p.wait_for_screen( r'this_is_an_error' )
+    p.send( 'q' )
+    p.wait_for_screen( r'Build failed' )
+    #Show it again:
+    p.send( 'e' )
+    p.wait_for_screen( r'Output of the last build:' )
+    p.wait_for_screen( r'this_is_an_error' )
+    p.send( 'q' )
+    #Also from the reference log viewer:
+    p.send( '\r' )
+    p.wait_for_screen( r'\[1/1\] sb_mypkg_hello' )
+    p.send( 'E' )
+    p.wait_for_screen( r'Output of the last build:' )
+    p.send( 'q' )
+    p.send( 'q' )
+    p.send( 'q' )
+    assert p.wait_exit() == 73
