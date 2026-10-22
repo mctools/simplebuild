@@ -186,6 +186,9 @@ def test_reflogupdate( reflogproj ):
     assert ( scripts / 'different.log' ).is_symlink()
     assert ( d / 'elsewhere.log' ).read_text() == 'x = 1 2\n'
     assert sorted( f.name for f in scripts.iterdir() if f.suffix not in ( '', '.log' ) ) == []
+    #The test results are updated as well:
+    res = run( 'sb --testreport', d )
+    assert all( v == ( 'OK', 'OK' ) for v in _result_rows( res.out ).values() )
     res = run( 'sb -t', d )
     assert 'All tests completed without failures!' in res.out
     #Nothing to do now:
