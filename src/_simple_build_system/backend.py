@@ -304,12 +304,13 @@ def perform_cfg( *,
                 #build (makefiles and install area) is left untouched and
                 #consistent with the saved database:
                 from . import col
-                print()
-                print(f'{col.bad}ERROR during configuration of package {p.name}:{col.end}')
-                print()
+                from .io import print_error
+                print_error()
+                print_error(f'{col.bad}ERROR during configuration of package {p.name}:{col.end}')
+                print_error()
                 for e in err_txt.splitlines():
-                    print(f'  {e}')
-                print()
+                    print_error(f'  {e}')
+                print_error()
                 if unclean_exception:
                     #unknown exceptions need an ugly traceback so we can notice and try to avoid them in the future
                     error.print_traceback(unclean_exception)

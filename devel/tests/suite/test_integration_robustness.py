@@ -499,3 +499,27 @@ def test_stale_pkg_removed_without_db_info( tmp_path ):
                'makefiles/Makefile_Foo.make' ):
         assert not os.path.lexists( bld( d ) / f )
     assert run( 'sbenv sb_foo_bar_hi', d ).stdout.strip() == 'app Foo_Bar'
+
+@pytest.mark.parametrize( 'errtype', [ 'unknowndep', 'pkgcfg', 'pkgname' ] )
+def test_errors_shown_in_quiet_mode( tmp_path, errtype ):
+    #Errors must never be silent, so in quiet mode they are shown on stderr
+    #(tools like ncdevtool run "sb --quiet" and only show stderr on failures):
+    d = tmp_path / 'proj'
+    write_files( d, _files )
+    if errtype == 'unknowndep':
+        ( d / 'PkgA' / 'pkg.info' ).write_text( 'package(USEPKG NoSuchPkg)\n' )
+        expected = 'Unknown package "NoSuchPkg"'
+    elif errtype == 'pkgcfg':
+        ( d / 'PkgA' / 'pkg.info' ).write_text( 'package(USEEXT NoSuchExtDep)\n' )
+        expected = 'NoSuchExtDep'
+    else:
+        #(Previously gave an AssertionError traceback):
+        ( d / 'PkgA' ).rename( d / 'PA' )
+        expected = 'Invalid package name: "PA"'
+    for quiet in ( True, False ):
+        res = run( [ 'sb' ] + ( [ '--quiet' ] if quiet else [] ), d, expect_ec = None )
+        assert res.ec != 0
+        assert 'Traceback' not in res.out
+        assert expected in ( res.stderr if quiet else res.stdout )
+        if quiet:
+            assert not res.stdout

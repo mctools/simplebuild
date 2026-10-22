@@ -34,7 +34,7 @@ def clean_exit(ec):
     raise ce
 
 def print_traceback(exc):
-    from .io import print
+    from .io import print_error as print
     print()
     import traceback
     print("----begin traceback---")
