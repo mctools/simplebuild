@@ -81,18 +81,14 @@ def find_includes( cfile, pkg ):
                                                       includemap_list )
         output = output.encode('utf8')
     else:
-        #For efficiency, initial dig through file use grep command:
-        ec,output=utils.run(['grep','.*#.*include.*"..*"',cfile])
-        if ec == 1:
-            #grep exit code of 1 simply indicates no hits
+        output = utils.include_candidate_lines( cfile )
+        if not output:
             return None, None
-        if ec!=0:
-            raise RuntimeError('grep command failed')
     possible_privincs=set()
     possible_pkgincs=set()
     def bytes2str( b ):
         return b.decode('ascii')
-    for ll in output.splitlines():
+    for ll in ( output.splitlines() if isinstance(output,bytes) else output ):
         pkgname,fn = include_decoder(ll)
         if fn:
             if pkgname:

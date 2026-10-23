@@ -199,13 +199,13 @@ class Package:
 
     def __set_parent_changed_recursively(self):
         self._any_parent_changed=True
-        for dc in self.direct_clients:
-            dc.__set_parent_changed_recursively()
+        for c in self.all_clients():
+            c._any_parent_changed=True
 
     def __set_files_in_pkg_changed_recursively(self):
         self.__files_in_pkg_changed=True
-        for dc in self.direct_clients:
-            dc.__set_files_in_pkg_changed_recursively()
+        for c in self.all_clients():
+            c.__files_in_pkg_changed=True
 
     def has_lib(self):
         if self.__haslib is None:
@@ -213,10 +213,16 @@ class Package:
         return self.__haslib
 
     def all_clients(self):
+        #NB: Not recursive, since that would visit packages many times (the
+        #time would grow exponentially with the depth of the dependency
+        #graph):
         ic=set()
-        ic.update(self.direct_clients)
-        for c in self.direct_clients:
-            ic.update(c.all_clients())
+        todo=list(self.direct_clients)
+        while todo:
+            c=todo.pop()
+            if c not in ic:
+                ic.add(c)
+                todo.extend(c.direct_clients)
         return ic
 
     def info_as_dict(self):
