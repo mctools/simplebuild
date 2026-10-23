@@ -51,6 +51,20 @@ def _stop_child_process( p ):
         except OSError:
             return
 
+def include_candidate_lines( path ):
+    """Lines of a source file which might contain include statements (a
+    superset, the lines should be parsed further). This is done in Python
+    rather than with a grep command, since starting a process for each source
+    file is much slower than reading the file."""
+    try:
+        with open( path, 'rb' ) as fh:
+            data = fh.read()
+    except OSError as e:
+        raise RuntimeError(f'Could not read {path}: {e}')
+    if b'include' not in data:
+        return []
+    return [ line for line in data.split(b'\n') if b'include' in line ]
+
 def run(cmd):
     sys.stdout.flush()
     sys.stderr.flush()
