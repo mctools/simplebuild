@@ -226,6 +226,13 @@ $> {_p} --init dgcode PKGFILTER::SomeFilter
                                   ' "slowest" first (the\ndefault, for the'
                                   ' shortest total time), or\n"fastest" first'
                                   ' (to get results quickly).'))
+    group_test.add_argument("--testtime", type=float, dest="testtime",
+                            default=None, metavar="SECONDS",
+                            help=('Only run the tests expected to complete'
+                                  ' within\napproximately SECONDS (based on'
+                                  ' timings in\nprevious runs), by skipping'
+                                  ' the slowest tests.\nTests without previous'
+                                  ' timings are always run.'))
     group_test.add_argument("--testexcerpts", type=int, dest="nexcerpts",
                             default=0,metavar="N",
                             help=("Print N first+last lines of failed test log"
@@ -304,6 +311,11 @@ $> {_p} --init dgcode PKGFILTER::SomeFilter
             present_exclusive.add('--testreport')
     if args.reflogupdate and not args.runtests:
         present_exclusive.add('--reflogupdate')
+    if args.testtime is not None:
+        if not args.runtests:
+            parser.error('--testtime can only be used when running tests (-t)')
+        if not args.testtime > 0.0:
+            parser.error('--testtime requires a positive number of seconds')
     if len(present_exclusive)>1:
         f1=list(present_exclusive)[0]
         f2=list(present_exclusive)[1]

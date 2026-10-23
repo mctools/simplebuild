@@ -3,7 +3,7 @@ def perform_tests(testdir,
                   installdir, njobs, nexcerpts, filters,
                   do_pycoverage, pkgloader=None, report_spec=None,
                   interactive_ui=None, start_interactive=False,
-                  test_order='slowest'):
+                  test_order='slowest', test_time=None):
     #When running in a terminal, the tests are run in the background, while
     #showing their progress. If interactive_ui is given, the user can press a
     #key to call interactive_ui(run,stop_on_quit=False), where run is the
@@ -75,6 +75,15 @@ def perform_tests(testdir,
                     tests.add(runnable)
                     testinfo[runnable] = {'pkgname':p['name']}
 
+    #Only run the shortest tests if requested (--testtime):
+    ntimeskipped, timeskipped_s = 0, 0.0
+    if test_time is not None and tests:
+        _timings = load_test_timings()
+        _sel, _skipped = select_tests_by_time( tests, test_time, njobs, _timings )
+        tests = set( _sel )
+        ntimeskipped = len( _skipped )
+        timeskipped_s = sum( _timings[t] for t in _skipped ) * 0.001
+
     mkdir_p(testdir)
     def save_runinfo():
         #Information needed for reporting the results later:
@@ -84,6 +93,9 @@ def perform_tests(testdir,
             time_finished = _now(),
             filters = list( filters or [] ),
             nfiltered = nfiltered,
+            test_time = test_time,
+            ntimeskipped = ntimeskipped,
+            timeskipped_s = timeskipped_s,
             tests = dict( ( t, dict( pkgname = testinfo[t]['pkgname'],
                                      has_reflog = t+'.log' in logfiles ) )
                           for t in sorted(tests) ),
@@ -293,6 +305,29 @@ def _show_progress( run, interactive_ui = None ):
             #any other output:
             sys.stdout.write( '\n' )
             sys.stdout.flush()
+
+def select_tests_by_time( names, budget_s, njobs, timings ):
+    """Select tests to run within approximately budget_s seconds (with njobs
+    parallel processes), based on their timings in previous runs (in
+    milliseconds). Tests without previous timings are always selected (their
+    duration is unknown, so they are not included in the estimate), while the
+    shortest of the other tests are selected as long as the estimated total
+    time (with each test assigned to the least busy process) fits within the
+    budget. Returns (selected,skipped), with the skipped tests ordered by
+    increasing duration."""
+    import heapq
+    selected = sorted( n for n in names if n not in timings )
+    known = sorted( ( n for n in names if n in timings ),
+                    key = lambda n : ( timings[n], n ) )
+    slots = [ 0.0 ] * max( 1, njobs )#busy time of each process (a heap)
+    for i, n in enumerate( known ):
+        t = timings[n] * 0.001
+        if slots[0] + t > budget_s:
+            #Tests are sorted by duration, so no other test fits either:
+            return selected, known[i:]
+        heapq.heapreplace( slots, slots[0] + t )
+        selected.append( n )
+    return selected, []
 
 test_orders = ( 'slowest', 'fastest' )
 
@@ -684,6 +719,13 @@ def print_report( testdir, logdir, nexcerpts, spec, *, filters = None,
                   ' packages were changed\n        after the tests were run: %s'%(
                       col.bad, col.end, ' '.join(changed) ))
             print()
+    ntimeskipped = runinfo.get('ntimeskipped',0)
+    if ntimeskipped:
+        from .testreportui import format_duration
+        print('Note: %i tests were not run due to --testtime=%g (they took %s'
+              ' in total in previous runs).'%( ntimeskipped, runinfo['test_time'],
+                                              format_duration( runinfo.get('timeskipped_s',0.0) ) ))
+        print()
     nfiltered = runinfo.get('nfiltered',0)
     if nfiltered and not results:
         print(f'WARNING: All {nfiltered} tests were blocked by specified filters.')
