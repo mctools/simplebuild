@@ -76,13 +76,17 @@ def perform_tests(testdir,
                     testinfo[runnable] = {'pkgname':p['name']}
 
     #Only run the shortest tests if requested (--testtime):
-    ntimeskipped, timeskipped_s = 0, 0.0
+    ntimeskipped, time_all_s, nunknown = 0, 0.0, 0
     if test_time is not None and tests:
         _timings = load_test_timings()
         _sel, _skipped = select_tests_by_time( tests, test_time, njobs, _timings )
+        if _skipped:
+            #For the report: how long it would take to wait for all tests:
+            time_all_s = estimate_walltime( [ _timings[t] * 0.001 for t in tests
+                                              if t in _timings ], njobs )
+            nunknown = sum( 1 for t in tests if t not in _timings )
         tests = set( _sel )
         ntimeskipped = len( _skipped )
-        timeskipped_s = sum( _timings[t] for t in _skipped ) * 0.001
 
     mkdir_p(testdir)
     def save_runinfo():
@@ -95,7 +99,9 @@ def perform_tests(testdir,
             nfiltered = nfiltered,
             test_time = test_time,
             ntimeskipped = ntimeskipped,
-            timeskipped_s = timeskipped_s,
+            time_all_s = time_all_s,
+            time_all_nunknown = nunknown,
+            njobs = njobs,
             tests = dict( ( t, dict( pkgname = testinfo[t]['pkgname'],
                                      has_reflog = t+'.log' in logfiles ) )
                           for t in sorted(tests) ),
@@ -328,6 +334,15 @@ def select_tests_by_time( names, budget_s, njobs, timings ):
         heapq.heapreplace( slots, slots[0] + t )
         selected.append( n )
     return selected, []
+
+def estimate_walltime( durations, njobs ):
+    """Estimated time to run tests with the given durations (in seconds) with
+    njobs parallel processes, when starting the slowest tests first."""
+    import heapq
+    slots = [ 0.0 ] * max( 1, njobs )
+    for t in sorted( durations, reverse = True ):
+        heapq.heapreplace( slots, slots[0] + t )
+    return max( slots )
 
 test_orders = ( 'slowest', 'fastest' )
 
@@ -722,9 +737,17 @@ def print_report( testdir, logdir, nexcerpts, spec, *, filters = None,
     ntimeskipped = runinfo.get('ntimeskipped',0)
     if ntimeskipped:
         from .testreportui import format_duration
-        print('Note: %i tests were not run due to --testtime=%g (they took %s'
-              ' in total in previous runs).'%( ntimeskipped, runinfo['test_time'],
-                                              format_duration( runinfo.get('timeskipped_s',0.0) ) ))
+        def _n( n, what ):
+            return f'{n} {what}' + ( '' if n == 1 else ( 'es' if what.endswith('s') else 's' ) )
+        _nu = runinfo.get('time_all_nunknown',0)
+        print('Note: %s not run due to --testtime=%g (running all tests would'
+              ' take about %s with %s%s).'%(
+                  _n( ntimeskipped, 'test' ) + ( ' was' if ntimeskipped == 1 else ' were' ),
+                  runinfo['test_time'],
+                  format_duration( runinfo.get('time_all_s',0.0) ),
+                  _n( runinfo.get('njobs',1), 'parallel process' ),
+                  ( ', plus the time of %s without previous timings'%_n( _nu, 'test' ) )
+                  if _nu else '' ) )
         print()
     nfiltered = runinfo.get('nfiltered',0)
     if nfiltered and not results:
