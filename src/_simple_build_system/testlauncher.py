@@ -764,8 +764,13 @@ def print_report( testdir, logdir, nexcerpts, spec, *, filters = None,
         results = [ r for r in results if r.failed ]
     if spec['sort'] == 'time':
         results.sort( key = lambda r : ( -r.time_ms, r.name ) )
-    elif spec['sort'] == 'relevance':
-        results.sort( key = lambda r : ( not r.failed, r.name ) )
+    elif spec['sort'] == 'name':
+        results.sort( key = lambda r : r.name )
+    else:
+        #Relevance (the default): Since the end of the output is what remains
+        #visible in a terminal, failed tests are put at the bottom, and within
+        #each group the slowest tests are put towards the bottom:
+        results.sort( key = lambda r : ( r.failed, r.time_ms, r.name ) )
     any_failed = failed
     print(_line_hr)
     print(_line_titles)
