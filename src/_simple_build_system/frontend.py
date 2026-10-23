@@ -153,6 +153,13 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
     from . import envcfg
     from . import cachedirs
 
+    if opt.buildtimes is not None:
+        #Report timings of compilation and linking, without building anything:
+        from .buildtimes import print_report as print_buildtimes
+        print_buildtimes( dirs.blddir, opt.buildtimes )
+        unlock()
+        sys.exit(0)
+
     if opt.testreport is not None and not opt.runtests and _interactive_report:
         ec = _interactive_testreport( opt, lockfile_content )
         unlock()

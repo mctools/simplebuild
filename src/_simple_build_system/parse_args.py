@@ -153,6 +153,13 @@ $> {_p} --init dgcode PKGFILTER::SomeFilter
                              action="store", dest="pkginfo", default='',metavar='PKG',
                              help="Print information about package PKG.")
     exclusive.add('pkginfo')
+    group_query.add_argument("--buildtimes", nargs='?', type=int, const=20,
+                             default=None, dest="buildtimes", metavar="N",
+                             help=("Print the N (default 20) slowest compilation"
+                                   " and\nlinking steps, as recorded in the most"
+                                   " recent\nbuild of each file (without"
+                                   " building anything)."))
+    exclusive.add(('--buildtimes','buildtimes'))
     group_query.add_argument("--incinfo",action="store", dest="incinfo",
                              default='',metavar='CFILE',
                              help=( "Show inclusion relationships for CFILE in"
@@ -319,6 +326,8 @@ $> {_p} --init dgcode PKGFILTER::SomeFilter
             present_exclusive.add('--testreport')
     if args.reflogupdate and not args.runtests:
         present_exclusive.add('--reflogupdate')
+    if args.buildtimes is not None and args.buildtimes < 1:
+        parser.error('--buildtimes requires a positive number')
     if args.testtime is not None:
         if not args.runtests:
             parser.error('--testtime can only be used when running tests (-t)')

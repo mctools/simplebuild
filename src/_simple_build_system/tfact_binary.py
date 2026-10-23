@@ -89,6 +89,10 @@ class TargetBinaryObject(target_base.Target):
                                             filekey,
                                             col.bldend),
                    'mkdir -p %s'%d,
+                   #For build timings (see buildtimes.py), the start time is
+                   #recorded with a marker file (the end time is the
+                   #modification time of the object file):
+                   'touch %s.tstart'%self.name,
                    obj_create_cmd]
 
         priv,pub = includes.find_includes(dirs.pkg_dir(pkg,subdir,fn),pkg)
@@ -204,6 +208,10 @@ class TargetBinary(target_base.Target):
             extra_flags = [e for e in extra_flags if e!='-fPIE']
         self.code=['@if [ ${VERBOSE} -ge 0 ]; then echo "  %sCreating %s%s"; fi'%(dcol,descr,dcolend),
                    'mkdir -p %s'%d,
+                   #For build timings (see buildtimes.py), the start time is
+                   #recorded with a marker file (the end time is the
+                   #modification time of the named target, touched last):
+                   'touch %s'%dirs.makefile_blddir(join(cachedir,'%s.link.tstart'%subdir)),
                    langinfo[pattern]%(' '.join(extra_flags),
                                       sobjs,
                                       join(d,filename))]
