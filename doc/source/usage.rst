@@ -113,6 +113,13 @@ With these changes, we now invoke ``sb`` once again:
 As we can see, only parts of the build related to our changes actually had to be
 redone, and accordingly it was blazingly fast.
 
+To find out where the time goes when building, ``sb --buildtimes`` shows the
+slowest compilation and linking steps (and ``sb --buildtimes=N`` the N slowest),
+along with the slowest packages. The timings are recorded whenever files are
+built, so they reflect the most recent build of each file, and no special build
+is needed. Note that the timings come from builds with several steps running in
+parallel, which might inflate them a bit.
+
 Using the project
 =================
 
