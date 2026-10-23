@@ -55,3 +55,16 @@ def test_time_remaining_never_zero( tmp_path ):
     _start( tmp_path, 'a', 1.9 )
     eta, _ = run.time_remaining()
     assert eta == 1.0
+
+def test_select_tests_by_time():
+    sel = testlauncher.select_tests_by_time
+    timings = { 'a' : 1000.0, 'b' : 2000.0, 'c' : 3000.0, 'd' : 4000.0, 'e' : 500.0 }
+    names = sorted( timings ) + [ 'new1', 'new2' ]
+    #Tests without timings are always selected, then the shortest ones:
+    assert sel( names, 3.6, 1, timings ) == ( [ 'new1', 'new2', 'e', 'a', 'b' ], [ 'c', 'd' ] )
+    assert sel( names, 0.1, 1, timings ) == ( [ 'new1', 'new2' ], [ 'e', 'a', 'b', 'c', 'd' ] )
+    assert sel( names, 100, 1, timings ) == ( [ 'new1', 'new2', 'e', 'a', 'b', 'c', 'd' ], [] )
+    #With parallel processes (e:0.5+b:2 and a:1+c:3 fit within 4s, d does not):
+    assert sel( names, 4.0, 2, timings ) == ( [ 'new1', 'new2', 'e', 'a', 'b', 'c' ], [ 'd' ] )
+    #A test longer than the budget is never selected:
+    assert sel( [ 'd' ], 3.9, 8, timings ) == ( [], [ 'd' ] )

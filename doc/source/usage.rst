@@ -219,7 +219,11 @@ for a list of keys). By default, the interactive view shows running tests
 first, then failed tests, tests waiting to run, and finally successful tests. When running tests, the slowest tests (as measured in
 previous runs) are started first, to avoid ending up waiting for a single slow
 test at the end (with ``--testorder=fastest``, the fastest tests are instead
-started first, to get results as quickly as possible). When running tests in a
+started first, to get results as quickly as possible). To only run the tests
+which can complete within a given time, use e.g. ``sb -t --testtime=10``, which
+skips the slowest tests (based on previous runs) as needed to finish within
+approximately 10 seconds (tests without timings from previous runs are always
+run). When running tests in a
 terminal, the progress is shown while they run, including an estimate of the
 remaining time (based on previous runs), and pressing ``i`` opens the
 interactive view, in which results appear as tests finish (finished tests can

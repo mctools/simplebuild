@@ -425,6 +425,29 @@ def slowproj( tmp_path ):
         f.chmod( 0o755 )
     return d
 
+def test_testtime( slowproj ):
+    #With --testtime, only the shortest tests (according to previous timings)
+    #which fit within the given time are run, as well as any tests without
+    #previous timings:
+    d = slowproj
+    run( 'sb -t -j1', d, expect_ec = 73 )#record timings
+    write_files( d, { 'LivePkg/scripts/testnew' : '#!/usr/bin/env bash\necho new\n' } )
+    ( d / 'LivePkg' / 'scripts' / 'testnew' ).chmod( 0o755 )
+    res = run( 'sb -t -j1 --testtime=4.5', d, expect_ec = 73 )
+    expected = [ 'sb_livepkg_testbad', 'sb_livepkg_testnew',
+                 'sb_livepkg_testslow1', 'sb_livepkg_testslow2' ]
+    assert sorted( _result_rows( res.out ) ) == expected
+    note = 'Note: 2 tests were not run due to --testtime=4.5 (they took 7s in total in previous runs).'
+    assert note in res.out
+    #Also noted in later reports:
+    res = run( 'sb --testreport', d, expect_ec = 73 )
+    assert note in res.out and sorted( _result_rows( res.out ) ) == expected
+    #Invalid usage:
+    res = run( 'sb --testtime=10', d, expect_ec = 2 )
+    assert '--testtime can only be used when running tests' in res.out
+    res = run( 'sb -t --testtime=0', d, expect_ec = 2 )
+    assert '--testtime requires a positive number of seconds' in res.out
+
 def test_progress_line_and_interactive_view( slowproj ):
     #When running tests in a terminal, the progress is shown (including an
     #estimate of the remaining time, once timings from previous runs are

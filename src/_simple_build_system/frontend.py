@@ -568,7 +568,8 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
                             _interactive_session( opt, lockfile_content, run,
                                                   stop_on_quit ),
                             start_interactive = _interactive_report,
-                            test_order = opt.testorder )
+                            test_order = opt.testorder,
+                            test_time = opt.testtime )
         if _interactive_report:
             ec = _print_testreport_after_session( opt )
         if opt.reflogupdate:
