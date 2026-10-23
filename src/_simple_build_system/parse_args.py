@@ -305,6 +305,13 @@ $> {_p} --init dgcode PKGFILTER::SomeFilter
         if bool(getattr(args,attr)):
             present_exclusive.add(flag)
     if args.testreport is not None:
+        if args.runtests and not args.testreport.replace(',','').strip():
+            #Without SPEC, --testreport would have no effect, so it is most
+            #likely a mistake (avoid wiping the previous results):
+            parser.error('--testreport without SPEC has no effect when running'
+                         ' tests (-t). To show the results of the previous'
+                         ' test run, use "sb --testreport" or "sb'
+                         ' --testreport=interactive" (without -t).')
         args.testreport = parse_testreport_spec( args.testreport, parser.error )
         if not args.runtests:
             #Reporting results without running tests is a mode of its own:

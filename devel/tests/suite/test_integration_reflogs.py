@@ -131,6 +131,12 @@ def test_testreport( reflogproj ):
     assert 'Invalid keyword "bad" in --testreport' in res.out
     res = run( 'sb --testreport=time,name', d, expect_ec = 2 )
     assert 'Only one sort order' in res.out
+    #--testreport without SPEC has no effect with -t (most likely the intention
+    #was to show the previous results, which must be kept):
+    before = run( 'sb --testreport', d, expect_ec = 73 ).out
+    res = run( 'sb -t --testreport', d, expect_ec = 2 )
+    assert '--testreport without SPEC has no effect when running tests' in res.out
+    assert run( 'sb --testreport', d, expect_ec = 73 ).out == before
     res = run( 'sb --testreport --pkginfo MyPkg', d, expect_ec = 2 )
     assert 'mutually exclusive' in res.out
 
