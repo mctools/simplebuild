@@ -208,8 +208,9 @@ The report of the test results can also be printed again later with ``sb
 build variant can be selected with e.g. ``-d``, and the results of each build
 variant are kept separately). The report can be customised, e.g. ``sb
 --testreport=failed,time`` shows only the failed tests, with the slowest first
-(other sort orders are ``name``, the default, and ``relevance``, which shows
-failed tests first),
+(other sort orders are ``name``, and ``relevance``, the default, which in
+printed reports puts failed tests at the bottom, where they remain visible in
+the terminal, with slower tests towards the bottom within each group),
 and ``--testfilter`` and ``--testexcerpts`` can be used to select tests and show
 excerpts. With ``sb --testreport=interactive`` (which can also be combined with
 ``-t``), the results can instead be browsed interactively: the output of tests,

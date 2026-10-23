@@ -19,6 +19,9 @@ _reflogs = {
 def _testdir( d ):
     return d / 'simplebuild_cache' / 'bld' / 'testresults'
 
+def _time_ms( d, name ):
+    return float( ( _testdir( d ) / name / 'timing_ms' ).read_text() )
+
 def _result_rows( out ):
     """Parse the rows of the test result table into dict of
     name->(ec,logdiff)."""
@@ -93,15 +96,19 @@ def test_testreport( reflogproj ):
     res = run( 'sb --testreport', d, expect_ec = 73 )
     assert 'Report of test results from ' in res.out
     assert _result_rows( res.out ) == rows
-    assert list( _result_rows( res.out ) ) == sorted( rows )
+    assert list( _result_rows( res.out ) ) == list( _result_rows( live.out ) )
     assert 'WARNING' not in res.out
     #Sorting:
     res = run( 'sb --testreport=time', d, expect_ec = 73 )
     assert list( _result_rows( res.out ) )[0] == 'sb_otherpkg_testslow'
-    res = run( 'sb --testreport=relevance', d, expect_ec = 73 )
-    rr = list( _result_rows( res.out ) )
-    assert rr == sorted( rr, key = lambda n : ( 'FAIL' not in rows[n], n ) )
-    assert 'FAIL' in rows[rr[0]] and 'FAIL' not in rows[rr[-1]]
+    res = run( 'sb --testreport=name', d, expect_ec = 73 )
+    assert list( _result_rows( res.out ) ) == sorted( rows )
+    #By default (relevance), failed tests are at the bottom, and slower tests
+    #further down within each group:
+    for cmd in ( 'sb --testreport', 'sb --testreport=relevance' ):
+        rr = list( _result_rows( run( cmd, d, expect_ec = 73 ).out ) )
+        assert rr == sorted( rr, key = lambda n : ( 'FAIL' in rows[n], _time_ms( d, n ), n ) )
+        assert 'FAIL' not in rows[rr[0]] and 'FAIL' in rows[rr[-1]]
     res = run( 'sb --testreport=pkg', d, expect_ec = 2 )
     assert 'Invalid keyword "pkg" in --testreport' in res.out
     #Only failed, and filters:
