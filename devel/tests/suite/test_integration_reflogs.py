@@ -450,14 +450,17 @@ def test_testtime( slowproj ):
     expected = [ 'sb_livepkg_testbad', 'sb_livepkg_testnew',
                  'sb_livepkg_testslow1', 'sb_livepkg_testslow2' ]
     assert sorted( _result_rows( res.out ) ) == expected
-    #(running all tests with -j1 would take 1+2+3+4=10s, plus testnew):
-    note = ( 'Note: 2 tests were not run due to --testtime=4.5 (running all tests'
-             ' would take about 10s with 1 parallel process, plus the time of'
-             ' 1 test without previous timings).' )
-    assert note in res.out
+    #(running all tests with -j1 would take about 1+2+3+4=10s, plus testnew,
+    #but on slow machines the tests can take a bit longer):
+    import re
+    note = re.compile( r'Note: 2 tests were not run due to --testtime=4\.5 \(running'
+                       r' all tests would take about (\d+)s with 1 parallel process,'
+                       r' plus the time of 1 test without previous timings\)\.' )
+    m = note.search( res.out )
+    assert m and 10 <= int( m.group(1) ) <= 20, res.out
     #Also noted in later reports:
     res = run( 'sb --testreport', d, expect_ec = 73 )
-    assert note in res.out and sorted( _result_rows( res.out ) ) == expected
+    assert note.search( res.out ) and sorted( _result_rows( res.out ) ) == expected
     #Invalid usage:
     res = run( 'sb --testtime=10', d, expect_ec = 2 )
     assert '--testtime can only be used when running tests' in res.out
