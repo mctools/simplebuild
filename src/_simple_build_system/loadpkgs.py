@@ -347,6 +347,16 @@ class PackageLoader:
             n2p[p.name]=p
         self.pkgs=pkgs
         self.name2pkg=n2p
+        _underscore_names = sorted( n for n in n2p if '_' in n )
+        if _underscore_names:
+            #Underscores make names of commands ambiguous (sb_foo_bar_cmd
+            #could be cmd from Foo_Bar or bar_cmd from Foo), so they will be
+            #forbidden in a future release:
+            error.warn( 'Package names containing underscores are deprecated'
+                        ' and will not be supported in future releases (they'
+                        ' make names of commands like sb_<pkg>_<cmd>'
+                        ' ambiguous). Please rename: %s'
+                        % ' '.join(_underscore_names) )
 
         #3) Load contents of all or some of the package config files.
         g=self.name2pkg.get
