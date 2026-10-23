@@ -60,7 +60,9 @@ Format of the pkg.info file
 ===========================
 
 The name of the package is given by the name of the directory in which it is
-located, and at the very least it must contain one file called ``pkg.info``,
+located (names must start with a letter, and contain only letters, digits, and
+underscores, but underscores are deprecated since they make the names of
+commands like ``sb_<package>_<command>`` ambiguous), and at the very least it must contain one file called ``pkg.info``,
 which in the first line contains information about which optional externals
 (ROOT, Geant4, Fortran, ...) the package needs and which other packages it
 depends on, if any. The latter is important for proper build order and link-time

@@ -307,7 +307,8 @@ def test_uninstall_does_not_need_db_info( tmp_path ):
     #Foo_Bar must not be affected at all (in particular not rebuilt, which
     #would hide any problems):
     assert n_compiled( res.out ) == 0
-    assert 'Foo_Bar' not in res.out.split('Summary:')[0]
+    assert 'Foo_Bar' not in '\n'.join( line for line in res.out.split('Summary:')[0].splitlines()
+                                       if 'Package names containing underscores' not in line )
     for f in ( 'bin/sb_foo_hi', 'scripts/sb_foo_hello', 'pkgs/Foo' ):
         assert not os.path.lexists( inst( d ) / f )
     assert run( 'sbenv sb_foo_bar_hi', d ).stdout.strip() == 'app Foo_Bar'
@@ -549,3 +550,14 @@ def test_python3_in_path_must_match( tmp_path, quiet ):
     assert 'All tests completed without failures!' in res.out
     res = run( [ 'sbenv', sys.executable, '-c', 'import PkgB.cmod; print(PkgB.cmod.value())' ], d )
     assert res.stdout.strip() == '17'
+
+def test_underscores_in_pkgnames_deprecated( tmp_path ):
+    d = tmp_path / 'proj'
+    write_files( d, { 'simplebuild.cfg' : '[bundle]\nname = "proj"\n',
+                      'My_Pkg/pkg.info' : 'package()\n',
+                      'OtherPkg/pkg.info' : 'package()\n' } )
+    res = run( 'sb', d )
+    assert 'Package names containing underscores are deprecated' in res.out
+    assert 'Please rename: My_Pkg' in res.out
+    ( d / 'My_Pkg' ).rename( d / 'MyPkg' )
+    assert 'deprecated' not in run( 'sb', d ).out
