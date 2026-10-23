@@ -447,6 +447,11 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
         print("Found %i matches"%n)
         raise SystemExit
 
+    if opt.includecosts is not None:
+        from .includecosts import print_report as print_includecosts
+        print_includecosts( pkgloader, dirs.blddir, opt.includecosts )
+        raise SystemExit
+
     if opt.incinfo:
         import glob
         def _val_incinfofn(fn):

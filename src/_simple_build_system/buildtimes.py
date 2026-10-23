@@ -9,10 +9,12 @@ import pathlib
 
 class BuildStep:
 
-    def __init__( self, pkgname, label, seconds ):
+    def __init__( self, pkgname, label, seconds, subdir, objname = None ):
         self.pkgname = pkgname
         self.label = label
         self.seconds = seconds
+        self.subdir = subdir
+        self.objname = objname#None for linking steps
 
 def _duration( start_marker, end_file ):
     try:
@@ -42,12 +44,14 @@ def collect_build_steps( blddir ):
             dt = _duration( marker, obj )
             if dt is not None:
                 steps.append( BuildStep( pkgname, '%s/%s/%s'%( pkgname, marker.parent.name,
-                                                               obj.name ), dt ) )
+                                                               obj.name ), dt,
+                                         marker.parent.name, obj.name ) )
         for marker in sorted( objsdir.glob('*.link.tstart') ):
             subdir = marker.name[:-len('.link.tstart')]
             dt = _duration( marker, blddir / 'named_targets' / pkgname / subdir )
             if dt is not None:
-                steps.append( BuildStep( pkgname, '%s/%s (linking)'%( pkgname, subdir ), dt ) )
+                steps.append( BuildStep( pkgname, '%s/%s (linking)'%( pkgname, subdir ),
+                                         dt, subdir ) )
     return steps
 
 def _fmt( seconds ):

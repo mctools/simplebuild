@@ -72,14 +72,14 @@ jobs:
 
     - name: Test NCrystal linkage
       env:
-        SBTEST_REQUIRE: ncrystal
+        SBTEST_REQUIRE: ncrystal numpy
         SBTEST_EXPECT_DISABLED_EXTDEPS: ''
       run: |
            mkdir -p "${GITHUB_WORKSPACE}/ci-logs"
            exec > >(tee -a "${GITHUB_WORKSPACE}/ci-logs/03_test_ncrystal_linkage.log") 2>&1
            python3 -m pip install ncrystal
            cd src
-           python3 -m pytest -v -k ncrystal_linkage \
+           python3 -m pytest -v -k 'ncrystal_linkage or includecosts' \
              --basetemp="${GITHUB_WORKSPACE}/pytest-tmp-ncrystal" \
              --junitxml="${GITHUB_WORKSPACE}/ci-logs/junit_03_ncrystal_linkage.xml"
 
@@ -143,13 +143,13 @@ jobs:
 
     - name: Test NCrystal linkage and cppcheck
       env:
-        SBTEST_REQUIRE: ncrystal cppcheck
+        SBTEST_REQUIRE: ncrystal cppcheck numpy
         SBTEST_EXPECT_DISABLED_EXTDEPS: ''
       run: |
            mkdir -p "${GITHUB_WORKSPACE}/ci-logs"
            exec > >(tee -a "${GITHUB_WORKSPACE}/ci-logs/03_test_ncrystal_linkage_and_cppcheck.log") 2>&1
            conda install --yes ncrystal cppcheck
-           python3 -m pytest -v -k 'ncrystal_linkage or cppcheck' \
+           python3 -m pytest -v -k 'ncrystal_linkage or cppcheck or includecosts' \
              --basetemp="${GITHUB_WORKSPACE}/pytest-tmp-ncrystal" \
              --junitxml="${GITHUB_WORKSPACE}/ci-logs/junit_03_ncrystal_linkage_and_cppcheck.xml"
 
