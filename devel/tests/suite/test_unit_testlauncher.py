@@ -68,3 +68,11 @@ def test_select_tests_by_time():
     assert sel( names, 4.0, 2, timings ) == ( [ 'new1', 'new2', 'e', 'a', 'b', 'c' ], [ 'd' ] )
     #A test longer than the budget is never selected:
     assert sel( [ 'd' ], 3.9, 8, timings ) == ( [], [ 'd' ] )
+
+def test_estimate_walltime():
+    est = testlauncher.estimate_walltime
+    assert est( [], 4 ) == 0.0
+    assert est( [ 1.0, 2.0, 3.0, 4.0 ], 1 ) == 10.0
+    assert est( [ 1.0, 2.0, 3.0, 4.0 ], 2 ) == 5.0#(4+1 and 3+2)
+    assert est( [ 1.0, 2.0, 3.0, 4.0 ], 8 ) == 4.0
+    assert est( [ 5.0, 1.0, 1.0, 1.0 ], 2 ) == 5.0

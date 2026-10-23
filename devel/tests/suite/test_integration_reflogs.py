@@ -443,7 +443,10 @@ def test_testtime( slowproj ):
     expected = [ 'sb_livepkg_testbad', 'sb_livepkg_testnew',
                  'sb_livepkg_testslow1', 'sb_livepkg_testslow2' ]
     assert sorted( _result_rows( res.out ) ) == expected
-    note = 'Note: 2 tests were not run due to --testtime=4.5 (they took 7s in total in previous runs).'
+    #(running all tests with -j1 would take 1+2+3+4=10s, plus testnew):
+    note = ( 'Note: 2 tests were not run due to --testtime=4.5 (running all tests'
+             ' would take about 10s with 1 parallel process, plus the time of'
+             ' 1 test without previous timings).' )
     assert note in res.out
     #Also noted in later reports:
     res = run( 'sb --testreport', d, expect_ec = 73 )
