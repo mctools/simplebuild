@@ -3,16 +3,16 @@
 # of tests or differences with reference logs can be inspected, and tests can
 # be run again.
 
-from .cursesbase import ScreenBase, OutputView, run_curses_app
+from .cursesbase import ScreenBase, OutputView, run_curses_app, QuitApp, is_back_key
 
-_sort_orders = ( 'name', 'pkg', 'time' )
+_sort_orders = ( 'relevance', 'time', 'name' )
 
 _keyhelp = [
     ( 'q', 'Quit' ),
     ( 'arrows, j k', 'Select test (also PgUp/PgDn/Space and Home/End)' ),
     ( 'Enter', 'Show differences with the reference log (if any), otherwise the output' ),
     ( 'o', 'Show the output of the test' ),
-    ( 's', 'Change sort order (by name, by package, slowest first)' ),
+    ( 's', 'Change sort order (relevance: running, failed, waiting, successful; slowest first; name)' ),
     ( 'f', 'Show only failed tests, or all tests' ),
     ( 'r', 'Run the selected test again' ),
     ( 'b', 'Rebuild (as with "sb"), and run the selected test again' ),
@@ -39,7 +39,7 @@ class TestReportUI( ScreenBase ):
     def __init__( self, stdscr, report ):
         super().__init__( stdscr )
         self.report = report
-        self.sort = report.spec['sort']
+        self.sort = report.spec['sort'] or 'relevance'
         self.failedonly = report.spec['failedonly']
         self.isel = 0
         self.ytop = 0
@@ -58,11 +58,21 @@ class TestReportUI( ScreenBase ):
     def rows( self ):
         rr = [ r for r in self.all_results
                if not self.failedonly or ( r.failed and not self._is_pending( r ) ) ]
-        if self.sort == 'pkg':
-            rr.sort( key = lambda r : ( r.pkgname or '', r.name ) )
-        elif self.sort == 'time':
+        if self.sort == 'time':
             rr.sort( key = lambda r : ( -r.time_ms, r.name ) )
+        elif self.sort == 'relevance':
+            rr.sort( key = lambda r : ( self._status_rank( r ), r.name ) )
         return rr
+
+    def _status_rank( self, r ):
+        #Running tests first, then failed, waiting, and successful ones:
+        run = self.report.run
+        st = run.status( r.name ) if run and r.name in run.names else 'done'
+        if st == 'running':
+            return 0
+        if st == 'waiting':
+            return 2
+        return 1 if r.failed else 3
 
     @property
     def selected( self ):
@@ -156,10 +166,9 @@ class TestReportUI( ScreenBase ):
         self.scr.refresh()
 
     def show_output( self, r ):
-        import os
-        ecstr = 'killed or interrupted' if r.ec is None else f'exit code {r.ec}'
-        OutputView( self.scr, f'Output of {r.name} ({ecstr})',
-                    os.path.join( self.report.testdir, r.name, 'output.log' ) ).run()
+        TestOutputView( self, r.name ).run()
+        self._load()
+        self.select_name( r.name )
 
     def inspect( self, r ):
         if r.ec == 0 and r.logdiff_failed:
@@ -177,12 +186,16 @@ class TestReportUI( ScreenBase ):
             self.message = 'The output is identical to the reference log'
             return
         session.code_required = rep.code_required
-        ReflogUI( self.scr, session, title = 'sb --testreport' ).run()
+        try:
+            ReflogUI( self.scr, session, title = 'sb --testreport',
+                      toplevel = False ).run()
+        finally:
+            #(also when quitting from the other screen):
+            rep.code_required = session.code_required
+            for f in session.updated_files:
+                if f not in rep.updated_files:
+                    rep.updated_files.append( f )
         self.repaint_fully()
-        rep.code_required = session.code_required
-        for f in session.updated_files:
-            if f not in rep.updated_files:
-                rep.updated_files.append( f )
         self._load()
         self.select_name( r.name )
 
@@ -226,6 +239,18 @@ class TestReportUI( ScreenBase ):
             self.message += ' (and is no longer shown, press f to show all tests)'
 
     def run( self ):
+        try:
+            self._run()
+        except QuitApp:
+            pass
+        #Stop tests running in the background, unless they were started before
+        #the user interface was opened and should continue:
+        run = self.report.run
+        if run and run.active and ( self.report.stop_on_quit
+                                    or run is not self.report.initial_run ):
+            run.stop()
+
+    def _run( self ):
         c = self.curses
         self.hide_cursor()
         self.scr.keypad( True )
@@ -241,15 +266,19 @@ class TestReportUI( ScreenBase ):
                 if run and not run.poll():
                     self.message = ( 'The tests were cancelled' if run.stopped
                                      else 'All tests finished' )
+                #Keep the same test selected, even if the rows are reordered:
+                sel = self.selected
+                selname = sel.name if sel else None
                 self._load()
+                if selname:
+                    self.select_name( selname )
                 continue
             self.message = ''
             sel = self.selected
             if ch == ord('q'):
-                if run and run.active and ( self.report.stop_on_quit
-                                            or run is not self.report.initial_run ):
-                    run.stop()
                 return
+            elif is_back_key( ch ):
+                self.message = 'Press q to quit'
             elif ch == ord('t'):
                 self.start_tests( [ r.name for r in self.rows() ] )
             elif ch == ord('c'):
@@ -299,6 +328,89 @@ class TestReportUI( ScreenBase ):
                 self.rerun( sel, rebuild = False )
             elif ch == ord('b'):
                 self.rerun( sel, rebuild = True )
+
+class TestOutputView( OutputView ):
+
+    """View of the output of a test, from which the test can also be run
+    again (in the background, with the output being updated as it appears)."""
+
+    statusbar = ( 'Esc:back  q:quit  r:rerun  b:rebuild+rerun  arrows, j k h l:scroll'
+                  '  PgUp/PgDn  Home/End' )
+
+    def __init__( self, ui, name ):
+        import os
+        self.ui = ui
+        self.name = name
+        self._was_running = False
+        super().__init__( ui.scr, '', os.path.join( ui.report.testdir, name, 'output.log' ) )
+        self._update_title()
+
+    def _status( self ):
+        run = self.ui.report.run
+        if run and run.active and self.name in run.names:
+            st = run.status( self.name )
+            if st != 'done':
+                return st
+        return None
+
+    def _update_title( self ):
+        st = self._status()
+        if st == 'running':
+            self.title = f'Output of {self.name} (running...)'
+        elif st == 'waiting':
+            self.title = f'Output of {self.name} (waiting to run...)'
+        else:
+            r = next( ( e for e in self.ui.all_results if e.name == self.name ), None )
+            if r is None or r.ec is None:
+                ecstr = 'killed or interrupted'
+            else:
+                ecstr = f'exit code {r.ec}'
+                if r.ec == 0 and r.logdiff_failed:
+                    ecstr += ', differs from the reference log'
+            self.title = f'Output of {self.name} ({ecstr})'
+
+    def tick_ms( self ):
+        run = self.ui.report.run
+        return 500 if ( run and run.active ) else -1
+
+    def on_tick( self ):
+        run = self.ui.report.run
+        if run and not run.poll() and self._was_running:
+            self._was_running = False
+            self.ui._load()
+            r = next( ( e for e in self.ui.all_results if e.name == self.name ), None )
+            self.message = f'{self.name} now ' + ( 'FAILS' if ( r is None or r.failed )
+                                                    else 'passes' )
+        self._update_title()
+
+    def on_key( self, ch ):
+        if ch not in ( ord('r'), ord('b') ):
+            return False
+        ui = self.ui
+        run = ui.report.run
+        if run and run.active:
+            self.message = 'Please wait for the running tests to finish'
+            return True
+        if ch == ord('b'):
+            def do_rebuild():
+                print(f'Rebuilding before running {self.name} again...', flush = True)
+                return ui.report.rebuild_fct()
+            ok = self.run_outside_curses( do_rebuild )
+            self.repaint_fully()
+            if not ok:
+                self.show_build_log( ui.build_log_path(), failed = True )
+                self.message = 'Build failed'
+                return True
+        ui.start_tests( [ self.name ] )
+        run = ui.report.run
+        if not ( run and run.active ):
+            self.message = ui.message
+            return True
+        self._was_running = True
+        self.y = 0
+        self.message = f'Running {self.name} again...'
+        self._update_title()
+        return True
 
 class InteractiveReport:
 

@@ -203,8 +203,11 @@ $> {_p} --init dgcode PKGFILTER::SomeFilter
                                   ' last run\nof tests (without building or'
                                   ' running tests),\nor customise the report'
                                   ' when used with -t.\nOptional SPEC is a'
-                                  ' comma separated list of\n"name", "pkg", or'
-                                  ' "time" (sort order),\n"failed" (only'
+                                  ' comma separated list of\n"relevance" (failed tests first),'
+                                  ' "time"\n(slowest first), or "name" (sort'
+                                  ' order,\ndefault is "name" for printed'
+                                  ' reports\nand "relevance" for interactive'
+                                  ' ones),\n"failed" (only'
                                   ' show failed tests), and\n"interactive"'
                                   ' (browse results, inspect\noutput and'
                                   ' reference logs, and rerun tests).'))
@@ -389,13 +392,13 @@ $> {_p} --init dgcode PKGFILTER::SomeFilter
     else:
         return args
 
-testreport_sort_keys = ('name','pkg','time')
+testreport_sort_keys = ('relevance','time','name')
 
 def parse_testreport_spec( spec, error_fct ):
     """Parse the SPEC of --testreport[=SPEC] into a dictionary with keys "sort"
-    (one of testreport_sort_keys), "failedonly" (bool), and "interactive"
-    (bool)."""
-    res = dict( sort = 'name', failedonly = False, interactive = False )
+    (one of testreport_sort_keys, or None for the default), "failedonly"
+    (bool), and "interactive" (bool)."""
+    res = dict( sort = None, failedonly = False, interactive = False )
     nsort = 0
     for e in ( spec or '' ).split(','):
         e = e.strip().lower()

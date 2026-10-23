@@ -98,8 +98,12 @@ def test_testreport( reflogproj ):
     #Sorting:
     res = run( 'sb --testreport=time', d, expect_ec = 73 )
     assert list( _result_rows( res.out ) )[0] == 'sb_otherpkg_testslow'
-    res = run( 'sb --testreport=pkg', d, expect_ec = 73 )
-    assert list( _result_rows( res.out ) )[-1] == 'sb_otherpkg_testslow'
+    res = run( 'sb --testreport=relevance', d, expect_ec = 73 )
+    rr = list( _result_rows( res.out ) )
+    assert rr == sorted( rr, key = lambda n : ( 'FAIL' not in rows[n], n ) )
+    assert 'FAIL' in rows[rr[0]] and 'FAIL' not in rows[rr[-1]]
+    res = run( 'sb --testreport=pkg', d, expect_ec = 2 )
+    assert 'Invalid keyword "pkg" in --testreport' in res.out
     #Only failed, and filters:
     res = run( 'sb --testreport=failed,name', d, expect_ec = 73 )
     assert sorted( _result_rows( res.out ) ) == sorted( k for k,v in rows.items()
@@ -125,7 +129,7 @@ def test_testreport( reflogproj ):
     #Invalid usage:
     res = run( 'sb --testreport=bad', d, expect_ec = 2 )
     assert 'Invalid keyword "bad" in --testreport' in res.out
-    res = run( 'sb --testreport=time,pkg', d, expect_ec = 2 )
+    res = run( 'sb --testreport=time,name', d, expect_ec = 2 )
     assert 'Only one sort order' in res.out
     res = run( 'sb --testreport --pkginfo MyPkg', d, expect_ec = 2 )
     assert 'mutually exclusive' in res.out
@@ -281,9 +285,12 @@ def test_interactive_testreport( reflogproj ):
     p = PtyProcess( [ 'sb', '--testreport=interactive',
                       "--testfilter=*testfails,*same,*innerspace" ], d )
     p.wait_for_screen( r'Press \? for help' )
-    p.wait_for_screen( r'sb --testreport +3 tests, 2 failed +sort: name' )
+    p.wait_for_screen( r'sb --testreport +3 tests, 2 failed +sort: relevance' )
     assert 'sb_mypkg_trailingspace' not in p.screen()
-    #Only failed tests, sorted by name:
+    #Failed tests first by default:
+    rows = [ line.split()[0] for line in p.screen().splitlines() if line.startswith('  sb_') ]
+    assert rows == [ 'sb_mypkg_innerspace', 'sb_mypkg_testfails', 'sb_mypkg_same' ]
+    #Only failed tests:
     p.send( 'f' )
     p.wait_for_screen( r'only failed tests shown' )
     rows = [ line.split()[0] for line in p.screen().splitlines() if line.startswith('  sb_') ]
@@ -293,7 +300,7 @@ def test_interactive_testreport( reflogproj ):
     p.send( '\r' )
     p.wait_for_screen( r'Output of sb_mypkg_testfails \(exit code 3\)' )
     p.wait_for_screen( r'1 this test fails' )
-    p.send( 'q' )
+    p.send( '\x1b' )#Esc: back
     #Differences with the reference log, and update of the reference log:
     p.send( 'k' )
     p.send( '\r' )
@@ -302,7 +309,7 @@ def test_interactive_testreport( reflogproj ):
     m = p.wait_for_screen( r'type the code ([a-z0-9]{5}) in reverse order' )
     p.send( m.group(1)[::-1] + '\r' )
     p.wait_for_screen( 'Updated MyPkg/scripts/innerspace.log' )
-    p.send( 'q' )
+    p.send( '\x1b' )#Esc: back
     p.wait_for_screen( r'3 tests, 1 failed' )
     #Fix the failing test and run it again:
     ( d / 'MyPkg' / 'scripts' / 'testfails' ).write_text( '#!/usr/bin/env bash\necho fixed\n' )
@@ -312,7 +319,12 @@ def test_interactive_testreport( reflogproj ):
     #Sort order:
     p.send( 'F' )
     p.send( 's' )
-    p.wait_for_screen( r'sort: pkg' )
+    p.wait_for_screen( r'sort: time' )
+    p.send( 's' )
+    p.wait_for_screen( r'sort: name' )
+    #Esc (back) does not quit the top level screen:
+    p.send( '\x1b' )
+    p.wait_for_screen( r'Press q to quit' )
     p.send( 'Q' )
     assert p.wait_exit() == 0
     #The usual report follows, and reflects the changes:
@@ -322,6 +334,37 @@ def test_interactive_testreport( reflogproj ):
     rows = _result_rows( run( "sb --testreport --testfilter=*testfails,*innerspace", d ).out )
     assert rows == { 'sb_mypkg_innerspace' : ( 'OK', 'OK' ),
                      'sb_mypkg_testfails' : ( 'OK', '--' ) }
+
+def test_rerun_from_output_view( reflogproj ):
+    #Tests can be run again from the view of their output, with the output
+    #appearing while the test runs:
+    from sbtestutils import PtyProcess
+    d = reflogproj
+    script = d / 'MyPkg' / 'scripts' / 'testfails'
+    write_files( d, { 'MyPkg/scripts/testfails' :
+                      '#!/usr/bin/env bash\necho "this test fails"\nexit 3\n' } )
+    script.chmod( 0o755 )
+    run( 'sb -t', d, expect_ec = 73 )
+    p = PtyProcess( [ 'sb', '--testreport=interactive,failed',
+                      '--testfilter=*testfails' ], d )
+    p.wait_for_screen( r'Press \? for help' )
+    p.send( '\r' )
+    p.wait_for_screen( r'Output of sb_mypkg_testfails \(exit code 3\)' )
+    p.wait_for_screen( r'1 this test fails' )
+    script.write_text( '#!/usr/bin/env bash\necho "first part"\nsleep 3\n'
+                       'echo "second part"\n' )
+    p.send( 'r' )
+    p.wait_for_screen( r'Output of sb_mypkg_testfails \(running\.\.\.\)' )
+    screen = p.wait_for_screen( r'1 first part' ).string
+    assert 'second part' not in screen
+    p.wait_for_screen( r'2 second part', timeout = 60 )
+    p.wait_for_screen( r'sb_mypkg_testfails now passes' )
+    p.wait_for_screen( r'Output of sb_mypkg_testfails \(exit code 0\)' )
+    #Back in the table, the result is updated:
+    p.send( '\x1b' )
+    p.wait_for_screen( r'1 tests, 0 failed' )
+    p.send( 'q' )
+    assert p.wait_exit() == 0
 
 def test_interactive_testreport_with_tests( reflogproj ):
     from sbtestutils import PtyProcess
@@ -351,20 +394,21 @@ def test_interactive_rebuild_failure_shows_build_log( reflogproj ):
     p.send( 'b' )
     p.wait_for_screen( r'The build FAILED\. Output of the build:', timeout = 300 )
     p.wait_for_screen( r'this_is_an_error' )
-    p.send( 'q' )
+    p.send( '\x1b' )#Esc: back
     p.wait_for_screen( r'Build failed' )
     #Show it again:
     p.send( 'e' )
     p.wait_for_screen( r'Output of the last build:' )
     p.wait_for_screen( r'this_is_an_error' )
-    p.send( 'q' )
+    p.send( '\x1b' )#Esc: back
     #Also from the reference log viewer:
     p.send( '\r' )
     p.wait_for_screen( r'\[1/1\] sb_mypkg_hello' )
     p.send( 'E' )
     p.wait_for_screen( r'Output of the last build:' )
-    p.send( 'q' )
-    p.send( 'q' )
+    p.send( '\x1b' )#Esc: back to the reference log viewer
+    p.wait_for_screen( r'sb --testreport.*sb_mypkg_hello' )
+    #q quits directly, also from screens opened from other screens:
     p.send( 'q' )
     assert p.wait_exit() == 73
 
@@ -388,7 +432,7 @@ def test_progress_line_and_interactive_view( slowproj ):
     from sbtestutils import PtyProcess
     d = slowproj
     p = PtyProcess( [ 'sb', '-t', '-j2' ], d )
-    p.wait_for( r'Tests done: \d/5[^\r\n]*\[press i for interactive view\]', timeout = 300 )
+    p.wait_for( r'sbld:  Tests done: \d/5[^\r\n]*\[press i for interactive view\]', timeout = 300 )
     p.wait_for( r'Tests done: 5/5, 1 failed' )
     assert p.wait_exit() == 73
     assert 'ERROR: Some tests failed!' in p.text
@@ -444,7 +488,7 @@ def test_fastest_first_and_inspecting_during_run( slowproj ):
     run( 'sb -t --testorder=fastest', d, expect_ec = 73 )
     assert started_order() == [ 'testbad', 'testslow1', 'testslow2',
                                 'testslow3', 'testslow4' ]
-    p = PtyProcess( [ 'sb', '-t', '-j1', '--testreport=interactive',
+    p = PtyProcess( [ 'sb', '-t', '-j1', '--testreport=interactive,name',
                       '--testorder=fastest' ], d )
     #testbad and testslow1 finish first, while testslow4 is still waiting:
     p.wait_for_screen( r'running tests: [2-4]/5 done', timeout = 300 )
@@ -454,13 +498,13 @@ def test_fastest_first_and_inspecting_during_run( slowproj ):
     p.send( '\r' )
     p.wait_for_screen( r'Output of sb_livepkg_testbad \(exit code 2\)' )
     p.wait_for_screen( r'1 bad' )
-    p.send( 'q' )
+    p.send( '\x1b' )#Esc: back
     #Output of a successful test:
     p.send( 'j' )
     p.send( 'o' )
     p.wait_for_screen( r'Output of sb_livepkg_testslow1' )
     p.wait_for_screen( r'1 t1' )
-    p.send( 'q' )
+    p.send( '\x1b' )#Esc: back
     p.wait_for_screen( r'All tests finished', timeout = 60 )
     p.send( 'q' )
     assert p.wait_exit() == 73
