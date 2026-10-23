@@ -118,7 +118,15 @@ slowest compilation and linking steps (and ``sb --buildtimes=N`` the N slowest),
 along with the slowest packages. The timings are recorded whenever files are
 built, so they reflect the most recent build of each file, and no special build
 is needed. Note that the timings come from builds with several steps running in
-parallel, which might inflate them a bit.
+parallel, which might inflate them a bit. Additionally, ``sb --includecosts``
+(which requires the Python module numpy) estimates which files are the most
+costly to compile, including header files. This is based on the build timings
+and the include statements in the code: the compilation time of each file is
+modelled as the sum of the costs of the files it needs (its source file, the
+header files of the project it includes directly or indirectly, and the system
+headers included by those), and the costs of the files are estimated from all
+the timings. This can of course only give rough estimates, but is useful for
+finding the worst offenders.
 
 Using the project
 =================

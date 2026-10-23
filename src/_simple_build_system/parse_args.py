@@ -160,6 +160,13 @@ $> {_p} --init dgcode PKGFILTER::SomeFilter
                                    " recent\nbuild of each file (without"
                                    " building anything)."))
     exclusive.add(('--buildtimes','buildtimes'))
+    group_query.add_argument("--includecosts", nargs='?', type=int, const=20,
+                             default=None, dest="includecosts", metavar="N",
+                             help=("Print rough estimates of the compilation"
+                                   " cost of\nthe N (default 20) most costly"
+                                   " files (based\non build timings and"
+                                   " include statements,\nrequires numpy)."))
+    exclusive.add(('--includecosts','includecosts'))
     group_query.add_argument("--incinfo",action="store", dest="incinfo",
                              default='',metavar='CFILE',
                              help=( "Show inclusion relationships for CFILE in"
@@ -328,6 +335,8 @@ $> {_p} --init dgcode PKGFILTER::SomeFilter
         present_exclusive.add('--reflogupdate')
     if args.buildtimes is not None and args.buildtimes < 1:
         parser.error('--buildtimes requires a positive number')
+    if args.includecosts is not None and args.includecosts < 1:
+        parser.error('--includecosts requires a positive number')
     if args.testtime is not None:
         if not args.runtests:
             parser.error('--testtime can only be used when running tests (-t)')

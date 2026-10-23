@@ -91,3 +91,68 @@ def test_buildtimes_ignores_incomplete_steps( tmp_path ):
     touch( tmp_path / 'named_targets' / 'PkgX' / 'libsrc', now - 3 )
     steps = sorted( ( s.label, round( s.seconds, 3 ) ) for s in collect_build_steps( tmp_path ) )
     assert steps == [ ( 'PkgX/libsrc (linking)', 1.0 ), ( 'PkgX/libsrc/good.o', 3.0 ) ]
+
+def _have_numpy():
+    try:
+        import numpy # noqa F401
+        return True
+    except ImportError:
+        return False
+
+def test_includecosts_estimates():
+    #Estimates from synthetic data: Shared.hh costs 3s and is used by all
+    #translation units, Heavy.hh costs 5s and is used by two of them, and
+    #each source file costs 0.1s:
+    from sbtestutils import require_feature
+    require_feature( 'numpy', _have_numpy() )
+    from _simple_build_system.includecosts import estimate_costs
+    tus = []
+    for i in range(6):
+        files = { f'src{i}.cc', 'Shared.hh' }
+        t = 0.1 + 3.0
+        if i < 2:
+            files.add( 'Heavy.hh' )
+            t += 5.0
+        tus.append( ( t, files ) )
+    costs = dict( ( tuple(c.labels), c ) for c in estimate_costs( tus ) )
+    assert abs( costs[('Shared.hh',)].cost_per_use - 3.0 ) < 0.3
+    assert costs[('Shared.hh',)].nuses == 6
+    assert abs( costs[('Heavy.hh',)].cost_per_use - 5.0 ) < 0.5
+    assert all( c.cost_per_use < 0.5 for k, c in costs.items()
+                if k[0].startswith('src') )
+    #Files used by the same translation units are grouped:
+    tus2 = [ ( t, files | { 'Other.hh' } if 'Heavy.hh' in files else files )
+             for t, files in tus ]
+    labels = [ c.labels for c in estimate_costs( tus2 ) ]
+    assert [ 'Heavy.hh', 'Other.hh' ] in labels
+
+def test_includecosts( tmp_path ):
+    #A header including the expensive <regex> header is used by three
+    #translation units, and must be identified as the most costly:
+    from sbtestutils import require_feature
+    require_feature( 'numpy', _have_numpy() )
+    d = tmp_path / 'proj'
+    files = { 'simplebuild.cfg' : '[bundle]\nname = "proj"\n',
+              'PkgA/pkg.info' : 'package()\n',
+              'PkgA/libinc/Heavy.hh' : ( '#include <regex>\n#include <string>\n'
+                                         'inline bool heavy_match( const std::string& s )\n'
+                                         '{ return std::regex_match( s, std::regex("a+b*") ); }\n' ),
+              'PkgA/libinc/Light.hh' : 'inline int light_value() { return 1; }\n' }
+    for i in range(3):
+        files[f'PkgA/libsrc/heavy{i}.cc'] = ( '#include "PkgA/Heavy.hh"\n'
+                                              f'bool fheavy{i}() {{ return heavy_match("aab"); }}\n' )
+        files[f'PkgA/libsrc/light{i}.cc'] = ( '#include "PkgA/Light.hh"\n'
+                                              f'int flight{i}() {{ return light_value(); }}\n' )
+    write_files( d, files )
+    run( 'sb', d )
+    def rows( n ):
+        res = run( f'sb --includecosts={n}', d )
+        assert 'These are rough estimates' in res.out
+        return [ line for line in res.out.splitlines()
+                 if re.match( r'^sbld:\s+[0-9.]+ \|', line ) ]
+    assert 0 < len( rows(2) ) <= 2
+    #(NB: Files from the Core package, which is always built, might be even
+    #more costly, so only consider files from PkgA):
+    pkga = [ r for r in rows(100) if 'PkgA' in r ]
+    assert 'PkgA/libinc/Heavy.hh' in pkga[-1] and '<regex>' in pkga[-1]
+    assert re.search( r'\|\s+3 \| ', pkga[-1] )
