@@ -2,7 +2,8 @@
 # reflogupdate.py, and the rendering of differences in diffrender.py).
 
 from . import diffrender
-from .cursesbase import ScreenBase, relpath as _relpath, run_curses_app
+from .cursesbase import ( ScreenBase, relpath as _relpath, run_curses_app,
+                          QuitApp, is_back_key )
 
 _views = ( ( 'sbs', 'side by side' ),
            ( 'sbs3', 'side by side, changes only' ),
@@ -10,6 +11,7 @@ _views = ( ( 'sbs', 'side by side' ),
 
 _keyhelp = [
     ( 'q', 'Quit' ),
+    ( 'Esc', 'Go back (when opened from another screen)' ),
     ( '+ / -', 'Next / previous test' ),
     ( 'n / p', 'Next / previous difference' ),
     ( 'v', 'Change view (side by side, side by side with changes only, changed lines)' ),
@@ -30,8 +32,10 @@ _statusbar = ( 'q:quit  +/-:test  n/p:diff  v:view  u:update  x:no codes'
 
 class ReflogUI( ScreenBase ):
 
-    def __init__( self, stdscr, session, title = 'sb --reflogupdate' ):
+    def __init__( self, stdscr, session, title = 'sb --reflogupdate',
+                  toplevel = True ):
         super().__init__( stdscr )
+        self.toplevel = toplevel
         self.session = session
         self.title = title
         self.icand = 0
@@ -241,7 +245,12 @@ class ReflogUI( ScreenBase ):
             _, height, _ = self.body_geometry()
             self.message = ''
             if ch == ord('q'):
-                return
+                raise QuitApp()
+            elif is_back_key( ch ):
+                if self.toplevel:
+                    self.message = 'Press q to quit'
+                else:
+                    return
             elif ch in ( ord('+'), ord('=') ):
                 self.goto_candidate( self.icand + 1 )
             elif ch in ( ord('-'), ord('_') ):

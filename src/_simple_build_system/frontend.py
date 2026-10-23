@@ -687,7 +687,7 @@ def _interactive_session( opt, lockfile_content, run = None,
     warning = ( 'WARNING: The results might be outdated, since these packages'
                 ' were changed after the tests were run: ' + ' '.join(changed)
                 if changed else None )
-    spec = opt.testreport or dict( sort = 'name', failedonly = False,
+    spec = opt.testreport or dict( sort = None, failedonly = False,
                                    interactive = True )
     report = InteractiveReport( dirs.testdir, dirs.installdir, spec,
                                 _parse_testfilter( opt.testfilter )[0],

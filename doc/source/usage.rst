@@ -207,13 +207,16 @@ The report of the test results can also be printed again later with ``sb
 --testreport``, without building anything or running any tests (as usual, the
 build variant can be selected with e.g. ``-d``, and the results of each build
 variant are kept separately). The report can be customised, e.g. ``sb
---testreport=failed,time`` shows only the failed tests, with the slowest first,
+--testreport=failed,time`` shows only the failed tests, with the slowest first
+(other sort orders are ``name``, the default, and ``relevance``, which shows
+failed tests first),
 and ``--testfilter`` and ``--testexcerpts`` can be used to select tests and show
 excerpts. With ``sb --testreport=interactive`` (which can also be combined with
 ``-t``), the results can instead be browsed interactively: the output of tests,
 or the differences between their output and their reference logs, can be
 inspected, and tests can be run again, optionally after rebuilding (press ``?``
-for a list of keys). When running tests, the slowest tests (as measured in
+for a list of keys). By default, the interactive view shows running tests
+first, then failed tests, tests waiting to run, and finally successful tests. When running tests, the slowest tests (as measured in
 previous runs) are started first, to avoid ending up waiting for a single slow
 test at the end (with ``--testorder=fastest``, the fastest tests are instead
 started first, to get results as quickly as possible). When running tests in a

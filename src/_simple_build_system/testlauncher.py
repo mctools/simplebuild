@@ -249,7 +249,8 @@ def _show_progress( run, interactive_ui = None ):
         nfailed = sum( 1 for n in run.names if run.status( n ) == 'done'
                        and ( _read_number( run.testdir / n / 'ec.txt', int ) != 0
                              or _read_number( run.testdir / n / 'ecdiff.txt', int ) ) )
-        line = f'  Tests done: {ndone}/{ntot}'
+        from .io import print_prefix
+        line = f'{print_prefix} Tests done: {ndone}/{ntot}'
         if nrunning:
             line += f', {nrunning} running'
         if nfailed:
@@ -444,7 +445,9 @@ class BackgroundTestRun:
         """Estimated remaining time in seconds (based on the timings of the
         tests in previous runs), and the number of unfinished tests without
         previous timings (which are not included in the estimate). Returns
-        (None,n) if there is no information at all."""
+        (None,n) if the remaining time is unknown (i.e. if all unfinished
+        tests either have no previous timings, or are already running for
+        longer than in previous runs)."""
         import time
         work, longest, nunknown, nknown = 0.0, 0.0, 0, 0
         for name in self.names:
@@ -455,19 +458,24 @@ class BackgroundTestRun:
             if tprev is None:
                 nunknown += 1
                 continue
-            nknown += 1
             remaining = tprev * 0.001
             if st == 'running':
                 try:
                     started = ( self.testdir / name / 'time_start' ).stat().st_mtime
-                    remaining = max( 0.0, remaining - ( time.time() - started ) )
+                    remaining -= time.time() - started
                 except OSError:
                     pass
+                if remaining <= 0.0:
+                    #Already running longer than previously, so the remaining
+                    #time is unknown:
+                    continue
+            nknown += 1
             work += remaining
             longest = max( longest, remaining )
         if not nknown:
             return None, nunknown
-        return max( longest, work / self.njobs ), nunknown
+        #Never claim that no time is left while tests are still running:
+        return max( 1.0, longest, work / self.njobs ), nunknown
 
     def stop( self ):
         """Stop the run (if still active)."""
@@ -657,7 +665,7 @@ def print_report( testdir, logdir, nexcerpts, spec, *, filters = None,
     from . import io as _io
     from . import col
     print = _io.print
-    spec = spec or dict( sort = 'name', failedonly = False )
+    spec = spec or dict( sort = None, failedonly = False )
     runinfo, results = load_results( testdir )
     if runinfo is None:
         print('No test results are available for this build variant'
@@ -689,10 +697,10 @@ def print_report( testdir, logdir, nexcerpts, spec, *, filters = None,
         results = [ r for r in results if filter_fct( r.name ) ]
     if spec['failedonly']:
         results = [ r for r in results if r.failed ]
-    if spec['sort'] == 'pkg':
-        results.sort( key = lambda r : ( r.pkgname or '', r.name ) )
-    elif spec['sort'] == 'time':
+    if spec['sort'] == 'time':
         results.sort( key = lambda r : ( -r.time_ms, r.name ) )
+    elif spec['sort'] == 'relevance':
+        results.sort( key = lambda r : ( not r.failed, r.name ) )
     any_failed = failed
     print(_line_hr)
     print(_line_titles)

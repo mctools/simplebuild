@@ -8,6 +8,16 @@ def relpath( path ):
     except ValueError:
         return str(path)
 
+class QuitApp( Exception ):
+    """Raised when the user presses q (on any screen) to quit the user
+    interface. Screens should clean up (e.g. with try/finally) as needed."""
+
+def is_back_key( ch ):
+    """Esc and Backspace go back to the previous screen (while q always
+    quits, so going back repeatedly can not accidentally quit)."""
+    import curses
+    return ch in ( 27, curses.KEY_BACKSPACE, 127, 8 )
+
 def run_curses_app( fct ):
     """Run fct(stdscr) in a curses session (restoring the terminal afterwards,
     also in case of exceptions)."""
@@ -16,7 +26,12 @@ def run_curses_app( fct ):
     import locale
     locale.setlocale( locale.LC_ALL, '' )
     os.environ.setdefault( 'ESCDELAY', '25' )
-    return curses.wrapper( fct )
+    def wrapped( stdscr ):
+        try:
+            return fct( stdscr )
+        except QuitApp:
+            return None
+    return curses.wrapper( wrapped )
 
 class ScreenBase:
 
@@ -174,7 +189,12 @@ class ScreenBase:
 
 class OutputView( ScreenBase ):
 
-    """Scrollable view of a text file (e.g. the output of a test)."""
+    """Scrollable view of a text file (e.g. the output of a test). Derived
+    classes can support more keys by overriding on_key, and be notified
+    periodically (see tick_ms) via on_tick. The file is reloaded on each tick
+    (it might be growing)."""
+
+    statusbar = 'Esc:back  q:quit  arrows, j k h l:scroll  PgUp/PgDn  Home/End'
 
     def __init__( self, stdscr, title, path, start_at_end = False ):
         super().__init__( stdscr )
@@ -211,22 +231,42 @@ class OutputView( ScreenBase ):
             self._put( 1 + i, 0, str( self.y + i + 1 ).rjust( nlno ), self.attrs['dim'] )
             self._put( 1 + i, nlno + 1, line[self.x:] )
         self._put( h - 2, 0, self.message, self.attrs['meta'] )
-        self._put( h - 1, 0, 'q:back  arrows, j k h l:scroll  PgUp/PgDn  Home/End'.ljust( w ),
+        self._put( h - 1, 0, self.statusbar.ljust( w ),
                    self.attrs['title'] )
         self.scr.refresh()
+
+    def tick_ms( self ):
+        """Interval of ticks in milliseconds (None to keep the current timeout
+        setting of the screen, -1 for no ticks)."""
+        return None
+
+    def on_tick( self ):
+        pass
+
+    def on_key( self, ch ):
+        """Handle additional keys. Returns True if the key was handled."""
+        return False
 
     def run( self ):
         c = self.curses
         self.repaint_fully()
         while True:
+            t = self.tick_ms()
+            if t is not None:
+                self.scr.timeout( t )
             self.draw()
             ch = self.getkey()
             height = max( 1, self.scr.getmaxyx()[0] - 3 )
             if ch == -1:
-                #Timeout (when tests are running in the background), so the
-                #file might have grown:
+                #Timeout (e.g. when tests are running in the background), so
+                #the file might have grown:
+                self.on_tick()
                 self._load()
-            elif ch in ( ord('q'), 27, c.KEY_BACKSPACE, 127 ):
+            elif ch != ord('q') and not is_back_key( ch ) and self.on_key( ch ):
+                pass
+            elif ch == ord('q'):
+                raise QuitApp()
+            elif is_back_key( ch ):
                 self.repaint_fully()
                 return
             elif ch in ( c.KEY_DOWN, ord('j') ):
