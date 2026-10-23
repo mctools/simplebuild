@@ -6,7 +6,7 @@ import os
 
 import pytest
 
-from sbtestutils import n_compiled, run, write_files
+from sbtestutils import clean_env, n_compiled, run, write_files
 
 pytestmark = pytest.mark.integration
 
@@ -523,3 +523,29 @@ def test_errors_shown_in_quiet_mode( tmp_path, errtype ):
         assert expected in ( res.stderr if quiet else res.stdout )
         if quiet:
             assert not res.stdout
+
+@pytest.mark.parametrize( 'quiet', [ False, True ] )
+def test_python3_in_path_must_match( tmp_path, quiet ):
+    #Code is built for the Python interpreter running simplebuild, and the
+    #python3 command in the PATH must belong to the same installation or
+    #environment (since scripts starting with "#!/usr/bin/env python3" must be
+    #able to use the built code):
+    import sys
+    d = tmp_path / 'proj'
+    write_files( d, _files )
+    ( d / 'PkgB' / 'scripts' / 'testpy' ).chmod( 0o755 )
+    bindir = tmp_path / 'fakebin'
+    bindir.mkdir()
+    f = bindir / 'python3'
+    f.write_text( '#!/bin/sh\necho "wrong python" >&2\nexit 1\n' )
+    f.chmod( 0o755 )
+    cmd = [ 'sb' ] + ( [ '--quiet' ] if quiet else [] )
+    res = run( cmd, d, env_extra = { 'PATH' : f'{bindir}:{clean_env()["PATH"]}' },
+               expect_ec = 1 )
+    assert 'is not from the same Python installation or environment' in res.out
+    assert str(f) in res.out
+    #Works once the PATH is fixed:
+    res = run( 'sb -t', d )
+    assert 'All tests completed without failures!' in res.out
+    res = run( [ 'sbenv', sys.executable, '-c', 'import PkgB.cmod; print(PkgB.cmod.value())' ], d )
+    assert res.stdout.strip() == '17'

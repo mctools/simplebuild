@@ -174,6 +174,8 @@ def extractenv(*,cmakeargs,actually_needed_extdeps,quiet=True,verbose=False):
         cmd.append('-DSBLD_QUIET=1')
     if verbose:
         cmd.append('-DSBLD_VERBOSE=1')
+    import sys
+    cmd.append( f'-DSBLD_PYTHON_EXECUTABLE={sys.executable}' )
     _joined_extdeps=':'.join(actually_needed_extdeps)
     cmd.append( f'-DSBLD_ACTUALLY_USED_EXTDEPS={_joined_extdeps}' )
 
