@@ -46,6 +46,17 @@ def main( prevent_env_setup_msg = False ):
         frontend.simplebuild_main( prevent_env_setup_msg = prevent_env_setup_msg )
     except KeyboardInterrupt:
         _exit_after_interrupt()
+    except SystemExit as e:
+        #Unless in quiet mode, error messages are printed on stdout (rather
+        #than stderr), so they appear in the right place when the output is
+        #redirected to a file. In quiet mode, only errors are printed, on
+        #stderr:
+        from . import io as _io
+        if isinstance( e.code, str ) and not _io.is_quiet():
+            _io.print_no_prefix( e.code )
+            sys.stdout.flush()
+            raise SystemExit(1)
+        raise
 
 def _env_setup_after_build( sb_args ):
     #Emit env setup code after a build performed by the sb shell function (see

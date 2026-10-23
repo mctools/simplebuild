@@ -10,14 +10,22 @@ def load_builtin_cfgs():
 
 def _invoke_dynamic_generator( cmd, script, descr, quiet ):
     """Invoke a dynamic_generator script. In quiet mode, the output of the
-    script is only shown (on stderr) if it fails. Concurrent invocations of the
+    script is only shown (on stderr) if it fails, otherwise all of its output
+    goes to our stdout. Concurrent invocations of the
     same script (e.g. from simultaneous invocations of sbenv) are serialised,
     since generators typically remove and create files."""
     import subprocess
     import sys
+    if quiet:
+        kw = dict( capture_output = True )
+    else:
+        #Merge the output streams of the script into our stdout (so they
+        #appear in the right order when the output is redirected to a file):
+        sys.stdout.flush()
+        kw = dict( stderr = subprocess.STDOUT )
     try:
         with _exclusive_flock( script ):
-            rv = subprocess.run( cmd, capture_output = quiet )
+            rv = subprocess.run( cmd, **kw )
     except OSError as e:
         error.error(f'Could not invoke dynamic_generator script {script}{descr}: {e}')
     if rv.returncode != 0:
@@ -137,7 +145,7 @@ class CfgBuilder:
             quiet = is_quiet()
             if not quiet:
                 print(f"Invoking {script}{descr}")
-            _invoke_dynamic_generator( [ pyexec, '-BI', str(script),
+            _invoke_dynamic_generator( [ pyexec, '-BIu', str(script),
                                          str(self.__install_dir_resolved),
                                          str(self.__build_mode) ],
                                        script, descr, quiet )

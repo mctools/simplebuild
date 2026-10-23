@@ -561,3 +561,26 @@ def test_underscores_in_pkgnames_deprecated( tmp_path ):
     assert 'Please rename: My_Pkg' in res.out
     ( d / 'My_Pkg' ).rename( d / 'MyPkg' )
     assert 'deprecated' not in run( 'sb', d ).out
+
+@pytest.mark.parametrize( 'errtype', [ 'compilation', 'early' ] )
+def test_output_streams( tmp_path, errtype ):
+    #Without --quiet, all output (including errors) goes to stdout, so it
+    #appears in the right order when redirected to a file. With --quiet, only
+    #errors are printed, on stderr:
+    d = tmp_path / 'proj'
+    write_files( d, _files )
+    ( d / 'PkgB' / 'scripts' / 'testpy' ).chmod( 0o755 )
+    if errtype == 'compilation':
+        ( d / 'PkgA' / 'libsrc' / 'A.cc' ).write_text( 'int a_value() { return nosuchvar; }\n' )
+        expected = 'nosuchvar'
+    else:
+        ( d / 'simplebuild.cfg' ).write_text( '[bundle]\nname = "proj"\n[depend]\nbundles = [ "nosuchbundle" ]\n' )
+        expected = 'Could not find dependent bundles: "nosuchbundle"'
+    res = run( 'sb', d, expect_ec = None )
+    assert res.ec != 0
+    assert expected in res.stdout
+    assert not res.stderr
+    res = run( 'sb --quiet', d, expect_ec = None )
+    assert res.ec != 0
+    assert expected in res.stderr
+    assert not res.stdout

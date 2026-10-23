@@ -533,9 +533,13 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
 
     assert dirs.makefiledir.is_dir()
 
+    #Unless in quiet mode (where only errors are printed, on stderr), the
+    #complete output goes to stdout, so compilation errors appear in the right
+    #place when the output is redirected to a file:
+    _redirect = '' if opt.quiet else ' 2>&1'
     ec = utils.system(f'cd {dirs.makefiledir} && '
                       'make --warn-undefined-variables -f Makefile'
-                      f' -j{opt.njobs}{extramakeopts}')
+                      f' -j{opt.njobs}{extramakeopts}{_redirect}')
     if ec!=0:
         if not opt.quiet:
             print("ERROR: Build problems encountered")
