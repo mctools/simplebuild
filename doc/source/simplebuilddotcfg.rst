@@ -101,8 +101,9 @@ Information about the associated package bundle.
   the installation directory and the build mode as arguments. It should
   therefore be fast, and only modify files when something actually changed. If
   the script fails (exits with a non-zero exit code), so does the simplebuild
-  command (also showing the output of the script in ``--quiet`` mode, where it
-  is otherwise hidden). Simultaneous invocations of the script are avoided
+  command (also showing the output of the script on stderr in ``--quiet`` mode,
+  where it is otherwise hidden; without ``--quiet`` all output of the script
+  goes to stdout). Simultaneous invocations of the script are avoided
   (e.g. when ``sbenv`` is invoked in several terminals at the same time).
 
 * ``extdep_root`` (string): Path to a directory containing additional CMake

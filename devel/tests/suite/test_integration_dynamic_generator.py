@@ -149,12 +149,16 @@ def test_failing_generator( dynproj, quiet ):
     p.run( 'sb --quiet' )
     p.set_spec( fail = 7 )
     res = p.run( [ 'sb' ] + ( [ '--quiet' ] if quiet else [] ), expect_ec = 1 )
-    assert 'gen.py from mydyn failed (exit code 7)' in res.stderr
-    #The output of the generator is shown also in quiet mode (on stderr, since
-    #tools like ncdevtool only show the stderr output of "sb --quiet"):
-    assert 'message from the failing generator on stderr' in res.stderr
+    #Without --quiet, all output (including that of the generator and the
+    #error message) is on stdout, in the right order. With --quiet, it is
+    #shown on stderr (tools like ncdevtool only show the stderr output of "sb
+    #--quiet"):
     out = res.stderr if quiet else res.stdout
-    assert 'message from the generator on stdout' in out
+    assert not ( res.stdout if quiet else res.stderr )
+    i1 = out.index( 'message from the generator on stdout' )
+    i2 = out.index( 'message from the failing generator on stderr' )
+    i3 = out.index( 'gen.py from mydyn failed (exit code 7)' )
+    assert i1 < i2 < i3
     #Commands are not launched if the generator fails:
     for cmd in ( 'sbenv sb_gena_hello', 'sbrun sb_gena_hello' ):
         res = p.run( cmd, expect_ec = 1 )

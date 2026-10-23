@@ -108,7 +108,9 @@ $> {_p} --init dgcode PKGFILTER::SomeFilter
     group_qv.add_argument("-v", "--verbose", action="store_true",
                           help="Enable more verbosity.")
     group_qv.add_argument("-q", "--quiet", action="store_true",
-                          help='Less verbose. Silence even some warnings.')
+                          help=('Less verbose. Silence even some warnings. Only errors'
+                                ' are printed (on stderr, while all output'
+                                ' including errors otherwise goes to stdout).'))
     group_build.add_argument(
         "-j", "--jobs",
         type=int, dest="njobs", default=0, metavar="N",
