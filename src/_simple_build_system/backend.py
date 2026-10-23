@@ -95,7 +95,11 @@ def perform_cfg( *,
             envdict=None
 
     #Make sure any change in reported python version triggers reconf (especially important during python2->python3 transision):
-    pyversionstr = f'{sys.version_info} {sys.executable}'
+    #(NB: The interpreter is identified by its resolved path and prefix, since
+    #e.g. bin/python and bin/python3 in the same environment are equivalent,
+    #while different virtual environments might share the resolved path):
+    pyversionstr = ( f'{sys.version_info} {os.path.realpath(sys.executable)}'
+                     f' {os.path.realpath(sys.prefix)}' )
     if envdict and envdict.get('_pyversion',None)!=pyversionstr:
         if not quiet:
             print("Change in python environment detected => reinspecting via CMake")

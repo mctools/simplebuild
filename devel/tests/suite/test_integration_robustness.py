@@ -584,3 +584,21 @@ def test_output_streams( tmp_path, errtype ):
     assert res.ec != 0
     assert expected in res.stderr
     assert not res.stdout
+
+def test_equivalent_python_interpreters( proj ):
+    #Invoking simplebuild via a different name of the same Python interpreter
+    #(e.g. bin/python3.12 rather than bin/python) must not trigger a new
+    #inspection of the environment and rebuilds:
+    import sys
+    import pathlib
+    exe = pathlib.Path( sys.executable )
+    v = sys.version_info
+    others = [ exe.parent / n for n in ( 'python', 'python3', f'python{v[0]}.{v[1]}' )
+               if ( exe.parent / n ).exists() and ( exe.parent / n ) != exe
+               and ( exe.parent / n ).samefile( exe ) ]
+    assert others
+    for py in others:
+        res = run( [ py, '-c', 'import sys; sys.argv = ["sb"];'
+                     ' from _simple_build_system._cli import main; main()' ], proj )
+        assert 'reinspecting via CMake' not in res.out
+        assert n_compiled( res.out ) == 0
