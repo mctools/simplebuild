@@ -44,8 +44,13 @@ function( detect_system_pybind11
   list( APPEND cmake_args "-DPython_EXECUTABLE=${Python_EXECUTABLE}" )
   list( APPEND cmake_args "-Dpybind11_DIR=${pybind11_DIR}" )
 
-  extract_extdep_flags( CXX "${findpkg_args}" "pybind11::module" "${cmake_args}" module_cflags module_linkflags )
-  extract_extdep_flags( CXX "${findpkg_args}" "pybind11::embed" "${cmake_args}" embed_cflags embed_linkflags )
+  #(both sets of flags in one go, which is much faster):
+  extract_extdep_flags_multi( CXX "${findpkg_args}" "${cmake_args}" pybind11flags
+    "pybind11::module" "pybind11::embed" )
+  set( module_cflags "${pybind11flags_cflags_0}" )
+  set( module_linkflags "${pybind11flags_linkflags_0}" )
+  set( embed_cflags "${pybind11flags_cflags_1}" )
+  set( embed_linkflags "${pybind11flags_linkflags_1}" )
 
   #Make sure pybind11 does not overrule the c++ standard:
   strip_cpp_version_flags( module_cflags )

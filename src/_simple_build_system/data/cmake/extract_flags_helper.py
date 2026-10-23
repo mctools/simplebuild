@@ -42,9 +42,13 @@ def parse_args( argv = None ):
     parser.add_argument( '--findpackage', type=str, nargs='?',const='',
                          help='Arguments for find_package(..) in CMake' )
     parser.add_argument( '--deptargets', type=str, nargs='?', const='',
+                         action='append',
                          help=('CMake targets/libraries (from the find_package'
                                ' call) which should be investigated for additional'
-                               ' compilation and link flags') )
+                               ' compilation and link flags. Can be specified'
+                               ' several times, to investigate several sets of'
+                               ' targets in one go (results in "extra_list"'
+                               ' in addition to "extra" for the first set)') )
 
     parser.add_argument( '--respectcmakeargs', action='store_true', default=False,
                          help = ("Respect the CMAKE_ARGS environment variable"
@@ -60,17 +64,17 @@ def parse_args( argv = None ):
         args = args[0:args.index('--')]
 
     args = parser.parse_args( args )
-    for a in ('findpackage','deptargets'):
-        v = getattr(args,a)
-        if v is not None and not v:
-            parser.error(f'Missing value for --{a}')
+    if args.findpackage is not None and not args.findpackage:
+        parser.error('Missing value for --findpackage')
+    if args.deptargets is not None and not all(args.deptargets):
+        parser.error('Missing value for --deptargets')
     if ( args.findpackage is None ) != ( args.deptargets is None ):
         parser.error('Must provide both or neither of the flags'
                      ' --findpackage and --deptargets')
-    for a in ('findpackage','deptargets'):
-        v = getattr(args,a)
-        if v and '@@' in v:
-            setattr(args,a,v.replace('@@',' '))
+    if args.findpackage:
+        args.findpackage = args.findpackage.replace('@@',' ')
+    if args.deptargets:
+        args.deptargets = [ e.replace('@@',' ') for e in args.deptargets ]
     if not args.output:
         args.output = 'stdout'
     elif args.output not in ('stdout','stdout_json'):
@@ -198,22 +202,18 @@ set_target_properties( dummy_nodep_app PROPERTIES EXPORT_COMPILE_COMMANDS ON )
         fpargs = args.findpackage
         if 'REQUIRED' not in fpargs:
             fpargs+=' REQUIRED'
-        cmake += """
-find_package(%s)
-set_source_files_properties( "${CMAKE_CURRENT_SOURCE_DIR}/dummy_withdep.input"
+        cmake += '\nfind_package(%s)\n'%fpargs
+        #One executable per set of targets (all in the same project, since
+        #configuring a project takes a significant amount of time):
+        for i, deptargets in enumerate( args.deptargets ):
+            cmake += """
+set_source_files_properties( "${CMAKE_CURRENT_SOURCE_DIR}/dummy_withdep%i.input"
                              PROPERTIES LANGUAGE %s)
-add_executable(dummy_withdep_app ${CMAKE_CURRENT_SOURCE_DIR}/dummy_withdep.input )
-set_target_properties( dummy_withdep_app PROPERTIES LANGUAGE %s )
-set_target_properties( dummy_withdep_app PROPERTIES EXPORT_COMPILE_COMMANDS ON )
-target_link_libraries( dummy_withdep_app %s )
-
-#foreach( tmp ${FAKE_USAGE_VAR_LIST} )
-#  if ( DEFINED "${tmp}" )
-#    set( "${tmp}" "${${tmp}}" )
-#  endif()
-#endforeach()
-
-"""%( fpargs,args.language,args.language,args.deptargets )
+add_executable(dummy_withdep%i_app ${CMAKE_CURRENT_SOURCE_DIR}/dummy_withdep%i.input )
+set_target_properties( dummy_withdep%i_app PROPERTIES LANGUAGE %s )
+set_target_properties( dummy_withdep%i_app PROPERTIES EXPORT_COMPILE_COMMANDS ON )
+target_link_libraries( dummy_withdep%i_app %s )
+"""%( i, args.language, i, i, i, args.language, i, i, deptargets )
 
     return cmake
 
@@ -268,8 +268,8 @@ def actual_main( args ):
     srcdir.mkdir()
     dummy_c_or_cpp_main = 'int main(void) { return 0; }\n'
     ( srcdir /'dummy_nodep.input' ).write_text( dummy_c_or_cpp_main )
-    if args.findpackage:
-        ( srcdir /'dummy_withdep.input' ).write_text( dummy_c_or_cpp_main )
+    for i in range( len( args.deptargets or [] ) ):
+        ( srcdir / f'dummy_withdep{i}.input' ).write_text( dummy_c_or_cpp_main )
 
     cmakeliststxt = create_cmakeliststxt( args )
     if args.verbose:
@@ -283,7 +283,7 @@ def actual_main( args ):
         launch_cmake( args, blddir, srcdir )
 
     compile_json = json.loads( ( blddir / 'compile_commands.json').read_text() )
-    assert len(compile_json)== (2 if args.findpackage else 1)
+    assert len(compile_json) == 1 + len( args.deptargets or [] )
 
     def parse_links_txt( name ):
         return ParseCmd( (blddir / 'CMakeFiles'/f'dummy_{name}_app.dir'/'link.txt'
@@ -306,10 +306,14 @@ def actual_main( args ):
                                      args_preoutput = link_nodep.args_preoutput,
                                      args_postoutput = link_nodep.args_postoutput ) ) )
     if args.findpackage:
-        compile_withdep = parse_compile_cmd('withdep')
-        link_withdep = parse_links_txt('withdep')
-        out['extra'] = dict( compileflags = compile_withdep.extra_args(compile_nodep),
-                             linkflags = link_withdep.extra_args(link_nodep) )
+        out['extra_list'] = []
+        for i in range( len( args.deptargets ) ):
+            compile_withdep = parse_compile_cmd(f'withdep{i}')
+            link_withdep = parse_links_txt(f'withdep{i}')
+            out['extra_list'].append(
+                dict( compileflags = compile_withdep.extra_args(compile_nodep),
+                      linkflags = link_withdep.extra_args(link_nodep) ) )
+        out['extra'] = out['extra_list'][0]
 
     if args.output=='stdout':
         import pprint
