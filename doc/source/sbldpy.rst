@@ -39,7 +39,10 @@ modules which are only used by Python modules wrapping them (for instance
 ``python/mymod.py`` could import with ``from ._impl import somefunction``).
 Two names are special: ``pymod__init/`` provides the ``__init__.py`` file of
 the package, and ``pymod__main/`` provides its ``__main__.py`` file (these
-files can then not be provided in other ways). Names starting with ``_sbld``
+files can then not be provided in other ways). The module in ``pymod__main/``
+must define a function named ``main`` without parameters, which is called
+when the package is run with ``python3 -m <packagename>`` (its return value,
+if any, is used as exit code). Names starting with ``_sbld``
 or with more than one underscore are not allowed.
 
 Example
