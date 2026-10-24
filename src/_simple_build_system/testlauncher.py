@@ -17,7 +17,6 @@ def perform_tests(testdir,
     from .conf import runnable_is_test
     from .utils import mkdir_p
     from .utils import system
-    from . import testxml
     from . import dirs
     from . import io as _io
     _ospathjoin=os.path.join
@@ -60,20 +59,10 @@ def perform_tests(testdir,
         sys.path.pop(0)
         pkginfo = simplebuild_cfg.pkgs
 
-    filter_fct = make_filter_fct( filters )
-
-    nfiltered = 0
-    for p in (p for _,p in pkginfo.items() if p['enabled']):
-        reflogs, runnables = p['reflogs'],p['runnables']
-        for runnable in runnables:
-            hasreflog = '%s.log'%runnable in reflogs
-            if hasreflog or runnable_is_test(runnable):
-                if not filter_fct( runnable ):
-                    nfiltered += 1
-                else:
-                    assert runnable not in tests
-                    tests.add(runnable)
-                    testinfo[runnable] = {'pkgname':p['name']}
+    _selected, nfiltered = select_tests( pkginfo, filters )
+    for runnable, pkgname in _selected.items():
+        tests.add(runnable)
+        testinfo[runnable] = {'pkgname':pkgname}
 
     #Only run the shortest tests if requested (--testtime):
     ntimeskipped, time_all_s, nunknown = 0, 0.0, 0
@@ -109,6 +98,8 @@ def perform_tests(testdir,
 
     if not tests:
         save_runinfo()
+        #Always produce the junit XML file (scripts might expect it):
+        _write_junit_xml( testdir )
         if report_spec and report_spec.get('interactive'):
             return None
         return print_report( testdir, logdir, nexcerpts, report_spec )
@@ -220,20 +211,7 @@ def perform_tests(testdir,
 
     assert len(alltests)==len(set(alltests))
 
-    #Results in junit XML format:
-    runinfo, results = load_results( testdir )
-    testxmlwriter = testxml.TestXMLWriter()
-    for r in results:
-        test = testxml.Test(r.name,r.pkgname,r.time_ms*0.001)
-        if r.ec != 0:
-            test.set_run_failure(_ospathjoin(testdir,r.name,'output.log'))
-        elif r.logdiff_failed:
-            test.set_reflog_failure(_ospathjoin(testdir,r.name,'refdiff.log'))
-        testxmlwriter.add_test(test)
-    outfile = pathlib.Path(testdir) / 'simplebuild_test_results_junitformat.xml'
-    with outfile.open('wt') as f:
-        for line in testxmlwriter.generate_xml():
-            f.write('%s\n'%line)
+    outfile = _write_junit_xml( testdir )
     notes.append(f'Test results are also summarised in: {outfile.name}')
 
     sys.stdout.flush()
@@ -343,6 +321,47 @@ def estimate_walltime( durations, njobs ):
     for t in sorted( durations, reverse = True ):
         heapq.heapreplace( slots, slots[0] + t )
     return max( slots )
+
+def select_tests( pkginfo, filters ):
+    """Select the tests to run from the enabled packages (pkginfo is a dict
+    with package info dicts as values), according to the filters (patterns from
+    --testfilter, or None). Returns a dict mapping the names of the selected
+    tests to the names of their packages, and the number of tests not selected
+    due to the filters."""
+    from .conf import runnable_is_test
+    filter_fct = make_filter_fct( filters )
+    selected, nfiltered = {}, 0
+    for p in ( p for p in pkginfo.values() if p['enabled'] ):
+        reflogs, runnables = p['reflogs'], p['runnables']
+        for runnable in runnables:
+            if '%s.log'%runnable in reflogs or runnable_is_test( runnable ):
+                if not filter_fct( runnable ):
+                    nfiltered += 1
+                else:
+                    assert runnable not in selected
+                    selected[runnable] = p['name']
+    return selected, nfiltered
+
+def _write_junit_xml( testdir ):
+    """Write the results of the tests in testdir in junit XML format. Returns
+    the path to the created file."""
+    import os
+    import pathlib
+    from . import testxml
+    runinfo, results = load_results( testdir )
+    testxmlwriter = testxml.TestXMLWriter()
+    for r in ( results or [] ):
+        test = testxml.Test(r.name,r.pkgname,r.time_ms*0.001)
+        if r.ec != 0:
+            test.set_run_failure(os.path.join(testdir,r.name,'output.log'))
+        elif r.logdiff_failed:
+            test.set_reflog_failure(os.path.join(testdir,r.name,'refdiff.log'))
+        testxmlwriter.add_test(test)
+    outfile = pathlib.Path(testdir) / 'simplebuild_test_results_junitformat.xml'
+    with outfile.open('wt') as f:
+        for line in testxmlwriter.generate_xml():
+            f.write('%s\n'%line)
+    return outfile
 
 test_orders = ( 'slowest', 'fastest' )
 
@@ -806,6 +825,9 @@ def print_report( testdir, logdir, nexcerpts, spec, *, filters = None,
     sys.stderr.flush()
     if any_failed:
         print('  %sERROR: Some tests failed!%s'%(col.bad,col.end))
+        print()
+    elif nall == 0:
+        print('  No tests were found.')
         print()
     else:
         print('  %sAll tests completed without failures!%s'%(col.ok,col.end))
