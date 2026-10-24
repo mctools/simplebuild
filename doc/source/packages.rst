@@ -265,7 +265,9 @@ possible to achieve the same effect by creating a compiled submodule named
 This is automatically done by simplebuild if it anyway has to create an
 ``__init__.py`` file (i.e. no such file is provided by the users) and there is a
 compiled module named ``_init``, i.e. defined in a subdirectory named
-``pycpp__init`` (notice the double underscore in the subdirectory name).
+``pycpp__init`` (notice the double underscore in the subdirectory name). With
+:ref:`sbldpy <sbsbldpy>`, a subdirectory named ``pymod__init`` instead directly
+provides the ``__init__.py`` file of the package.
 
 Scripts (Python/BASH)
 ---------------------

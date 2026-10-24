@@ -692,13 +692,12 @@ def _set_ptr( self, p ):
 class _Module:
     """A loaded module"""
 
-    def __init__( self, path, modname ):
+    def __init__( self, path, modname, defname ):
         lib = _Lib( path )
         info = lib.info()
-        shortname = modname.rsplit( '.', 1 )[-1]
-        if info.get( 'module' ) != shortname:
+        if info.get( 'module' ) != defname:
             raise ImportError( 'The sbldpy module library %s provides module "%s" and not "%s"'%(
-                path, info.get( 'module' ), shortname ) )
+                path, info.get( 'module' ), defname ) )
         self.lib = lib
         self.info = info
         self.modname = modname
@@ -748,8 +747,8 @@ def _atexit_shutdown():
         except Exception:
             pass
 
-def _load( path, modname ):
-    m = _Module( path, modname )
+def _load( path, modname, defname ):
+    m = _Module( path, modname, defname )
     if not _shutdown_registered[0]:
         import atexit
         atexit.register( _atexit_shutdown )
@@ -757,14 +756,17 @@ def _load( path, modname ):
     _loaded[modname] = m
     return m
 
-def load_module( module_globals, libname ):
+def load_module( module_globals, libname, defname = None ):
     """Load the sbldpy module library with the given name (located next to the
     module file), and put its contents into the given globals() dictionary of
-    the module."""
+    the module. The defname is the name given to SBLDPY_MODULE(..) in the
+    library (by default the last part of the name of the module)."""
     import os
     modname = module_globals['__name__']
+    if defname is None:
+        defname = modname.rsplit( '.', 1 )[-1]
     path = os.path.join( os.path.dirname( os.path.abspath( module_globals['__file__'] ) ), libname + '.so' )
-    m = _load( path, modname )
+    m = _load( path, modname, defname )
     module_globals.update( m.namespace )
     module_globals['__all__'] = sorted( m.namespace.keys() )
     if m.info.get( 'doc' ):

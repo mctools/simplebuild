@@ -50,6 +50,8 @@ def tfactory_pyinit(pkg,dirtypes):
         return []
     if 'pyth' in dirtypes and os.path.exists(dirs.pkg_dir(pkg,'python','__init__.py')):
         return []#user supplied
+    if os.path.isdir(dirs.pkg_dir(pkg,'pymod__init')):
+        return []#provided by sbldpy module
     return [TargetPyInit(pkg)]
 
 
