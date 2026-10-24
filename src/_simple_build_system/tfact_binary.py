@@ -235,6 +235,14 @@ class TargetBinary(target_base.Target):
                             'import sbldpy as _sbldpy\n'
                             '_sbldpy.load_module( globals(), %r, %r )\n'
                             % ( pyname, pkg.name, filename, filename[:-3], modname ) )
+            if pyname == '__main__':
+                #Run the main function (the return value, if any, is used as
+                #exit code):
+                stubcontent += ( "if __name__ == '__main__':\n"
+                                 "    if 'main' not in globals():\n"
+                                 "        raise SystemExit('Error: The sbldpy module %s/pymod__main does not"
+                                 " define a function named main')\n"
+                                 "    raise SystemExit( main() )\n" % pkg.name )
             try:
                 with open(stubfile) as fh:
                     current = fh.read()

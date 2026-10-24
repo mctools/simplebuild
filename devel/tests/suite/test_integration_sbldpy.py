@@ -230,7 +230,9 @@ def test_special_module_names( tmp_path ):
         'simplebuild.cfg' : '[bundle]\nname = "proj"\n',
         'PkgC/pkg.info' : 'package()\n',
         'PkgC/pymod__init/mod.cc' : _mod%( '_init', 'm.doc("PkgC doc"); m.def("initvalue",[](){ return 1; });' ),
-        'PkgC/pymod__main/mod.cc' : _mod%( '_main', 'm.def("mainvalue",[](){ return 2; });' ),
+        'PkgC/pymod__main/mod.cc' : '#include <cstdio>\n' + _mod%( '_main', (
+            'm.def("mainvalue",[](){ return 2; });'
+            'm.def("main",[](){ std::printf("in main\\n"); return std::int64_t(7); });' ) ),
         'PkgC/pymod__helper/mod.cc' : _mod%( '_helper', 'm.def("helpervalue",[](){ return 3; });' ),
         'PkgC/pymod_empty/mod.cc' : _mod%( 'empty', '' ),
         'PkgC/python/wrapper.py' : 'from ._helper import helpervalue\n',
@@ -244,7 +246,9 @@ def test_special_module_names( tmp_path ):
              'print(PkgC.initvalue(), PkgC.__main__.mainvalue(), PkgC._helper.helpervalue(),'
              ' PkgC.wrapper.helpervalue(), PkgC.__doc__)' )
     assert run( [ 'sbenv', sys.executable, '-c', code ], d ).stdout.strip() == '1 2 3 3 PkgC doc'
-    run( [ 'sbenv', sys.executable, '-m', 'PkgC' ], d )
+    #Running the package executes the main function in __main__.py:
+    res = run( [ 'sbenv', sys.executable, '-m', 'PkgC' ], d, expect_ec = 7 )
+    assert res.stdout == 'in main\n'
     #Without pymod__init, the __init__.py file is again generated automatically:
     shutil.rmtree( d / 'PkgC' / 'pymod__init' )
     run( 'sb', d )
