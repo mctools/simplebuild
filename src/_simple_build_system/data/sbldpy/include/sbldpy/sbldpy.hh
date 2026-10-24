@@ -1380,6 +1380,6 @@ namespace sbldpy {
   {                                                                           \
     return ::sbldpy::detail::last_error().c_str();                            \
   }                                                                           \
-  static void sbldpy_define_module_impl( ::sbldpy::Module& m )
+  static void sbldpy_define_module_impl( [[maybe_unused]] ::sbldpy::Module& m )
 
 #endif
