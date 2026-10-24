@@ -55,7 +55,7 @@ class TargetSymlinks(target_base.Target):
         #only update pickle file when contents changed (to avoid triggering makefile targets):
         utils.update_pkl_if_changed(pklcont,pklfile)
 
-def create_tfactory_symlink(filepattern,destdir,chmodx,renamefct=None):
+def create_tfactory_symlink(filepattern,destdir,chmodx,renamefct=None,checkfct=None):
     import re
     match=re.compile(filepattern).match
     destdirabs=str(dirs.installdir / destdir) #converting to string to enable value insertion
@@ -70,6 +70,9 @@ def create_tfactory_symlink(filepattern,destdir,chmodx,renamefct=None):
         files=[f for f in lf(srcdir,match,ignore_logs=ignore_logs)]
         if not files:
             error.error("No suitable files found in %s/%s (remove this directory if not needed)"%(pkg.name,subdir))
+        checkerrmsg = checkfct(pkg,files) if checkfct else None
+        if checkerrmsg:
+            error.error(checkerrmsg)
 
         return [TargetSymlinks(pkg,subdir,srcdir,dd,files,chmodx=chmodx,renamefct=renamefct,runnables=(subdir=='scripts'))]
     return tfactory_symlink

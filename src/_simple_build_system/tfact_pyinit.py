@@ -41,7 +41,7 @@ class TargetPyInit(target_base.Target):
         self.code = ['@if [ ${VERBOSE} -ge 0 ]; then echo "%s  Generating %s/__init__.py%s"; fi'%(col.bldcol('pymod'),pkg.name,col.bldend),
                      '${PYTHON} -m%s.instsl2 %s ${VERBOSE}'%(pypkgname,mpf)]
 
-_python_patterns = set(['pycp', 'pyth'])#todo: to conf
+_python_patterns = set(['pycp', 'pymo', 'pyth'])#todo: to conf
 def tfactory_pyinit(pkg,dirtypes):
     #if we have pure or compiled python modules and we do not have a
     #user written __init__.py, we will have to add one. That one will

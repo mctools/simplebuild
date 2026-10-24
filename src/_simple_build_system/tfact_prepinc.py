@@ -44,7 +44,7 @@ class TargetPrepInc(target_base.Target):
         #only update pickle file when contents changed (to avoid triggering makefile targets):
         utils.update_pkl_if_changed(self._neededlinks,self._pklfile)
 
-_compiled_patterns = set(['pycp', 'app_', 'libs'])#todo: to conf
+_compiled_patterns = set(['pycp', 'pymo', 'app_', 'libs'])#todo: to conf
 def tfactory_prepinc(pkg,dirtypes):
     has_compiled_target = not dirtypes.isdisjoint(_compiled_patterns)
     has_libinc = 'libi' in dirtypes#the right way, but for now we use the following:

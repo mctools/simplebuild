@@ -33,6 +33,7 @@ relevant parts of the documentation.
    install.rst
    usage.rst
    packages.rst
+   sbldpy.rst
    simplebuilddotcfg.rst
    cmdline.rst
    about.rst
