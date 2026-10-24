@@ -1,6 +1,7 @@
 # Tests of build timings (sb --buildtimes).
 
 import os
+import platform
 import re
 import time
 import pytest
@@ -8,6 +9,12 @@ import pytest
 from sbtestutils import run, write_files
 
 pytestmark = pytest.mark.integration
+
+def _sleep_before_modifying_sources():
+    #On macOS, make only considers modification times with a resolution of
+    #one second, so a source file modified shortly after it was compiled
+    #would not be recompiled:
+    time.sleep( 1.1 if platform.system() == 'Darwin' else 0.05 )
 
 def _rows( out ):
     """Parse the table of sb --buildtimes into a list of (seconds,step)."""
@@ -54,13 +61,14 @@ def test_buildtimes( proj ):
     marker = ( d / 'simplebuild_cache' / 'bld' / 'pc' / 'PkgA' / 'objs'
                / 'libsrc' / 'A.o.tstart' )
     t_before = marker.stat().st_mtime
-    time.sleep( 0.05 )
+    _sleep_before_modifying_sources()
     src = d / 'PkgA' / 'libsrc' / 'A.cc'
     src.write_text( src.read_text() + '//changed\n' )
     run( 'sb', d )
     assert marker.stat().st_mtime > t_before
     assert 'PkgA/libsrc/A.o' in [ s for _, s in _rows( run( 'sb --buildtimes', d ).out ) ]
     #A failed compilation is not listed (rather than with a wrong time):
+    _sleep_before_modifying_sources()
     src.write_text( 'this does not compile\n' )
     run( 'sb', d, expect_ec = None )
     steps = [ s for _, s in _rows( run( 'sb --buildtimes', d ).out ) ]
