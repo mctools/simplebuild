@@ -5,13 +5,13 @@
 //                                                                            //
 // sbldpy: Ultra lightweight Python bindings for C++ code, based on ctypes.   //
 //                                                                            //
-// This header-only C++17 library is used together with the pure-Python      //
+// This header-only C++17 library is used together with the pure-Python       //
 // runtime module "sbldpy". Code using it is NOT compiled with Python headers //
 // and NOT linked with libpython. Each module exports exactly four plain C    //
 // functions (sbldpy_abi_version, sbldpy_module_info, sbldpy_call and         //
-// sbldpy_last_error), and exceptions never cross those (or the callbacks    //
-// into Python). Only a small set of features is supported on purpose: more  //
-// advanced functionality can be implemented in Python code wrapping the     //
+// sbldpy_last_error), and exceptions never cross those (or the callbacks     //
+// into Python). Only a small set of features is supported on purpose: more   //
+// advanced functionality can be implemented in Python code wrapping the      //
 // module.                                                                    //
 //                                                                            //
 // Example:                                                                   //
