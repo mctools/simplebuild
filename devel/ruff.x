@@ -7,7 +7,8 @@ OPTS="--select=W,E,F"
 
 ruff check ${OPTS} --ignore E501 "${REPOROOT_DIR}"/doc/source/conf.py
 ruff check ${OPTS} --ignore E501 "${REPOROOT_DIR}"/src/_simple_build_system/*py
-ruff check ${OPTS} --ignore E501 "${REPOROOT_DIR}"/devel/tests/*.py "${REPOROOT_DIR}"/devel/tests/suite/*.py
+ruff check ${OPTS} --ignore E501 "${REPOROOT_DIR}"/devel/tests/*.py "${REPOROOT_DIR}"/devel/tests/suite/*.py "${REPOROOT_DIR}"/devel/tests/suite/data_sbldpy/*.py
+ruff check ${OPTS} --ignore E501 "${PDATA}"/sbldpy/python/*.py
 ruff check ${OPTS} "${PDATA}/pkgs-core"/*/python/*py
 
 ruff check ${OPTS} "${PDATA}"/pkgs-core/Core/scripts/extdeps

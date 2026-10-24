@@ -97,7 +97,30 @@ class TargetGlobalSysModules(target_base.Target):
         ]
 
 
+class TargetGlobalSbldpy(target_base.Target):
+    #Installs the header-only C++ library and the Python runtime of sbldpy
+    #(used by pymod_* subdirs):
+    isglobal=True
+    contains_message=True
+    def __init__(self):
+        import pathlib
+        import shlex
+        srcdir = pathlib.Path(__file__).parent / 'data' / 'sbldpy'
+        hdr = srcdir / 'include' / 'sbldpy' / 'sbldpy.hh'
+        pymod = srcdir / 'python' / 'sbldpy.py'
+        incdir = '${INST}/%s/sbldpy'%conf.sbldpy_include_subdir
+        self.name = conf.sbldpy_global_target
+        self.pkgname = None
+        self.deps = [ str(hdr), str(pymod) ]
+        self.code = [
+            '@if [ ${VERBOSE} -ge 0 ]; then echo "%sInstalling sbldpy%s"; fi'%(col.bldcol('global'),col.bldend),
+            'mkdir -p %s ${INST}/python'%incdir,
+            'cp -f %s %s/sbldpy.hh'%(shlex.quote(str(hdr)),incdir),
+            'cp -f %s ${INST}/python/sbldpy.py'%shlex.quote(str(pymod)),
+        ]
+
 def create_global_targets():
     return [
         TargetGlobalSysModules(),
+        TargetGlobalSbldpy(),
     ]

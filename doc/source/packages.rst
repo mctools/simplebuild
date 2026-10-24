@@ -245,6 +245,11 @@ These C++-Python bindings are in fact implemented with `pybind
 ``PYTHON_MODULE`` macro and introducing the convenience namespace alias
 ``py=pybind11``.
 
+Alternatively, Python modules can be written in C++ in subdirectories named
+``pymod_<modulename>``, using :ref:`sbldpy <sbsbldpy>`. The C++ code of such
+modules is not compiled with Python headers or linked with the Python library,
+and is loaded with the ctypes module of Python.
+
 
 Compiled ``__init__.py``
 ------------------------

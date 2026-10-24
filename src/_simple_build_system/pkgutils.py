@@ -54,10 +54,13 @@ def find_pkg_dirs_under_basedir( basedir, error_fct = None ):
 _nameval_pattern='^[a-zA-Z][a-zA-Z0-9_]{2,24}$'
 _nameval=re.compile(_nameval_pattern).match
 _nameval_descr=( f'Valid names follow pattern {_nameval_pattern}, contain no'
-                 ' duplicate underscores and is not "_simple_build_system"' )
+                 ' duplicate underscores and is not "_simple_build_system" or'
+                 ' "sbldpy" (in any casing, since the Python runtime module of'
+                 ' sbldpy is installed as python/sbldpy.py)' )
 
 def pkgname_valid(n):
-    return _nameval(n) and '__' not in n and n != '_simple_build_system'
+    return ( _nameval(n) and '__' not in n and n != '_simple_build_system'
+             and n.lower() != 'sbldpy' )
 
 def pkgname_valid_or_errmsg(n):
     if not pkgname_valid(n):
