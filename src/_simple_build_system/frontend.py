@@ -548,6 +548,21 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
         raise SystemExit
 
 
+    if opt.runtests:
+        #If the test filter does not select any tests, it is most likely a
+        #mistake, so stop already before building (keeping the previous test
+        #results):
+        _filters = _parse_testfilter( opt.testfilter )[0]
+        if _filters:
+            from .testlauncher import select_tests
+            _sel, _nfiltered = select_tests( dict( ( p.name, p.info_as_dict() )
+                                                   for p in pkgloader.pkgs ),
+                                             _filters )
+            if not _sel:
+                _ = ( f'any of the {_nfiltered} available tests' if _nfiltered
+                      else 'any tests (no tests are available in the enabled packages)' )
+                error.error(f'The --testfilter "{opt.testfilter}" did not select {_}.')
+
     if not opt.njobs:
         from . import cpudetect
         opt.njobs=cpudetect.auto_njobs()

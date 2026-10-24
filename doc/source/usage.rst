@@ -227,7 +227,8 @@ variant are kept separately). The report can be customised, e.g. ``sb
 printed reports puts failed tests at the bottom, where they remain visible in
 the terminal, with slower tests towards the bottom within each group),
 and ``--testfilter`` and ``--testexcerpts`` can be used to select tests and show
-excerpts. With ``sb --testreport=interactive`` (which can also be combined with
+excerpts (if ``--testfilter`` does not select any tests when running tests,
+``sb`` stops with an error already before building anything). With ``sb --testreport=interactive`` (which can also be combined with
 ``-t``), the results can instead be browsed interactively: the output of tests,
 or the differences between their output and their reference logs, can be
 inspected, and tests can be run again, optionally after rebuilding (press ``?``

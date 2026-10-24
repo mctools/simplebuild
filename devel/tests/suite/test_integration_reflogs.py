@@ -550,3 +550,44 @@ def test_fastest_first_and_inspecting_during_run( slowproj ):
     p.wait_for_screen( r'All tests finished', timeout = 60 )
     p.send( 'q' )
     assert p.wait_exit() == 73
+
+def test_testfilter_selecting_no_tests( reflogproj ):
+    #A test filter which does not select any tests is most likely a mistake,
+    #so sb stops already before building, and keeps the previous results:
+    d = reflogproj
+    run( 'sb -t', d, expect_ec = 73 )
+    before = run( 'sb --testreport', d, expect_ec = 73 ).out
+    ntests = len( _result_rows( before ) )
+    for filt in ( 'nosuchtest*', '!*' ):
+        ( d / 'MyPkg' / 'scripts' / 'testnew' ).write_text( '#!/usr/bin/env bash\n' )
+        ( d / 'MyPkg' / 'scripts' / 'testnew' ).chmod( 0o755 )
+        res = run( [ 'sb', '-t', f'--testfilter={filt}' ], d, expect_ec = 1 )
+        assert ( f'The --testfilter "{filt}" did not select any of the'
+                 f' {ntests + 1} available tests.' ) in res.out
+        assert 'Launching build' not in res.out
+        assert run( 'sb --testreport', d, expect_ec = 73 ).out.replace(
+            'packages were changed', '' ).count( 'sb_mypkg_' ) == before.count( 'sb_mypkg_' )
+        ( d / 'MyPkg' / 'scripts' / 'testnew' ).unlink()
+    #A filter selecting some tests works as usual, and the results are also
+    #available in junit format:
+    res = run( 'sb -t --testfilter=sb_mypkg_same', d )
+    assert list( _result_rows( res.out ) ) == [ 'sb_mypkg_same' ]
+    xml = ( _testdir(d) / 'simplebuild_test_results_junitformat.xml' ).read_text()
+    assert 'tests="1"' in xml and 'sb_mypkg_same' in xml
+
+def test_no_tests( tmp_path ):
+    #A project without any tests is not an error, but the report says so (and
+    #the results in junit format are still produced, for the benefit of
+    #scripts expecting them):
+    d = tmp_path / 'proj'
+    write_files( d, { 'simplebuild.cfg' : '[bundle]\nname = "proj"\n',
+                      'PkgA/pkg.info' : 'package()\n',
+                      'PkgA/python/mod.py' : 'x = 1\n' } )
+    res = run( 'sb -t', d )
+    assert 'No tests were found.' in res.out
+    assert 'All tests completed without failures!' not in res.out
+    xml = ( _testdir(d) / 'simplebuild_test_results_junitformat.xml' ).read_text()
+    assert 'tests="0"' in xml
+    #With a test filter, it is an error:
+    res = run( 'sb -t --testfilter=sb_*', d, expect_ec = 1 )
+    assert 'did not select any tests (no tests are available' in res.out
