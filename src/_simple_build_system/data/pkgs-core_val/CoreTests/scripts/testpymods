@@ -1,0 +1,19 @@
+#!/usr/bin/env python3
+
+# Test the Core.misc and Core.FPE Python modules (implemented with sbldpy).
+
+import subprocess
+import Core.misc
+import Core.FPE
+
+isdbg = Core.misc.is_debug_build()
+assert isdbg in ( True, False )
+#Must agree with the compiled application:
+assert isdbg == ( subprocess.run( [ 'sb_coretests_build_is_debug' ] ).returncode == 0 )
+
+Core.FPE.catch_fpe()
+with Core.FPE.DisableFPEContextManager():
+    pass
+Core.FPE.disable_catch_fpe()
+Core.FPE.reenable_catch_fpe()
+print( 'All OK' )
