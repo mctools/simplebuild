@@ -57,7 +57,7 @@ def test_installed_files( proj ):
     assert sorted( f.name for f in ( i / 'python' / 'PkgB' ).iterdir() if f.name != '__pycache__' ) \
         == [ '__init__.py', '_sbldpy_small.so', 'small.py' ]
     stub = ( i / 'python' / 'PkgA' / 'feat.py' ).read_text()
-    assert "_sbldpy.load_module( globals(), '_sbldpy_feat' )" in stub
+    assert "_sbldpy.load_module( globals(), '_sbldpy_feat', 'feat' )" in stub
 
 def test_basic( proj ):
     check( proj, 'basic' )
@@ -136,7 +136,7 @@ def test_build_errors( tmp_path ):
     #Reserved and invalid names:
     _build_errors( d, { 'PkgA/python/_sbldx.py' : '' }, 'names starting with "_sbld" are reserved' )
     _build_errors( d, { 'PkgA/pycpp__sbldx/mod.cc' : '' }, 'names starting with "_sbld" are reserved' )
-    _build_errors( d, { 'PkgA/pymod__x/mod.cc' : _mod%('_x','') }, 'Invalid name of sbldpy module directory' )
+    _build_errors( d, { 'PkgA/pymod_9x/mod.cc' : _mod%('x','') }, 'Invalid name of sbldpy module directory' )
     _build_errors( d, { 'PkgA/pymod_class/mod.cc' : _mod%('class','') }, 'can not be a Python keyword' )
     _build_errors( d, { 'PkgA/pymod_purepy/mod.cc' : _mod%('purepy','') },
                    'Python module PkgA.purepy is provided in both sbldpy (pymod_purepy/) and pure'
@@ -220,3 +220,50 @@ def test_deinstall( tmp_path ):
     ( d / 'PkgB' / 'python' / 'other.py' ).write_text( '' )
     run( 'sb', d )
     assert sorted( f.name for f in pydir.iterdir() ) == [ '__init__.py', 'other.py' ]
+
+def test_special_module_names( tmp_path ):
+    #pymod__init -> __init__.py, pymod__main -> __main__.py, and pymod__<name>
+    #-> _<name>.py:
+    d = tmp_path / 'proj'
+    _mod = '#include "sbldpy/sbldpy.hh"\nSBLDPY_MODULE( %s ) { %s }\n'
+    write_files( d, {
+        'simplebuild.cfg' : '[bundle]\nname = "proj"\n',
+        'PkgC/pkg.info' : 'package()\n',
+        'PkgC/pymod__init/mod.cc' : _mod%( '_init', 'm.doc("PkgC doc"); m.def("initvalue",[](){ return 1; });' ),
+        'PkgC/pymod__main/mod.cc' : _mod%( '_main', 'm.def("mainvalue",[](){ return 2; });' ),
+        'PkgC/pymod__helper/mod.cc' : _mod%( '_helper', 'm.def("helpervalue",[](){ return 3; });' ),
+        'PkgC/pymod_empty/mod.cc' : _mod%( 'empty', '' ),
+        'PkgC/python/wrapper.py' : 'from ._helper import helpervalue\n',
+    } )
+    run( 'sb', d )
+    pydir = inst( d ) / 'python' / 'PkgC'
+    assert sorted( f.name for f in pydir.iterdir() if f.name != '__pycache__' ) == [
+        '__init__.py', '__main__.py', '_helper.py', '_sbldpy__helper.so',
+        '_sbldpy__init.so', '_sbldpy__main.so', '_sbldpy_empty.so', 'empty.py', 'wrapper.py' ]
+    code = ( 'import PkgC, PkgC.__main__, PkgC._helper, PkgC.wrapper, PkgC.empty;'
+             'print(PkgC.initvalue(), PkgC.__main__.mainvalue(), PkgC._helper.helpervalue(),'
+             ' PkgC.wrapper.helpervalue(), PkgC.__doc__)' )
+    assert run( [ 'sbenv', sys.executable, '-c', code ], d ).stdout.strip() == '1 2 3 3 PkgC doc'
+    run( [ 'sbenv', sys.executable, '-m', 'PkgC' ], d )
+    #Without pymod__init, the __init__.py file is again generated automatically:
+    shutil.rmtree( d / 'PkgC' / 'pymod__init' )
+    run( 'sb', d )
+    assert not ( pydir / '_sbldpy__init.so' ).exists()
+    code = 'import PkgC, PkgC.wrapper; print(hasattr(PkgC,"initvalue"), PkgC.wrapper.helpervalue())'
+    assert run( [ 'sbenv', sys.executable, '-c', code ], d ).stdout.strip() == 'False 3'
+    #Invalid and clashing names:
+    _build_errors( d, { 'PkgC/pymod___x/mod.cc' : _mod%( '__x', '' ) },
+                   'Invalid name of sbldpy module directory PkgC/pymod___x/' )
+    _build_errors( d, { 'PkgC/pymod__sbldx/mod.cc' : _mod%( '_sbldx', '' ) },
+                   'names starting with "_sbld" are reserved' )
+    _build_errors( d, { 'PkgC/pymod__init/mod.cc' : _mod%( '_init', '' ),
+                        'PkgC/python/__init__.py' : '' },
+                   'The file __init__.py of package PkgC is provided by both pymod__init/ and python/__init__.py' )
+    _build_errors( d, { 'PkgC/pymod__init/mod.cc' : _mod%( '_init', '' ),
+                        'PkgC/pycpp__init/mod.cc' : '' },
+                   'The file __init__.py of package PkgC is provided by both pymod__init/ and pycpp__init/' )
+    _build_errors( d, { 'PkgC/python/__main__.py' : '' },
+                   'The file __main__.py of package PkgC is provided by both pymod__main/ and python/__main__.py' )
+    _build_errors( d, { 'PkgC/python/_helper.py' : '' },
+                   'Python module PkgC._helper is provided in both sbldpy (pymod__helper/) and pure'
+                   ' (python/_helper.py) forms' )

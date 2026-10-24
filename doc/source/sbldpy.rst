@@ -33,6 +33,15 @@ can be used in the same package, but a module can not be provided by more
 than one of ``pymod_<modulename>/``, ``pycpp_<modulename>/`` and
 ``python/<modulename>.py``.
 
+Module names can start with a single underscore, which is useful for compiled
+modules which are only used by Python modules wrapping them (for instance
+``pymod__impl/`` provides the module ``_impl``, which a file
+``python/mymod.py`` could import with ``from ._impl import somefunction``).
+Two names are special: ``pymod__init/`` provides the ``__init__.py`` file of
+the package, and ``pymod__main/`` provides its ``__main__.py`` file (these
+files can then not be provided in other ways). Names starting with ``_sbld``
+or with more than one underscore are not allowed.
+
 Example
 =======
 

@@ -48,6 +48,11 @@ def namefct_pycpp(pkg,subdir,platform_pattern): return subdir[6:] + __cache_pyex
 #extension modules (the module itself is a small generated .py file):
 sbldpy_lib_prefix = '_sbldpy_'
 def namefct_pymod(pkg,subdir,platform_pattern): return sbldpy_lib_prefix + subdir[6:] + '.so'
+def pymod_pyname(subdir):
+    #Name of the Python module provided by a pymod_* subdir: pymod_<name> ->
+    #<name>, except pymod__init -> __init__ and pymod__main -> __main__:
+    n = subdir[6:]
+    return { '_init' : '__init__', '_main' : '__main__' }.get( n, n )
 
 def namefct_app(pkg,subdir,platform_pattern): return runnable_name(pkg,subdir[4:])
 
@@ -60,8 +65,9 @@ def pymodname_reserved_errmsg(pkg,modname,descr):
 
 def _python_module_clash_errmsg(pkg,n,subdir):
     forms = [ ('python/%s.py'%n,'pure'),
-              ('pycpp_%s'%n,'compiled'),
-              ('pymod_%s'%n,'sbldpy') ]
+              ('pycpp_%s'%n,'compiled') ]
+    if n not in ('_init','_main'):#(pymod__init and pymod__main are special)
+        forms.append( ('pymod_%s'%n,'sbldpy') )
     others = [ f for f in forms if f[0] != subdir and os.path.exists(os.path.join(pkg.dirname,f[0])) ]
     if others:
         descr = dict(forms)[subdir]
@@ -74,10 +80,16 @@ def checkfct_pycpp(pkg,subdir,name):
     n=subdir[6:]
     if n=='__init__':
         return 'The name pycpp___init__/ is forbidden. Instead put compiled init code in a subdir called pycpp__init/'
+    if n=='_init' and os.path.exists(os.path.join(pkg.dirname,'pymod__init')):
+        return _init_clash_errmsg(pkg,'__init__','pymod__init','pycpp__init')
     return ( pymodname_reserved_errmsg(pkg,n,'%s/'%subdir)
              or _python_module_clash_errmsg(pkg,n,subdir) )
 
-_pymod_name_pattern = '^[a-zA-Z][a-zA-Z0-9_]*$'
+def _init_clash_errmsg(pkg,pyname,subdir,other):
+    return ( 'The file %s.py of package %s is provided by both %s/ and %s%s'
+             %( pyname, pkg.name, subdir, other, '' if other.endswith('.py') else '/' ) )
+
+_pymod_name_pattern = '^_?[a-zA-Z][a-zA-Z0-9_]*$'
 def checkfct_pymod(pkg,subdir,name):
     import re
     import keyword
@@ -86,7 +98,19 @@ def checkfct_pymod(pkg,subdir,name):
         return ( 'Invalid name of sbldpy module directory %s/%s/ (the module name must'
                  ' follow the pattern %s and can not be a Python keyword)'
                  %(pkg.name,subdir,_pymod_name_pattern) )
-    return _python_module_clash_errmsg(pkg,n,subdir)
+    errmsg = pymodname_reserved_errmsg(pkg,n,'%s/'%subdir)
+    if errmsg:
+        return errmsg
+    pyname = pymod_pyname(subdir)
+    if pyname == n:
+        return _python_module_clash_errmsg(pkg,n,subdir)
+    #__init__.py or __main__.py:
+    others = [ 'python/%s.py'%pyname ]
+    if pyname == '__init__':
+        others.append( 'pycpp__init' )
+    for o in others:
+        if os.path.exists(os.path.join(pkg.dirname,o)):
+            return _init_clash_errmsg(pkg,pyname,subdir,o)
 
 def checkfct_pyfiles(pkg,files):
     for f in files:
@@ -104,7 +128,10 @@ def descrfct_pycpp(pkg,subdir,name):
 
 def descrfct_pymod(pkg,subdir,name):
     from . import col
-    return col.bldcol('pymod'),'python module %s.%s (sbldpy)'%(pkg.name,subdir[6:])
+    pyname = pymod_pyname(subdir)
+    if pyname == '__init__':
+        return col.bldcol('pymod'),'python module %s (sbldpy)'%pkg.name
+    return col.bldcol('pymod'),'python module %s.%s (sbldpy)'%(pkg.name,pyname)
 
 def flagfct_pymod(pkg,subdir):
     #NB: No Python flags (sbldpy modules are not compiled with Python headers,
@@ -352,7 +379,7 @@ def deinstall_parts(instdir,pkgname,current_parts,disappeared_parts):
                 #mymod.cpython-312-x86_64-linux-gnu.so:
                 rm_file( i / 'python' / pkgname / ( d[6:] + __cache_pyextsuf ) )
             if d.startswith('pymod_'):
-                for f in ( namefct_pymod(None,d,None), d[6:] + '.py' ):
+                for f in ( namefct_pymod(None,d,None), pymod_pyname(d) + '.py' ):
                     rm_file( i / 'python' / pkgname / f )
             if not pydone:
                 pydone=True
