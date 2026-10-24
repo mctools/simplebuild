@@ -39,6 +39,20 @@ def proj( tmp_path_factory ):
     d = tmp_path_factory.mktemp( 'sbldpy' ) / 'proj'
     write_files( d, _files )
     write_files( d, { 'PkgA/pymod_feat/feat.cc' : ( _datadir / 'feat.cc' ).read_text() } )
+    write_files( d, {
+        'PkgG/pkg.info' : 'package()\n',
+        #Global variables named like the module object (e.g. CLHEP units brought
+        #into the global namespace by G4SystemOfUnits.hh) must not trigger
+        #-Wshadow errors:
+        'PkgG/pymod_globnames/mod.cc' : ( 'namespace Units { constexpr double m = 1.0; constexpr double s = 2.0; }\n'
+                                        'using Units::m;\n'
+                                        'using Units::s;\n'
+                                        '#include "sbldpy/sbldpy.hh"\n'
+                                        'SBLDPY_MODULE( globnames ) {\n'
+                                        '  m.def( "meter", []() { return ::m; } );\n'
+                                        '  m.def( "second", []() { return s; } );\n'
+                                        '}\n' ),
+    } )
     run( 'sb', d )
     return d
 
@@ -79,6 +93,11 @@ def test_other_module( proj ):
     res = run( [ 'sbenv', sys.executable, '-c',
                  'import PkgB.small, PkgA.purepy; print(PkgB.small.value(), PkgA.purepy.value)' ], proj )
     assert res.stdout.strip() == '1 42'
+
+def test_global_names( proj ):
+    res = run( [ 'sbenv', sys.executable, '-c',
+                 'import PkgG.globnames as g; print(g.meter(), g.second())' ], proj )
+    assert res.stdout.strip() == '1.0 2.0'
 
 def test_no_python_dependency( proj ):
     #Not compiled with Python flags:
