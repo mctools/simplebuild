@@ -241,6 +241,11 @@ def deinstall_parts(instdir,pkgname,current_parts,disappeared_parts):
         utils.remove_within( p, i )
     def rm_cachefile( p ):
         utils.remove_within( p, dirs.blddir )
+    def touch_cachefile( p ):
+        #Invalidates cached content (if any: the directory is absent e.g. if
+        #the package never had a python/ subdir):
+        if p.parent.is_dir():
+            p.touch()
     def rm_pattern(thedir,pattern):
         utils.remove_glob_within( thedir, pattern, i )
 
@@ -256,11 +261,11 @@ def deinstall_parts(instdir,pkgname,current_parts,disappeared_parts):
             _remove_apps_owned_by_pkg( pkgname, names = [ _runnable_name ] )
         elif d=='symlink__scripts':
             _remove_symlinks_owned_by_pkg( i / 'scripts', pkgname )
-            (pkgcache/'symlinks'/'scripts.pkl').touch()
+            touch_cachefile( pkgcache/'symlinks'/'scripts.pkl' )
             rm_cachefile(pkgcache/'symlinks'/'scripts.pkl.old')
         elif d=='symlink__data':
             rm_tree( i / 'data' / pkgname )
-            ( pkgcache / 'symlinks' / 'data.pkl' ).touch()
+            touch_cachefile( pkgcache / 'symlinks' / 'data.pkl' )
             rm_cachefile( pkgcache / 'symlinks' / 'data.pkl.old' )
         #don't do this for testref_links, since all packages always have this target:
         #elif d=='testref_links':
@@ -272,7 +277,7 @@ def deinstall_parts(instdir,pkgname,current_parts,disappeared_parts):
             if not any(e.startswith('autopyinit') for e in current_parts):
                 #we must remove the auto generated __init__.py as it is in the way
                 rm_file( i / 'python' / pkgname / '__init__.py' )
-                ( pkgcache / 'symlinks' / 'python.pkl' ).touch()
+                touch_cachefile( pkgcache / 'symlinks' / 'python.pkl' )
                 rm_cachefile( pkgcache / 'symlinks' / 'python.pkl.old' )
         elif d.startswith('pycpp_') or d=='symlink__python':
             if d.startswith('pycpp'):
@@ -283,9 +288,9 @@ def deinstall_parts(instdir,pkgname,current_parts,disappeared_parts):
                 pydone=True
                 if not any((e.startswith('pycpp') or e=='symlink__python') for e in current_parts):
                     rm_tree( i / 'python' / pkgname )
-                ( pkgcache / 'symlinks' / 'python.pkl' ).touch()
+                touch_cachefile( pkgcache / 'symlinks' / 'python.pkl' )
                 rm_cachefile( pkgcache / 'symlinks' / 'python.pkl.old' )
-                ( pkgcache / 'pyinit' / 'pyinit.pkl' ).touch()
+                touch_cachefile( pkgcache / 'pyinit' / 'pyinit.pkl' )
                 #rm_file( pkgcache / 'pyinit' / 'pyinit.pkl.old' )
         else:
             unused.add(d)
