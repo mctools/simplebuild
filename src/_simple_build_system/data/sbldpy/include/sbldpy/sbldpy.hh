@@ -1355,14 +1355,26 @@ namespace sbldpy {
 #endif
 
 //Defines the module. Must be used exactly once per module, followed by a
-//block of code defining the contents of the module (available as "m"):
+//block of code defining the contents of the module (available as "m"). The
+//block becomes the body of a member function, with "m" being a data member, so
+//that it does not shadow global variables named "m" (as would a function
+//parameter, triggering -Wshadow warnings):
 #define SBLDPY_MODULE( modname )                                              \
   SBLDPY_CHECK_MODNAME( modname )                                             \
-  static void sbldpy_define_module_impl( ::sbldpy::Module& );                 \
+  namespace {                                                                 \
+    struct SbldpyModuleDefiner {                                              \
+      ::sbldpy::Module& m;                                                    \
+      void define();                                                          \
+    };                                                                        \
+  }                                                                           \
+  static void sbldpy_define_module_impl( ::sbldpy::Module& sbldpy_module )    \
+  {                                                                           \
+    SbldpyModuleDefiner{ sbldpy_module }.define();                            \
+  }                                                                           \
   static ::sbldpy::detail::ModuleState& sbldpy_module_state()                 \
   {                                                                           \
-    static ::sbldpy::detail::ModuleState s( #modname, &sbldpy_define_module_impl ); \
-    return s;                                                                 \
+    static ::sbldpy::detail::ModuleState sbldpy_state( #modname, &sbldpy_define_module_impl ); \
+    return sbldpy_state;                                                      \
   }                                                                           \
   extern "C" SBLDPY_EXPORT int sbldpy_abi_version()                           \
   {                                                                           \
@@ -1380,6 +1392,6 @@ namespace sbldpy {
   {                                                                           \
     return ::sbldpy::detail::last_error().c_str();                            \
   }                                                                           \
-  static void sbldpy_define_module_impl( [[maybe_unused]] ::sbldpy::Module& m )
+  void SbldpyModuleDefiner::define()
 
 #endif
