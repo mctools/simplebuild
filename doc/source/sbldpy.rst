@@ -240,9 +240,17 @@ other exceptions become ``RuntimeError``.
 Threads
 =======
 
-Python's global interpreter lock is released during calls to C++ functions,
-so C++ functions can run in parallel when called from several Python threads.
-Callbacks can be invoked from any thread.
+Python's global interpreter lock (GIL) is released during calls to C++
+functions, so C++ functions can run in parallel when called from several Python
+threads (and for instance a graphical user interface can stay responsive while
+heavy work is done in C++ in another thread). Callbacks can be invoked from any
+thread, and the GIL is acquired automatically when they are invoked.
+
+Code which uses the Python C API in some other way while running inside a call
+to a C++ function, either directly or through other bindings like pybind11 or
+nanobind, must therefore acquire the GIL itself around that usage, e.g. with
+``PyGILState_Ensure()`` and ``PyGILState_Release()``,
+``pybind11::gil_scoped_acquire`` or ``nanobind::gil_scoped_acquire``.
 
 Implementation and versions
 ===========================
