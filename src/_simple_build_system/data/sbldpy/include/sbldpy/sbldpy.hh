@@ -1,6 +1,16 @@
 #ifndef sbldpy_sbldpy_hh
 #define sbldpy_sbldpy_hh
 
+//Avoid -Wshadow warnings in case user code defines global variables with the
+//same names as variables used here. For robustness (and other compilers), all
+//internal names in this file must also be at least three characters long, and
+//names in code expanded from macros must be prefixed with "sbldpy_" (except for
+//the "m" in SBLDPY_MODULE):
+#if defined(__GNUC__) && !defined(SBLDPY_TEST_NO_PRAGMAS)
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wshadow"
+#endif
+
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //
 // sbldpy: Ultra lightweight Python bindings for C++ code, based on ctypes.   //
@@ -149,7 +159,7 @@ namespace sbldpy {
     //Binary layout of data exchanged with the Python runtime:
     struct StrData { const char * data; std::int64_t size; };
     struct ArrData { const void * data; std::int64_t size; };
-    using AssignFct = int(*)( void * dest, const void * data, std::int64_t n );
+    using AssignFct = int(*)( void * dest, const void * data, std::int64_t count );
     struct AssignRes { void * dest; AssignFct assign; };
     using TrampolineFct = int(*)( std::uint64_t token, void ** args, void * result );
     using ReleaseFct = void(*)( std::uint64_t token );
@@ -224,13 +234,13 @@ namespace sbldpy {
     using value_type = value_type_;
     static constexpr bool is_readonly = std::is_const_v<T>;
     NumpyView( T * data, std::size_t size ) : m_data(data), m_size(size) {}
-    NumpyView( vector_ref v ) : m_data(v.data()), m_size(v.size()) {}
+    NumpyView( vector_ref vec ) : m_data(vec.data()), m_size(vec.size()) {}
     T * data() const noexcept { return m_data; }
     std::size_t size() const noexcept { return m_size; }
     bool empty() const noexcept { return m_size == 0; }
     T * begin() const noexcept { return m_data; }
     T * end() const noexcept { return m_data + m_size; }
-    T& operator[]( std::size_t i ) const noexcept { return m_data[i]; }
+    T& operator[]( std::size_t idx ) const noexcept { return m_data[idx]; }
   private:
     T * m_data;
     std::size_t m_size;
@@ -250,12 +260,12 @@ namespace sbldpy {
   public:
     using result_type = R;
     explicit Callback( detail::CallbackCore * core ) noexcept : m_core(core) {}
-    Callback( const Callback& o ) noexcept : m_core(o.m_core) { m_core->refcount.fetch_add( 1 ); }
-    Callback& operator=( const Callback& o ) noexcept
+    Callback( const Callback& other ) noexcept : m_core(other.m_core) { m_core->refcount.fetch_add( 1 ); }
+    Callback& operator=( const Callback& other ) noexcept
     {
-      o.m_core->refcount.fetch_add( 1 );
+      other.m_core->refcount.fetch_add( 1 );
       m_core->unref();
-      m_core = o.m_core;
+      m_core = other.m_core;
       return *this;
     }
     ~Callback() { m_core->unref(); }
@@ -271,8 +281,8 @@ namespace sbldpy {
     std::vector<const char*> argnames;
     bool has_argnames = false;
     Extra() = default;
-    Extra( const char * d ) : doc(d) {}
-    Extra( std::initializer_list<const char*> a ) : argnames(a), has_argnames(true) {}
+    Extra( const char * docstr ) : doc(docstr) {}
+    Extra( std::initializer_list<const char*> names ) : argnames(names), has_argnames(true) {}
   };
 
   namespace detail {
@@ -306,14 +316,14 @@ namespace sbldpy {
     //Applies f to each element type of a tuple-like type (passing a null
     //pointer of that type):
     template<class Tup, class F, std::size_t... I>
-    constexpr void for_each_type_impl( F&& f, std::index_sequence<I...> )
+    constexpr void for_each_type_impl( F&& fct, std::index_sequence<I...> )
     {
-      ( f( static_cast<std::tuple_element_t<I,Tup>*>(nullptr) ), ... );
+      ( fct( static_cast<std::tuple_element_t<I,Tup>*>(nullptr) ), ... );
     }
     template<class Tup, class F>
-    constexpr void for_each_type( F&& f )
+    constexpr void for_each_type( F&& fct )
     {
-      for_each_type_impl<Tup>( std::forward<F>(f), std::make_index_sequence<std::tuple_size_v<Tup>>{} );
+      for_each_type_impl<Tup>( std::forward<F>(fct), std::make_index_sequence<std::tuple_size_v<Tup>>{} );
     }
 
     ////////////////////////////////////////////////////////////////////////////
@@ -357,7 +367,7 @@ namespace sbldpy {
           static_assert( !in_tuple, "sbldpy: tuples can not contain callbacks" );
         if constexpr ( is_tuple_like_v<U> ) {
           static_assert( std::tuple_size_v<U> > 0, "sbldpy: empty tuples are not supported" );
-          for_each_type<U>( []( auto * p ) { check_param<std::remove_pointer_t<decltype(p)>,true>(); } );
+          for_each_type<U>( []( auto * ptr ) { check_param<std::remove_pointer_t<decltype(ptr)>,true>(); } );
         }
         static_assert( std::is_arithmetic_v<U> || std::is_same_v<U,std::string> || is_tuple_like_v<U>
                        || is_numpy_view<U>::value || is_callback<U>::value,
@@ -395,7 +405,7 @@ namespace sbldpy {
         }
         if constexpr ( is_tuple_like_v<U> ) {
           static_assert( std::tuple_size_v<U> > 0, "sbldpy: empty tuples are not supported" );
-          for_each_type<U>( []( auto * p ) { check_return<std::remove_pointer_t<decltype(p)>,false,true>(); } );
+          for_each_type<U>( []( auto * ptr ) { check_return<std::remove_pointer_t<decltype(ptr)>,false,true>(); } );
         }
         static_assert( std::is_arithmetic_v<U> || std::is_same_v<U,std::string> || is_tuple_like_v<U>
                        || is_numpy_view<U>::value || is_numpy_copy<U>::value,
@@ -416,7 +426,7 @@ namespace sbldpy {
                      "sbldpy: unsupported integer type in callback parameters" );
       if constexpr ( is_tuple_like_v<U> ) {
         static_assert( std::tuple_size_v<U> > 0, "sbldpy: empty tuples are not supported" );
-        for_each_type<U>( []( auto * p ) { check_cbarg<std::remove_pointer_t<decltype(p)>>(); } );
+        for_each_type<U>( []( auto * ptr ) { check_cbarg<std::remove_pointer_t<decltype(ptr)>>(); } );
       }
       static_assert( ( std::is_arithmetic_v<U> && !std::is_same_v<U,long double> )
                      || std::is_same_v<U,std::string> || std::is_same_v<U,const char*>
@@ -440,7 +450,7 @@ namespace sbldpy {
                          " std::vector<std::uint8_t> can be returned from callbacks" );
         if constexpr ( is_tuple_like_v<T> ) {
           static_assert( std::tuple_size_v<T> > 0, "sbldpy: empty tuples are not supported" );
-          for_each_type<T>( []( auto * p ) { check_cbret<std::remove_pointer_t<decltype(p)>>(); } );
+          for_each_type<T>( []( auto * ptr ) { check_cbret<std::remove_pointer_t<decltype(ptr)>>(); } );
         }
         static_assert( std::is_same_v<T,double> || std::is_same_v<T,bool> || is_param_int_v<T>
                        || std::is_same_v<T,std::string> || is_vector<T>::value || is_tuple_like_v<T>,
@@ -478,12 +488,12 @@ namespace sbldpy {
     {
       out += "{\"k\":\"tuple\",\"items\":[";
       bool first = true;
-      for_each_type<Tup>( [&]( auto * p )
+      for_each_type<Tup>( [&]( auto * ptr )
       {
         if ( !first )
           out += ',';
         first = false;
-        appendfct( out, p );
+        appendfct( out, ptr );
       } );
       out += "]}";
     }
@@ -509,7 +519,7 @@ namespace sbldpy {
         append_dtype<typename U::value_type>( out );
         out += "\"}";
       } else if constexpr ( is_tuple_like_v<U> ) {
-        append_tuple<U>( out, []( std::string& o, auto * p ) { desc_param<std::remove_pointer_t<decltype(p)>>( o ); } );
+        append_tuple<U>( out, []( std::string& ostr, auto * ptr ) { desc_param<std::remove_pointer_t<decltype(ptr)>>( ostr ); } );
       } else if constexpr ( is_callback<U>::value ) {
         cb_describer<U>::describe( out );
       } else {
@@ -539,7 +549,7 @@ namespace sbldpy {
         else
           out += "\"}";
       } else if constexpr ( is_tuple_like_v<U> ) {
-        append_tuple<U>( out, []( std::string& o, auto * p ) { desc_return<std::remove_pointer_t<decltype(p)>>( o ); } );
+        append_tuple<U>( out, []( std::string& ostr, auto * ptr ) { desc_return<std::remove_pointer_t<decltype(ptr)>>( ostr ); } );
       } else {
         append_classref( out, class_name<U>() );
       }
@@ -563,7 +573,7 @@ namespace sbldpy {
         append_dtype<typename T::value_type>( out );
         out += "\"}";
       } else {
-        append_tuple<T>( out, []( std::string& o, auto * p ) { desc_cbret<std::remove_pointer_t<decltype(p)>>( o ); } );
+        append_tuple<T>( out, []( std::string& ostr, auto * ptr ) { desc_cbret<std::remove_pointer_t<decltype(ptr)>>( ostr ); } );
       }
     }
 
@@ -589,7 +599,7 @@ namespace sbldpy {
     ////////////////////////////////////////////////////////////////////////////
 
     template<class T>
-    decltype(auto) get_param( void * p, RuntimeCtx& ctx );
+    decltype(auto) get_param( void * ptr, RuntimeCtx& ctx );
 
     template<class Tup, std::size_t... I>
     Tup get_tuple( void ** elems, RuntimeCtx& ctx, std::index_sequence<I...> )
@@ -598,30 +608,30 @@ namespace sbldpy {
     }
 
     template<class T>
-    decltype(auto) get_param( void * p, RuntimeCtx& ctx )
+    decltype(auto) get_param( void * ptr, RuntimeCtx& ctx )
     {
       using U = rmcvref_t<T>;
       if constexpr ( std::is_same_v<U,bool> ) {
-        return static_cast<bool>( *static_cast<const std::uint8_t*>(p) != 0 );
+        return static_cast<bool>( *static_cast<const std::uint8_t*>(ptr) != 0 );
       } else if constexpr ( std::is_integral_v<U> ) {
-        return static_cast<U>( *static_cast<const std::int64_t*>(p) );
+        return static_cast<U>( *static_cast<const std::int64_t*>(ptr) );
       } else if constexpr ( std::is_floating_point_v<U> ) {
-        return static_cast<double>( *static_cast<const double*>(p) );
+        return static_cast<double>( *static_cast<const double*>(ptr) );
       } else if constexpr ( std::is_same_v<U,const char*> ) {
-        return static_cast<const char*>( static_cast<const StrData*>(p)->data );
+        return static_cast<const char*>( static_cast<const StrData*>(ptr)->data );
       } else if constexpr ( std::is_same_v<U,std::string> ) {
-        auto s = static_cast<const StrData*>(p);
-        return std::string( s->data, static_cast<std::size_t>(s->size) );
+        auto sdata = static_cast<const StrData*>(ptr);
+        return std::string( sdata->data, static_cast<std::size_t>(sdata->size) );
       } else if constexpr ( is_numpy_view<U>::value ) {
-        auto a = static_cast<const ArrData*>(p);
-        return U( static_cast<const typename U::value_type*>(a->data), static_cast<std::size_t>(a->size) );
+        auto adata = static_cast<const ArrData*>(ptr);
+        return U( static_cast<const typename U::value_type*>(adata->data), static_cast<std::size_t>(adata->size) );
       } else if constexpr ( is_tuple_like_v<U> ) {
-        return get_tuple<U>( static_cast<void**>(p), ctx, std::make_index_sequence<std::tuple_size_v<U>>{} );
+        return get_tuple<U>( static_cast<void**>(ptr), ctx, std::make_index_sequence<std::tuple_size_v<U>>{} );
       } else if constexpr ( is_callback<U>::value ) {
-        return U( new CallbackCore{ *static_cast<const std::uint64_t*>(p), &ctx } );
+        return U( new CallbackCore{ *static_cast<const std::uint64_t*>(ptr), &ctx } );
       } else {
         //Reference to object:
-        return *static_cast<U*>( *static_cast<void**>(p) );
+        return *static_cast<U*>( *static_cast<void**>(ptr) );
       }
     }
 
@@ -638,31 +648,31 @@ namespace sbldpy {
     template<class T>
     struct SlotItemT : SlotItem {
       T value;
-      SlotItemT( T&& v ) : value(std::move(v)) {}
+      SlotItemT( T&& val ) : value(std::move(val)) {}
     };
     struct ResultSlot {
       std::vector<SlotItem*> items;
       void clear()
       {
-        for ( auto e : items )
-          delete e;
+        for ( auto item : items )
+          delete item;
         items.clear();
       }
       ~ResultSlot() { clear(); }
     };
     SBLDPY_HIDDEN inline ResultSlot& result_slot()
     {
-      static thread_local ResultSlot s;
-      return s;
+      static thread_local ResultSlot slot;
+      return slot;
     }
     template<class T>
-    T& keep_in_slot( T&& v )
+    T& keep_in_slot( T&& val )
     {
       auto& items = result_slot().items;
       items.reserve( items.size() + 1 );
-      auto e = new SlotItemT<T>( std::move(v) );
-      items.push_back( e );
-      return e->value;
+      auto item = new SlotItemT<T>( std::move(val) );
+      items.push_back( item );
+      return item->value;
     }
 
     template<class T>
@@ -671,7 +681,7 @@ namespace sbldpy {
       using U = std::remove_cv_t<T>;
       if constexpr ( is_tuple_like_v<U> ) {
         bool res = false;
-        for_each_type<U>( [&res]( auto * p ) { res = res || uses_slot<std::remove_pointer_t<decltype(p)>>(); } );
+        for_each_type<U>( [&res]( auto * ptr ) { res = res || uses_slot<std::remove_pointer_t<decltype(ptr)>>(); } );
         return res;
       } else {
         return std::is_same_v<U,std::string> || is_numpy_copy<U>::value;
@@ -679,33 +689,33 @@ namespace sbldpy {
     }
 
     template<class T, class V>
-    void put_value( void * res, V&& v )
+    void put_value( void * res, V&& val )
     {
       using U = std::remove_cv_t<T>;
       if constexpr ( std::is_same_v<U,bool> ) {
-        *static_cast<std::uint8_t*>(res) = ( v ? 1 : 0 );
+        *static_cast<std::uint8_t*>(res) = ( val ? 1 : 0 );
       } else if constexpr ( std::is_integral_v<U> ) {
         if constexpr ( std::is_signed_v<U> )
-          *static_cast<std::int64_t*>(res) = static_cast<std::int64_t>(v);
+          *static_cast<std::int64_t*>(res) = static_cast<std::int64_t>(val);
         else
-          *static_cast<std::uint64_t*>(res) = static_cast<std::uint64_t>(v);
+          *static_cast<std::uint64_t*>(res) = static_cast<std::uint64_t>(val);
       } else if constexpr ( std::is_floating_point_v<U> ) {
-        *static_cast<double*>(res) = static_cast<double>(v);
+        *static_cast<double*>(res) = static_cast<double>(val);
       } else if constexpr ( std::is_same_v<U,std::string> ) {
-        auto& s = keep_in_slot( std::string( std::forward<V>(v) ) );
-        *static_cast<StrData*>(res) = StrData{ s.data(), static_cast<std::int64_t>(s.size()) };
+        auto& str = keep_in_slot( std::string( std::forward<V>(val) ) );
+        *static_cast<StrData*>(res) = StrData{ str.data(), static_cast<std::int64_t>(str.size()) };
       } else if constexpr ( is_numpy_copy<U>::value ) {
-        auto& a = keep_in_slot( U( std::forward<V>(v) ) );
-        *static_cast<ArrData*>(res) = ArrData{ a.data().data(), static_cast<std::int64_t>( a.size() ) };
+        auto& arr = keep_in_slot( U( std::forward<V>(val) ) );
+        *static_cast<ArrData*>(res) = ArrData{ arr.data().data(), static_cast<std::int64_t>( arr.size() ) };
       } else if constexpr ( is_numpy_view<U>::value ) {
-        *static_cast<ArrData*>(res) = ArrData{ v.data(), static_cast<std::int64_t>( v.size() ) };
+        *static_cast<ArrData*>(res) = ArrData{ val.data(), static_cast<std::int64_t>( val.size() ) };
       } else if constexpr ( is_tuple_like_v<U> ) {
         void ** elems = static_cast<void**>(res);
-        std::apply( [elems]( auto&&... e )
+        std::apply( [elems]( auto&&... elem )
         {
-          std::size_t i = 0;
-          ( put_value<rmcvref_t<decltype(e)>>( elems[i++], std::forward<decltype(e)>(e) ), ... );
-        }, std::forward<V>(v) );
+          std::size_t idx = 0;
+          ( put_value<rmcvref_t<decltype(elem)>>( elems[idx++], std::forward<decltype(elem)>(elem) ), ... );
+        }, std::forward<V>(val) );
       } else {
         static_assert( dependent_false<T>::value, "sbldpy: unexpected return type" );
       }
@@ -741,16 +751,16 @@ namespace sbldpy {
       std::conditional_t<std::is_floating_point_v<U>, double,
       std::conditional_t<is_numpy_copy<U>::value, ArrData, StrData>>>> storage;
       void * ptr() { return &storage; }
-      explicit CbArg( const U& v )
+      explicit CbArg( const U& val )
       {
         if constexpr ( std::is_same_v<U,std::string> ) {
-          storage = StrData{ v.data(), static_cast<std::int64_t>( v.size() ) };
+          storage = StrData{ val.data(), static_cast<std::int64_t>( val.size() ) };
         } else if constexpr ( std::is_same_v<U,const char*> ) {
-          storage = StrData{ v, static_cast<std::int64_t>( std::char_traits<char>::length( v ) ) };
+          storage = StrData{ val, static_cast<std::int64_t>( std::char_traits<char>::length( val ) ) };
         } else if constexpr ( is_numpy_copy<U>::value ) {
-          storage = ArrData{ v.data().data(), static_cast<std::int64_t>( v.size() ) };
+          storage = ArrData{ val.data().data(), static_cast<std::int64_t>( val.size() ) };
         } else {
-          put_value<U>( &storage, v );
+          put_value<U>( &storage, val );
         }
       }
     };
@@ -760,11 +770,11 @@ namespace sbldpy {
       std::tuple<CbArg<T>...> elems;
       std::array<void*,sizeof...(T)> ptrs;
       template<class V>
-      explicit CbArg( const V& v ) : CbArg( v, std::index_sequence_for<T...>{} ) {}
+      explicit CbArg( const V& val ) : CbArg( val, std::index_sequence_for<T...>{} ) {}
       template<class V, std::size_t... I>
-      CbArg( const V& v, std::index_sequence<I...> ) : elems( std::get<I>(v)... )
+      CbArg( const V& val, std::index_sequence<I...> ) : elems( std::get<I>(val)... )
       {
-        std::apply( [this]( auto&... e ) { std::size_t i = 0; ( ( ptrs[i++] = e.ptr() ), ... ); }, elems );
+        std::apply( [this]( auto&... elem ) { std::size_t idx = 0; ( ( ptrs[idx++] = elem.ptr() ), ... ); }, elems );
       }
       CbArg( const CbArg& ) = delete;
       void * ptr() { return ptrs.data(); }
@@ -777,13 +787,13 @@ namespace sbldpy {
     struct CbArg<std::array<T,N>> {
       std::vector<CbArg<T>> elems;
       std::array<void*,N> ptrs;
-      explicit CbArg( const std::array<T,N>& v )
+      explicit CbArg( const std::array<T,N>& val )
       {
         elems.reserve( N );
-        for ( std::size_t i = 0; i < N; ++i )
-          elems.emplace_back( v[i] );
-        for ( std::size_t i = 0; i < N; ++i )
-          ptrs[i] = elems[i].ptr();
+        for ( std::size_t idx = 0; idx < N; ++idx )
+          elems.emplace_back( val[idx] );
+        for ( std::size_t idx = 0; idx < N; ++idx )
+          ptrs[idx] = elems[idx].ptr();
       }
       void * ptr() { return ptrs.data(); }
     };
@@ -791,12 +801,12 @@ namespace sbldpy {
     template<class T> struct CbArg<T&> : CbArg<std::remove_const_t<T>> { using CbArg<std::remove_const_t<T>>::CbArg; };
 
     template<class V>
-    int assign_data( void * dest, const void * data, std::int64_t n ) noexcept
+    int assign_data( void * dest, const void * data, std::int64_t count ) noexcept
     {
       try {
         using E = typename V::value_type;
-        auto d = static_cast<const E*>(data);
-        static_cast<V*>(dest)->assign( d, d + n );
+        auto src = static_cast<const E*>(data);
+        static_cast<V*>(dest)->assign( src, src + count );
         return 0;
       } catch ( ... ) {
         return 1;
@@ -838,33 +848,33 @@ namespace sbldpy {
       std::array<void*,sizeof...(T)> ptrs;
       CbRet()
       {
-        std::apply( [this]( auto&... e ) { std::size_t i = 0; ( ( ptrs[i++] = e.ptr() ), ... ); }, elems );
+        std::apply( [this]( auto&... elem ) { std::size_t idx = 0; ( ( ptrs[idx++] = elem.ptr() ), ... ); }, elems );
       }
       CbRet( const CbRet& ) = delete;
       void * ptr() { return ptrs.data(); }
       std::tuple<T...> get()
       {
-        return std::apply( []( auto&... e ) { return std::tuple<T...>( e.get()... ); }, elems );
+        return std::apply( []( auto&... elem ) { return std::tuple<T...>( elem.get()... ); }, elems );
       }
     };
     template<class A, class B>
     struct CbRet<std::pair<A,B>> {
-      CbRet<std::tuple<A,B>> t;
-      void * ptr() { return t.ptr(); }
-      std::pair<A,B> get() { auto v = t.get(); return { std::move(std::get<0>(v)), std::move(std::get<1>(v)) }; }
+      CbRet<std::tuple<A,B>> tup;
+      void * ptr() { return tup.ptr(); }
+      std::pair<A,B> get() { auto val = tup.get(); return { std::move(std::get<0>(val)), std::move(std::get<1>(val)) }; }
     };
     template<class T, std::size_t N>
     struct CbRet<std::array<T,N>> {
       std::array<CbRet<T>,N> elems;
       std::array<void*,N> ptrs;
-      CbRet() { for ( std::size_t i = 0; i < N; ++i ) ptrs[i] = elems[i].ptr(); }
+      CbRet() { for ( std::size_t idx = 0; idx < N; ++idx ) ptrs[idx] = elems[idx].ptr(); }
       CbRet( const CbRet& ) = delete;
       void * ptr() { return ptrs.data(); }
       std::array<T,N> get()
       {
         std::array<T,N> res;
-        for ( std::size_t i = 0; i < N; ++i )
-          res[i] = elems[i].get();
+        for ( std::size_t idx = 0; idx < N; ++idx )
+          res[idx] = elems[idx].get();
         return res;
       }
     };
@@ -907,17 +917,17 @@ namespace sbldpy {
     };
 
     template<class F, class = void> struct fn_traits {
-      static constexpr bool ok = false;
+      static constexpr bool valid = false;
     };
     template<class R, class... A> struct fn_traits<R(*)(A...)> : sig<R,A...> {
-      static constexpr bool ok = true; static constexpr bool is_member = false;
+      static constexpr bool valid = true; static constexpr bool is_member = false;
     };
     template<class R, class... A> struct fn_traits<R(*)(A...) noexcept> : fn_traits<R(*)(A...)> {};
     template<class R, class C, class... A> struct fn_traits<R(C::*)(A...)> : sig<R,C&,A...> {
-      static constexpr bool ok = true; static constexpr bool is_member = true;
+      static constexpr bool valid = true; static constexpr bool is_member = true;
     };
     template<class R, class C, class... A> struct fn_traits<R(C::*)(A...) const> : sig<R,const C&,A...> {
-      static constexpr bool ok = true; static constexpr bool is_member = true;
+      static constexpr bool valid = true; static constexpr bool is_member = true;
     };
     template<class R, class C, class... A> struct fn_traits<R(C::*)(A...) noexcept> : fn_traits<R(C::*)(A...)> {};
     template<class R, class C, class... A> struct fn_traits<R(C::*)(A...) const noexcept> : fn_traits<R(C::*)(A...) const> {};
@@ -930,13 +940,13 @@ namespace sbldpy {
     template<class R, class C, class... A> struct functor_sig<R(C::*)(A...) const noexcept> : sig<R,A...> {};
     template<class F> struct fn_traits<F,std::void_t<decltype(&F::operator())>>
       : functor_sig<decltype(&F::operator())> {
-      static constexpr bool ok = true; static constexpr bool is_member = false;
+      static constexpr bool valid = true; static constexpr bool is_member = false;
     };
 
     template<class F>
     constexpr void check_callable()
     {
-      static_assert( fn_traits<F>::ok,
+      static_assert( fn_traits<F>::valid,
                      "sbldpy: could not deduce the signature of the callable (note that overloaded"
                      " functions must be selected with a cast, and generic lambdas are not supported)" );
     }
@@ -956,7 +966,7 @@ namespace sbldpy {
       std::string doc;
       std::vector<const char*> argnames;
       bool has_argnames = false;
-      int id = -1;
+      int func_id = -1;
       void (*describe)( std::string& ) = nullptr;//params and return type
     };
 
@@ -976,26 +986,26 @@ namespace sbldpy {
       std::vector<Entry> table;
       std::vector<FuncDef> functions;
       std::vector<ClassDef*> classes;//never deleted (lives as long as the module)
-      RuntimeCtx rt;
+      RuntimeCtx runtime;
     };
 
     template<class F, class Self, class... A>
-    decltype(auto) call_member( F f, Self& self, A&&... a )
+    decltype(auto) call_member( F fct, Self& self, A&&... fargs )
     {
-      return ( self.*f )( std::forward<A>(a)... );
+      return ( self.*fct )( std::forward<A>(fargs)... );
     }
 
     template<class F, class R, class... A, std::size_t... I>
     void call_entry( const void * callable, void ** args, void * res, RuntimeCtx& ctx, std::index_sequence<I...> )
     {
       (void)args; (void)ctx;
-      const F& f = *static_cast<const F*>( callable );
+      const F& fct = *static_cast<const F*>( callable );
       put_result<R>( res, [&]() -> R
       {
         if constexpr ( std::is_member_function_pointer_v<F> )
-          return call_member( f, get_param<A>( args[I], ctx )... );
+          return call_member( fct, get_param<A>( args[I], ctx )... );
         else
-          return f( get_param<A>( args[I], ctx )... );
+          return fct( get_param<A>( args[I], ctx )... );
       } );
     }
 
@@ -1036,38 +1046,38 @@ namespace sbldpy {
       desc_return<R>( out );
     }
 
-    inline void apply_extras( FuncDef& fd, std::size_t nparams, const Extra& e1, const Extra& e2 )
+    inline void apply_extras( FuncDef& fdef, std::size_t nparams, const Extra& extra1, const Extra& extra2 )
     {
-      for ( auto e : { &e1, &e2 } ) {
-        if ( e->doc ) {
-          if ( !fd.doc.empty() )
-            throw std::logic_error( "documentation given twice for " + fd.name );
-          fd.doc = e->doc;
+      for ( auto extra : { &extra1, &extra2 } ) {
+        if ( extra->doc ) {
+          if ( !fdef.doc.empty() )
+            throw std::logic_error( "documentation given twice for " + fdef.name );
+          fdef.doc = extra->doc;
         }
-        if ( e->has_argnames ) {
-          if ( fd.has_argnames )
-            throw std::logic_error( "argument names given twice for " + fd.name );
-          fd.has_argnames = true;
-          fd.argnames = e->argnames;
+        if ( extra->has_argnames ) {
+          if ( fdef.has_argnames )
+            throw std::logic_error( "argument names given twice for " + fdef.name );
+          fdef.has_argnames = true;
+          fdef.argnames = extra->argnames;
         }
       }
-      if ( fd.has_argnames && fd.argnames.size() != nparams )
-        throw std::logic_error( "wrong number of argument names given for " + fd.name
+      if ( fdef.has_argnames && fdef.argnames.size() != nparams )
+        throw std::logic_error( "wrong number of argument names given for " + fdef.name
                                 + " (expected " + std::to_string( nparams ) + ")" );
     }
 
     template<class Tr, bool is_method, class F>
-    FuncDef make_funcdef( ModuleData& d, const char * name, F&& f, const Extra& e1, const Extra& e2 )
+    FuncDef make_funcdef( ModuleData& mdata, const char * name, F&& fct, const Extra& extra1, const Extra& extra2 )
     {
       using FD = std::decay_t<F>;
-      FuncDef fd;
-      fd.name = name;
-      apply_extras( fd, Tr::nargs - ( is_method ? 1 : 0 ), e1, e2 );
-      fd.describe = &describe_fct<is_method,Tr>;
-      d.table.push_back( Entry{ &EntryMaker<FD,typename Tr::ret,typename Tr::args>::invoke,
-                                new FD( std::forward<F>(f) ) } );
-      fd.id = static_cast<int>( d.table.size() - 1 );
-      return fd;
+      FuncDef fdef;
+      fdef.name = name;
+      apply_extras( fdef, Tr::nargs - ( is_method ? 1 : 0 ), extra1, extra2 );
+      fdef.describe = &describe_fct<is_method,Tr>;
+      mdata.table.push_back( Entry{ &EntryMaker<FD,typename Tr::ret,typename Tr::args>::invoke,
+                                new FD( std::forward<F>(fct) ) } );
+      fdef.func_id = static_cast<int>( mdata.table.size() - 1 );
+      return fdef;
     }
 
   }//detail
@@ -1076,21 +1086,21 @@ namespace sbldpy {
 
   class Module {
   public:
-    explicit Module( detail::ModuleData& d ) : m_d(d) {}
+    explicit Module( detail::ModuleData& mdata ) : m_d(mdata) {}
 
-    Module& doc( const char * d ) { m_d.doc = d; return *this; }
+    Module& doc( const char * docstr ) { m_d.doc = docstr; return *this; }
 
     //Define function (function pointer or lambda with supported parameter and
     //return types), optionally followed by a doc string and/or argument names
     //(e.g. { "a", "b" }):
     template<class F>
-    Module& def( const char * name, F&& f, const Extra& e1 = Extra(), const Extra& e2 = Extra() )
+    Module& def( const char * name, F&& fct, const Extra& extra1 = Extra(), const Extra& extra2 = Extra() )
     {
       using FD = std::decay_t<F>;
       detail::check_callable<FD>();
       using Tr = detail::fn_traits<FD>;
       static_assert( !Tr::is_member, "sbldpy: member functions must be defined on classes" );
-      m_d.functions.push_back( detail::make_funcdef<Tr,false>( m_d, name, std::forward<F>(f), e1, e2 ) );
+      m_d.functions.push_back( detail::make_funcdef<Tr,false>( m_d, name, std::forward<F>(fct), extra1, extra2 ) );
       return *this;
     }
 
@@ -1106,16 +1116,16 @@ namespace sbldpy {
   class Class {
     static_assert( detail::is_object_v<T>, "sbldpy: unsupported class type" );
   public:
-    Class( detail::ModuleData& m, detail::ClassDef& d ) : m_m(m), m_d(d) {}
+    Class( detail::ModuleData& mdata, detail::ClassDef& cdef ) : m_m(mdata), m_d(cdef) {}
 
     //Constructor, calling T(A...) (at most one per class):
     template<class... A>
-    Class& def_init( const Extra& e1 = Extra(), const Extra& e2 = Extra() )
+    Class& def_init( const Extra& extra1 = Extra(), const Extra& extra2 = Extra() )
     {
       if ( m_d.has_init )
         throw std::logic_error( "only one constructor can be defined for class " + m_d.name );
-      auto f = []( A... a ) { return T( static_cast<A>(a)... ); };
-      m_d.init = detail::make_funcdef<detail::sig<T,A...>,false>( m_m, "__init__", f, e1, e2 );
+      auto fct = []( A... cargs ) { return T( static_cast<A>(cargs)... ); };
+      m_d.init = detail::make_funcdef<detail::sig<T,A...>,false>( m_m, "__init__", fct, extra1, extra2 );
       m_d.has_init = true;
       return *this;
     }
@@ -1123,7 +1133,7 @@ namespace sbldpy {
     //Method (member function pointer of T, or function/lambda taking T& or
     //const T& as first parameter):
     template<class F>
-    Class& def( const char * name, F&& f, const Extra& e1 = Extra(), const Extra& e2 = Extra() )
+    Class& def( const char * name, F&& fct, const Extra& extra1 = Extra(), const Extra& extra2 = Extra() )
     {
       using FD = std::decay_t<F>;
       detail::check_callable<FD>();
@@ -1133,19 +1143,19 @@ namespace sbldpy {
       static_assert( std::is_lvalue_reference_v<Self> && std::is_same_v<detail::rmcvref_t<Self>,T>,
                      "sbldpy: methods must be member functions of the class itself, or take the object"
                      " as first parameter (as T& or const T&)" );
-      m_d.methods.push_back( detail::make_funcdef<Tr,true>( m_m, name, std::forward<F>(f), e1, e2 ) );
+      m_d.methods.push_back( detail::make_funcdef<Tr,true>( m_m, name, std::forward<F>(fct), extra1, extra2 ) );
       return *this;
     }
 
     //Static method:
     template<class F>
-    Class& def_static( const char * name, F&& f, const Extra& e1 = Extra(), const Extra& e2 = Extra() )
+    Class& def_static( const char * name, F&& fct, const Extra& extra1 = Extra(), const Extra& extra2 = Extra() )
     {
       using FD = std::decay_t<F>;
       detail::check_callable<FD>();
       using Tr = detail::fn_traits<FD>;
       static_assert( !Tr::is_member, "sbldpy: static methods can not be member functions" );
-      m_d.statics.push_back( detail::make_funcdef<Tr,false>( m_m, name, std::forward<F>(f), e1, e2 ) );
+      m_d.statics.push_back( detail::make_funcdef<Tr,false>( m_m, name, std::forward<F>(fct), extra1, extra2 ) );
       return *this;
     }
 
@@ -1168,13 +1178,13 @@ namespace sbldpy {
     if ( detail::class_name<T>() )
       throw std::logic_error( std::string("class added twice: ") + name );
     detail::class_name<T>() = name;
-    auto cd = new detail::ClassDef;
-    m_d.classes.push_back( cd );
-    cd->name = name;
-    cd->doc = doc ? doc : "";
+    auto cdef = new detail::ClassDef;
+    m_d.classes.push_back( cdef );
+    cdef->name = name;
+    cdef->doc = doc ? doc : "";
     m_d.table.push_back( detail::Entry{ &detail::destroy_object<T>, nullptr } );
-    cd->dtor_id = static_cast<int>( m_d.table.size() - 1 );
-    return Class<T>( m_d, *cd );
+    cdef->dtor_id = static_cast<int>( m_d.table.size() - 1 );
+    return Class<T>( m_d, *cdef );
   }
 
   namespace detail {
@@ -1183,51 +1193,51 @@ namespace sbldpy {
     // Module information and the exported functions                          //
     ////////////////////////////////////////////////////////////////////////////
 
-    inline void append_json_str( std::string& out, const std::string& s )
+    inline void append_json_str( std::string& out, const std::string& text )
     {
       out += '"';
-      for ( char c : s ) {
-        if ( c == '"' || c == '\\' ) {
+      for ( char chr : text ) {
+        if ( chr == '"' || chr == '\\' ) {
           out += '\\';
-          out += c;
-        } else if ( static_cast<unsigned char>(c) < 0x20 ) {
+          out += chr;
+        } else if ( static_cast<unsigned char>(chr) < 0x20 ) {
           char buf[8];
-          std::snprintf( buf, sizeof(buf), "\\u%04x", static_cast<unsigned>(c) );
+          std::snprintf( buf, sizeof(buf), "\\u%04x", static_cast<unsigned>(chr) );
           out += buf;
         } else {
-          out += c;
+          out += chr;
         }
       }
       out += '"';
     }
 
-    inline void append_json_func( std::string& out, const FuncDef& fd )
+    inline void append_json_func( std::string& out, const FuncDef& fdef )
     {
       out += "{\"name\":";
-      append_json_str( out, fd.name );
-      out += ",\"id\":" + std::to_string( fd.id ) + ",\"doc\":";
-      append_json_str( out, fd.doc );
-      if ( fd.has_argnames ) {
+      append_json_str( out, fdef.name );
+      out += ",\"id\":" + std::to_string( fdef.func_id ) + ",\"doc\":";
+      append_json_str( out, fdef.doc );
+      if ( fdef.has_argnames ) {
         out += ",\"argnames\":[";
-        for ( std::size_t i = 0; i < fd.argnames.size(); ++i ) {
-          if ( i )
+        for ( std::size_t idx = 0; idx < fdef.argnames.size(); ++idx ) {
+          if ( idx )
             out += ',';
-          append_json_str( out, fd.argnames[i] );
+          append_json_str( out, fdef.argnames[idx] );
         }
         out += ']';
       }
       out += ',';
-      fd.describe( out );
+      fdef.describe( out );
       out += '}';
     }
 
-    inline void append_json_funcs( std::string& out, const std::vector<FuncDef>& v )
+    inline void append_json_funcs( std::string& out, const std::vector<FuncDef>& funcs )
     {
       out += '[';
-      for ( std::size_t i = 0; i < v.size(); ++i ) {
-        if ( i )
+      for ( std::size_t idx = 0; idx < funcs.size(); ++idx ) {
+        if ( idx )
           out += ',';
-        append_json_func( out, v[i] );
+        append_json_func( out, funcs[idx] );
       }
       out += ']';
     }
@@ -1252,8 +1262,8 @@ namespace sbldpy {
       {
         try {
           data.name = name;
-          Module m( data );
-          deffct( m );
+          Module moddef( data );
+          deffct( moddef );
           data.table.push_back( Entry{ &hidden_init_runtime, nullptr } );
           data.table.push_back( Entry{ &hidden_shutdown, nullptr } );
           const std::size_t ntable = data.table.size();
@@ -1267,27 +1277,27 @@ namespace sbldpy {
           out += ",\"functions\":";
           append_json_funcs( out, data.functions );
           out += ",\"classes\":[";
-          for ( std::size_t i = 0; i < data.classes.size(); ++i ) {
-            const ClassDef& c = *data.classes[i];
-            out += ( i ? ",{\"name\":" : "{\"name\":" );
-            append_json_str( out, c.name );
+          for ( std::size_t idx = 0; idx < data.classes.size(); ++idx ) {
+            const ClassDef& cdef = *data.classes[idx];
+            out += ( idx ? ",{\"name\":" : "{\"name\":" );
+            append_json_str( out, cdef.name );
             out += ",\"doc\":";
-            append_json_str( out, c.doc );
-            out += ",\"dtor\":" + std::to_string( c.dtor_id ) + ",\"init\":";
-            if ( c.has_init )
-              append_json_func( out, c.init );
+            append_json_str( out, cdef.doc );
+            out += ",\"dtor\":" + std::to_string( cdef.dtor_id ) + ",\"init\":";
+            if ( cdef.has_init )
+              append_json_func( out, cdef.init );
             else
               out += "null";
             out += ",\"methods\":";
-            append_json_funcs( out, c.methods );
+            append_json_funcs( out, cdef.methods );
             out += ",\"staticmethods\":";
-            append_json_funcs( out, c.statics );
+            append_json_funcs( out, cdef.statics );
             out += '}';
           }
           out += "],\"hidden\":{\"init_runtime\":" + std::to_string( ntable - 2 )
             + ",\"shutdown\":" + std::to_string( ntable - 1 ) + "}}";
-        } catch ( std::exception& e ) {
-          init_error = std::string("Error in definition of sbldpy module ") + name + ": " + e.what();
+        } catch ( std::exception& exc ) {
+          init_error = std::string("Error in definition of sbldpy module ") + name + ": " + exc.what();
         } catch ( ... ) {
           init_error = std::string("Unknown error in definition of sbldpy module ") + name;
         }
@@ -1297,68 +1307,68 @@ namespace sbldpy {
     //Error message of the last failed call on this thread:
     SBLDPY_HIDDEN inline std::string& last_error()
     {
-      static thread_local std::string s;
-      return s;
+      static thread_local std::string msg;
+      return msg;
     }
 
-    inline const char * module_info( ModuleState& s ) noexcept
+    inline const char * module_info( ModuleState& state ) noexcept
     {
-      if ( !s.init_error.empty() ) {
-        last_error() = s.init_error;
+      if ( !state.init_error.empty() ) {
+        last_error() = state.init_error;
         return nullptr;
       }
-      return s.info.c_str();
+      return state.info.c_str();
     }
 
     //Error codes returned by sbldpy_call:
     enum ErrorCode : int { EC_OK = 0, EC_RUNTIME = 1, EC_VALUE = 2, EC_INDEX = 3, EC_TYPE = 4,
                            EC_OVERFLOW = 5, EC_MEMORY = 6, EC_CALLBACK = 7 };
 
-    inline int set_error( int ec, const char * msg ) noexcept
+    inline int set_error( int code, const char * msg ) noexcept
     {
       try {
         last_error() = msg;
       } catch ( ... ) {
       }
-      return ec;
+      return code;
     }
 
-    inline int module_call( ModuleState& s, int id, void ** args, void * result ) noexcept
+    inline int module_call( ModuleState& state, int func_id, void ** args, void * result ) noexcept
     {
       try {
-        if ( !s.init_error.empty() )
-          throw std::runtime_error( s.init_error );
-        if ( id < 0 || static_cast<std::size_t>(id) >= s.data.table.size() )
+        if ( !state.init_error.empty() )
+          throw std::runtime_error( state.init_error );
+        if ( func_id < 0 || static_cast<std::size_t>(func_id) >= state.data.table.size() )
           throw std::runtime_error( "sbldpy: invalid function id" );
-        const Entry& e = s.data.table[static_cast<std::size_t>(id)];
-        e.invoke( e.callable, args, result, s.data.rt );
+        const Entry& entry = state.data.table[static_cast<std::size_t>(func_id)];
+        entry.invoke( entry.callable, args, result, state.data.runtime );
         return EC_OK;
-      } catch ( CallbackError& e ) {
-        return set_error( EC_CALLBACK, e.what() );
-      } catch ( TypeError& e ) {
-        return set_error( EC_TYPE, e.what() );
-      } catch ( std::invalid_argument& e ) {
-        return set_error( EC_VALUE, e.what() );
-      } catch ( std::domain_error& e ) {
-        return set_error( EC_VALUE, e.what() );
-      } catch ( std::length_error& e ) {
-        return set_error( EC_VALUE, e.what() );
-      } catch ( std::out_of_range& e ) {
-        return set_error( EC_INDEX, e.what() );
-      } catch ( std::overflow_error& e ) {
-        return set_error( EC_OVERFLOW, e.what() );
+      } catch ( CallbackError& exc ) {
+        return set_error( EC_CALLBACK, exc.what() );
+      } catch ( TypeError& exc ) {
+        return set_error( EC_TYPE, exc.what() );
+      } catch ( std::invalid_argument& exc ) {
+        return set_error( EC_VALUE, exc.what() );
+      } catch ( std::domain_error& exc ) {
+        return set_error( EC_VALUE, exc.what() );
+      } catch ( std::length_error& exc ) {
+        return set_error( EC_VALUE, exc.what() );
+      } catch ( std::out_of_range& exc ) {
+        return set_error( EC_INDEX, exc.what() );
+      } catch ( std::overflow_error& exc ) {
+        return set_error( EC_OVERFLOW, exc.what() );
       } catch ( std::bad_alloc& ) {
         return set_error( EC_MEMORY, "" );
-      } catch ( std::exception& e ) {
-        return set_error( EC_RUNTIME, e.what() );
+      } catch ( std::exception& exc ) {
+        return set_error( EC_RUNTIME, exc.what() );
       } catch ( ... ) {
         return set_error( EC_RUNTIME, "unknown C++ exception" );
       }
     }
 
-    constexpr bool streq( const char * a, const char * b )
+    constexpr bool streq( const char * str1, const char * str2 )
     {
-      return *a == *b && ( *a == '\0' || streq( a + 1, b + 1 ) );
+      return *str1 == *str2 && ( *str1 == '\0' || streq( str1 + 1, str2 + 1 ) );
     }
 
   }//detail
@@ -1405,14 +1415,18 @@ namespace sbldpy {
   {                                                                           \
     return ::sbldpy::detail::module_info( sbldpy_module_state() );            \
   }                                                                           \
-  extern "C" SBLDPY_EXPORT int sbldpy_call( int id, void ** args, void * result ) \
+  extern "C" SBLDPY_EXPORT int sbldpy_call( int sbldpy_id, void ** sbldpy_args, void * sbldpy_res ) \
   {                                                                           \
-    return ::sbldpy::detail::module_call( sbldpy_module_state(), id, args, result ); \
+    return ::sbldpy::detail::module_call( sbldpy_module_state(), sbldpy_id, sbldpy_args, sbldpy_res ); \
   }                                                                           \
   extern "C" SBLDPY_EXPORT const char * sbldpy_last_error()                   \
   {                                                                           \
     return ::sbldpy::detail::last_error().c_str();                            \
   }                                                                           \
   void SbldpyModuleDefiner::define()
+
+#if defined(__GNUC__) && !defined(SBLDPY_TEST_NO_PRAGMAS)
+#  pragma GCC diagnostic pop
+#endif
 
 #endif

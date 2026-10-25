@@ -24,6 +24,11 @@ _files = {
                                   'SBLDPY_MODULE( small ) { m.def( "value", []() { return 1; } ); }\n' ),
 }
 
+#All one and two letter names, which might be global variables in user code:
+_letters = [ chr( i ) for i in range( ord( 'a' ), ord( 'z' ) + 1 ) ]
+_shortnames = _letters + [ a + b for a in _letters for b in _letters
+                           if a + b not in ( 'do', 'if', 'or' ) ]
+
 def _have_numpy():
     try:
         import numpy # noqa F401
@@ -41,16 +46,21 @@ def proj( tmp_path_factory ):
     write_files( d, { 'PkgA/pymod_feat/feat.cc' : ( _datadir / 'feat.cc' ).read_text() } )
     write_files( d, {
         'PkgG/pkg.info' : 'package()\n',
-        #Global variables named like the module object (e.g. CLHEP units brought
-        #into the global namespace by G4SystemOfUnits.hh) must not trigger
-        #-Wshadow errors:
-        'PkgG/pymod_globnames/mod.cc' : ( 'namespace Units { constexpr double m = 1.0; constexpr double s = 2.0; }\n'
-                                        'using Units::m;\n'
-                                        'using Units::s;\n'
-                                        '#include "sbldpy/sbldpy.hh"\n'
+        #Global variables named like the module object or other short names
+        #must not trigger -Wshadow errors (also without the pragmas in
+        #sbldpy.hh, so all internal names there must be long enough):
+        'PkgG/pymod_globnames/mod.cc' : ( '#define SBLDPY_TEST_NO_PRAGMAS\n'
+                                        'namespace Units {\n'
+                                        + ''.join( '  constexpr double %s = 1.0;\n'%n for n in _shortnames )
+                                        + '}\n'
+                                        + ''.join( 'using Units::%s;\n'%n for n in _shortnames )
+                                        + '#include "sbldpy/sbldpy.hh"\n'
+                                        'struct Obj { Obj( double value ) : m_value(value) {} double m_value; double get() const { return m_value; } };\n'
                                         'SBLDPY_MODULE( globnames ) {\n'
                                         '  m.def( "meter", []() { return ::m; } );\n'
                                         '  m.def( "second", []() { return s; } );\n'
+                                        '  m.add_class<Obj>( "Obj" ).def_init<double>( { "value" } ).def( "get", &Obj::get )\n'
+                                        '    .def_static( "unit", []() { return g; } );\n'
                                         '}\n' ),
         #Two modules with different classes of the same name:
         **{ 'PkgG/pymod_thing%s/mod.cc'%n : ( '#include "sbldpy/sbldpy.hh"\n'
@@ -102,8 +112,8 @@ def test_other_module( proj ):
 
 def test_global_names( proj ):
     res = run( [ 'sbenv', sys.executable, '-c',
-                 'import PkgG.globnames as g; print(g.meter(), g.second())' ], proj )
-    assert res.stdout.strip() == '1.0 2.0'
+                 'import PkgG.globnames as g; print(g.meter(), g.second(), g.Obj(2.5).get(), g.Obj.unit())' ], proj )
+    assert res.stdout.strip() == '1.0 1.0 2.5 1.0'
 
 def test_same_class_names( proj ):
     #Classes (and other internal state) of different modules never clash:
