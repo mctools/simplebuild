@@ -18,6 +18,7 @@ file mymod.py next to it, containing:
 import ctypes as _ct
 import itertools as _itertools
 import threading as _threading
+import sys as _sys
 
 __version__ = '0.1.0'
 version_int = 1000#Ever increasing integer (major*1000000+minor*1000+patch)
@@ -132,6 +133,9 @@ def _conv_cstr( v ):
         raise ValueError( 'string can not contain null characters' )
     return _conv_str( v )
 
+#Byte order characters of struct format strings (as used by memoryview.format),
+#which are compatible with the native byte order:
+_native_byteorder_chars = ( '@', '=', '<' ) if _sys.byteorder == 'little' else ( '@', '=', '>', '!' )
 _arr_formats = { 'f64' : ( 'd', ), 'i64' : ( 'q', 'l' ), 'u8' : ( 'B', 'c' ) }
 _arr_descr = { 'f64' : 'float64', 'i64' : 'int64', 'u8' : 'uint8' }
 
@@ -168,9 +172,13 @@ def _make_conv_arr( dt ):
         except TypeError:
             mv = None
         if mv is not None:
-            fmt = mv.format.lstrip( '@=' if mv.itemsize > 1 else '@=<>!' )
+            fmt = mv.format
+            if fmt[:1] in _native_byteorder_chars or mv.itemsize == 1:
+                fmt = fmt.lstrip( '@=<>!' )
             if fmt not in formats or mv.itemsize != itemsize:
-                raise TypeError( 'array has wrong element type (expected %s)'%_arr_descr[dt] )
+                got = getattr( v, 'dtype', None )
+                got = str( got ) if got is not None else 'format "%s"'%mv.format
+                raise TypeError( 'array has wrong element type (expected %s, got %s)'%( _arr_descr[dt], got ) )
             if mv.ndim != 1:
                 raise TypeError( 'expected one-dimensional array (got %i dimensions)'%mv.ndim )
             n = mv.shape[0]

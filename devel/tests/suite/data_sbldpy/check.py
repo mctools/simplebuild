@@ -86,7 +86,7 @@ def check_arrays():
     assert feat.sum( array.array( 'd', [ 1, 2 ] ) ) == 3.0
     assert feat.sum( memoryview( array.array( 'd', [ 1, 2, 3, 4 ] ) )[::2] ) == 4.0
     assert feat.sum( ( x * 0.5 for x in range( 4 ) ) ) == 3.0
-    expect( TypeError, feat.sum, array.array( 'f', [ 1, 2 ] ), match = 'wrong element type' )
+    expect( TypeError, feat.sum, array.array( 'f', [ 1, 2 ] ), match = 'got format "f"' )
     expect( TypeError, feat.sum, 'abc' )
     expect( TypeError, feat.sum, [ 1, 'a' ] )
     expect( TypeError, feat.sum, 5 )
@@ -106,7 +106,12 @@ def check_numpy():
     ro = np.arange( 3.0 )
     ro.flags.writeable = False
     assert feat.sum( ro ) == 3.0 and feat.sum( np.zeros( 0 ) ) == 0.0
-    expect( TypeError, feat.sum, np.arange( 3, dtype = np.float32 ), match = 'wrong element type' )
+    expect( TypeError, feat.sum, np.arange( 3, dtype = np.float32 ), match = 'expected float64, got float32' )
+    #Explicit byte order (as e.g. used by NCrystal) works when it is the native one:
+    native, other = ( '<', '>' ) if sys.byteorder == 'little' else ( '>', '<' )
+    assert feat.sum( np.arange( 4.0, dtype = native+'f8' ) ) == 6.0
+    assert feat.isum( np.arange( 5, dtype = native+'i8' ) ) == 10
+    expect( TypeError, feat.sum, np.arange( 4.0, dtype = other+'f8' ), match = 'wrong element type' )
     expect( TypeError, feat.sum, np.zeros( ( 2, 2 ) ), match = 'one-dimensional' )
     assert feat.isum( np.arange( 5 ) ) == 10
     expect( TypeError, feat.isum, np.arange( 5, dtype = np.int32 ) )
