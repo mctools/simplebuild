@@ -13,8 +13,8 @@ sbldpy provides a simple way to make C++ functions and classes available as
 Python modules. Unlike the ``pycpp_<modulename>`` subdirectories (which use
 `pybind11 <https://pybind11.readthedocs.io/en/stable/basics.html>`_), the C++
 code is **not** compiled with Python headers or linked with the Python library.
-Instead, a small and fixed set of plain C functions is exported from a shared
-library, which is loaded with the `ctypes
+Instead, the module is compiled into a shared library providing a small and
+fixed set of plain C functions, which is loaded with the `ctypes
 <https://docs.python.org/3/library/ctypes.html>`_ module of the Python standard
 library. This means that the compiled code does not depend on the version of
 Python, and it is in general much faster to compile.
@@ -250,12 +250,17 @@ Implementation and versions
 sbldpy consists of the header-only C++17 library ``sbldpy/sbldpy.hh`` and the
 pure-Python runtime module ``sbldpy``. Each module library (named
 ``_sbldpy_<modulename>.so`` and installed next to a small generated
-``<modulename>.py`` file) exports only the four plain C functions
-``sbldpy_abi_version``, ``sbldpy_module_info``, ``sbldpy_call`` and
+``<modulename>.py`` file) is used by the runtime only via the four plain C
+functions ``sbldpy_abi_version``, ``sbldpy_module_info``, ``sbldpy_call`` and
 ``sbldpy_last_error``. C++ exceptions never cross these functions, and Python
 exceptions never cross the callbacks. The binary interface between the
 modules and the runtime has a version, which is checked when modules are
 loaded.
+
+simplebuild compiles module libraries with the usual (default) symbol
+visibility, like other libraries, since hidden visibility breaks C++ features
+like ``dynamic_cast`` and ``typeid`` across libraries on some platforms (e.g.
+macOS) for types whose type information is generated in the module.
 
 The version of sbldpy is available in C++ as ``SBLDPY_VERSION`` (an integer
 which is ``major*1000000+minor*1000+patch``, e.g. ``1002003`` for version

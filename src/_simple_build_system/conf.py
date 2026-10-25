@@ -135,11 +135,12 @@ def descrfct_pymod(pkg,subdir,name):
 
 def flagfct_pymod(pkg,subdir):
     #NB: No Python flags (sbldpy modules are not compiled with Python headers,
-    #and not linked with libpython), and hidden visibility (only the four
-    #sbldpy_* functions are exported):
+    #and not linked with libpython). Also, no -fvisibility=hidden, since that
+    #breaks dynamic_cast and typeid across libraries on some platforms (e.g.
+    #macOS) for types whose type information is generated in the module (see
+    #the comment at SBLDPY_EXPORT in sbldpy.hh). This happened for header-only
+    #template code in the ExprParser package of dgcode.
     return [ '-DSBLDPY_MODNAME=%s'%subdir[6:],
-             '-fvisibility=hidden',
-             '-fvisibility-inlines-hidden',
              '-I${INST}/%s'%sbldpy_include_subdir ]
 
 #Location in the install directory of the header-only C++ library of sbldpy
