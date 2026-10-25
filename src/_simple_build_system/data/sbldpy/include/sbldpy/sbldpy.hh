@@ -1353,8 +1353,8 @@ namespace sbldpy {
 
 }//sbldpy
 
-//When building with simplebuild, the module name is checked against the
-//directory name (pymod_<name>):
+//If the build system defines SBLDPY_MODNAME (e.g. -DSBLDPY_MODNAME=mymod), the
+//name given to SBLDPY_MODULE(..) must match it:
 #ifdef SBLDPY_MODNAME
 #  define SBLDPY_CHECK_MODNAME( modname )                                     \
   static_assert( ::sbldpy::detail::streq( #modname, SBLDPY_STRINGIFY_VALUE(SBLDPY_MODNAME) ), \
