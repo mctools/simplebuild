@@ -67,6 +67,18 @@
 #  define SBLDPY_EXPORT __attribute__((visibility("default")))
 #endif
 
+//Functions with static variables holding internal state of a module have hidden
+//visibility, so the state is never shared with other modules loaded in the same
+//process. With default visibility, such static variables in inline or template
+//functions can be unified across all loaded libraries (e.g. as "GNU unique"
+//symbols on Linux, even for libraries loaded with RTLD_LOCAL), in which case
+//two modules each defining a class with the same name would clash:
+#if defined(_WIN32)
+#  define SBLDPY_HIDDEN
+#else
+#  define SBLDPY_HIDDEN __attribute__((visibility("hidden")))
+#endif
+
 #define SBLDPY_STRINGIFY( x ) #x
 #define SBLDPY_STRINGIFY_VALUE( x ) SBLDPY_STRINGIFY( x )
 
@@ -445,7 +457,7 @@ namespace sbldpy {
 
     //Name of class T in the module (set by add_class):
     template<class T>
-    const char *& class_name()
+    SBLDPY_HIDDEN const char *& class_name()
     {
       static const char * name = nullptr;
       return name;
@@ -638,7 +650,7 @@ namespace sbldpy {
       }
       ~ResultSlot() { clear(); }
     };
-    inline ResultSlot& result_slot()
+    SBLDPY_HIDDEN inline ResultSlot& result_slot()
     {
       static thread_local ResultSlot s;
       return s;
@@ -1283,7 +1295,7 @@ namespace sbldpy {
     };
 
     //Error message of the last failed call on this thread:
-    inline std::string& last_error()
+    SBLDPY_HIDDEN inline std::string& last_error()
     {
       static thread_local std::string s;
       return s;

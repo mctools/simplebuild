@@ -52,6 +52,12 @@ def proj( tmp_path_factory ):
                                         '  m.def( "meter", []() { return ::m; } );\n'
                                         '  m.def( "second", []() { return s; } );\n'
                                         '}\n' ),
+        #Two modules with different classes of the same name:
+        **{ 'PkgG/pymod_thing%s/mod.cc'%n : ( '#include "sbldpy/sbldpy.hh"\n'
+                                             'struct Thing { std::int64_t get() const { return %i; } };\n'
+                                             'SBLDPY_MODULE( thing%s ) {\n'
+                                             '  m.add_class<Thing>( "Thing" ).def_init<>().def( "get", &Thing::get );\n'
+                                             '}\n' )%( i, n ) for i, n in enumerate( 'ab', start = 1 ) },
     } )
     run( 'sb', d )
     return d
@@ -99,6 +105,13 @@ def test_global_names( proj ):
                  'import PkgG.globnames as g; print(g.meter(), g.second())' ], proj )
     assert res.stdout.strip() == '1.0 2.0'
 
+def test_same_class_names( proj ):
+    #Classes (and other internal state) of different modules never clash:
+    res = run( [ 'sbenv', sys.executable, '-c',
+                 'import PkgG.thinga, PkgG.thingb; print(PkgG.thinga.Thing().get(), PkgG.thingb.Thing().get())' ],
+               proj )
+    assert res.stdout.strip() == '1 2'
+
 def test_no_python_dependency( proj ):
     #Not compiled with Python flags:
     mf = ( proj / 'simplebuild_cache' / 'bld' / 'makefiles' / 'Makefile_PkgA.make' ).read_text()
@@ -125,6 +138,9 @@ def test_no_python_dependency( proj ):
                     if line.strip() )
         assert set( [ 'sbldpy_abi_version', 'sbldpy_module_info',
                       'sbldpy_call', 'sbldpy_last_error' ] ).issubset( syms )
+        if platform.system() != 'Darwin':
+            #No "GNU unique" symbols, which would be shared with other modules:
+            assert not [ line for line in run( args, proj ).stdout.splitlines() if ' u ' in line ]
 
 def test_abi_mismatch( proj ):
     code = ( 'import sbldpy\nsbldpy.abi_version = 999\n'
