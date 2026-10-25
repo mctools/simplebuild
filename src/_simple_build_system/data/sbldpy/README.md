@@ -9,8 +9,9 @@ directory is self-contained:
   with ctypes.
 
 The C++ code of a module is not compiled with Python headers and not linked
-with libpython. A module library only exports four plain C functions (and
-exceptions never cross them):
+with libpython. The runtime only uses four plain C functions of a module
+library (and exceptions never cross them; see sbldpy.hh for advice about
+compiling with hidden symbol visibility):
 
 - `int sbldpy_abi_version()`: Version of the binary interface (must match
   `sbldpy.abi_version` in the runtime).

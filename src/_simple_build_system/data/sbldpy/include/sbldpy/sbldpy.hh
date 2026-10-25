@@ -7,12 +7,12 @@
 //                                                                            //
 // This header-only C++17 library is used together with the pure-Python       //
 // runtime module "sbldpy". Code using it is NOT compiled with Python headers //
-// and NOT linked with libpython. Each module exports exactly four plain C    //
-// functions (sbldpy_abi_version, sbldpy_module_info, sbldpy_call and         //
-// sbldpy_last_error), and exceptions never cross those (or the callbacks     //
-// into Python). Only a small set of features is supported on purpose: more   //
-// advanced functionality can be implemented in Python code wrapping the      //
-// module.                                                                    //
+// and NOT linked with libpython. The runtime only uses four plain C          //
+// functions of a module (sbldpy_abi_version, sbldpy_module_info,             //
+// sbldpy_call and sbldpy_last_error), and exceptions never cross those (or   //
+// the callbacks into Python). Only a small set of features is supported on   //
+// purpose: more advanced functionality can be implemented in Python code     //
+// wrapping the module.                                                       //
 //                                                                            //
 // Example:                                                                   //
 //                                                                            //
@@ -52,6 +52,15 @@
 #include <utility>
 #include <vector>
 
+//The four functions used by the runtime are explicitly exported, so a module
+//library can be compiled with -fvisibility=hidden, keeping its table of
+//exported symbols minimal. However, this is only safe if the module code does
+//not rely on dynamic_cast or typeid for objects shared with other libraries,
+//involving types whose type information is generated in the module itself
+//(e.g. templates instantiated in the module, or classes without out-of-line
+//virtual functions). With hidden visibility, such type information is private
+//to the module, and on some platforms (e.g. macOS) the type comparisons across
+//libraries then fail. Compiling with default visibility avoids this.
 #if defined(_WIN32)
 #  define SBLDPY_EXPORT __declspec(dllexport)
 #else

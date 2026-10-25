@@ -105,7 +105,8 @@ def test_no_python_dependency( proj ):
     lines = [ line for line in mf.splitlines() if 'pymod_feat/feat.cc' in line and ' -c ' in line ]
     assert len( lines ) == 1
     assert 'PYBIND11' not in lines[0] and 'ython' not in lines[0]
-    assert '-fvisibility=hidden' in lines[0]
+    #Not compiled with hidden visibility (see flagfct_pymod in conf.py):
+    assert '-fvisibility' not in lines[0]
     lib = inst( proj ) / 'python' / 'PkgA' / '_sbldpy_feat.so'
     #Not linked with libpython:
     if platform.system() == 'Darwin':
@@ -116,17 +117,14 @@ def test_no_python_dependency( proj ):
     #(NB: the path of the library itself contains "python", so check for the
     #actual Python libraries):
     assert 'libpython' not in deps.lower() and 'python.framework' not in deps.lower()
-    #Only the four sbldpy_* functions are exported (apart from symbols of the
-    #standard library which are always exported):
+    #The four sbldpy_* functions used by the runtime are exported:
     nm = shutil.which( 'nm' )
     if nm:
         args = [ nm, '-gU', lib ] if platform.system() == 'Darwin' else [ nm, '-D', '--defined-only', lib ]
         syms = set( line.split()[-1].lstrip( '_' ) for line in run( args, proj ).stdout.splitlines()
                     if line.strip() )
-        assert set( s for s in syms if 'sbldpy' in s.lower() ) == set( [ 'sbldpy_abi_version',
-                                                                         'sbldpy_module_info',
-                                                                         'sbldpy_call',
-                                                                         'sbldpy_last_error' ] )
+        assert set( [ 'sbldpy_abi_version', 'sbldpy_module_info',
+                      'sbldpy_call', 'sbldpy_last_error' ] ).issubset( syms )
 
 def test_abi_mismatch( proj ):
     code = ( 'import sbldpy\nsbldpy.abi_version = 999\n'
