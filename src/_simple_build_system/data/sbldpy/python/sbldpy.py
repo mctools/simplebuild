@@ -293,20 +293,23 @@ def _cbret_writer( d, info ):
             _ct.c_uint8.from_address( addr ).value = 1 if _to_bool( v ) else 0
         return w
     if k in ( 'str', 'vec' ):
+        #NB: getdata also returns an object keeping the data alive, which must
+        #be kept until the data has been copied by the assign function:
         if k == 'str':
             def getdata( v ):
                 b = _to_str( v ).encode( 'utf-8' )
-                return b, len( b )
+                return b, len( b ), b
         else:
             arrconv = _make_conv_arr( d['dt'] )
             def getdata( v ):
                 a = arrconv( v )
-                return a.data, a.size
+                return a.data, a.size, a
         def w( v, addr ):
-            data, n = getdata( v )
+            data, n, keepalive = getdata( v )
             r = _AssignRes.from_address( addr )
             if _AssignFct( r.assign )( r.dest, data, n ) != 0:
                 raise MemoryError()
+            del keepalive
         return w
     if k == 'tuple':
         writers = [ _cbret_writer( e, info ) for e in d['items'] ]

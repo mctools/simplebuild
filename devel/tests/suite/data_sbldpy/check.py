@@ -208,6 +208,10 @@ def check_callbacks():
     expect( TypeError, feat.cbtup, lambda t : ( 1, 2 ) )
     expect( TypeError, feat.cbtup, lambda t : ( 1, ) )
     assert feat.cbbytes( lambda : b'\x01\x02\x03' ) == 6 and feat.cbbytes( lambda : [ 1 ] ) == 1
+    #Returned data must be kept alive until it has been copied (with lists of
+    #various sizes, freed memory would likely be reused):
+    for n in range( 1, 300 ):
+        assert feat.cbbytes( lambda : [ 1 ] * n ) == n
     assert feat.cbbool( lambda i : i == 1 ) is True
     expect( TypeError, feat.cbbool, lambda i : 1 )
     #Exceptions swallowed by the C++ code are discarded:
