@@ -495,6 +495,15 @@ class _Lib:
             raise MemoryError()
         raise exccls( self.last_error().decode( 'utf-8', errors = 'replace' ) )
 
+#TODO (performance, parked): A call with scalar arguments currently costs about
+#1.7us, of which only about 0.35us is the ctypes call itself. If modules with
+#many tiny calls in hot loops appear (e.g. per-step accessors in Griff, or
+#per-entry histogram filling), consider: (1) generating a single Python
+#function doing conversions and call (instead of two levels), with inline fast
+#paths for int and float arguments (about 1.2us), and (2) reusing per-function
+#ctypes Structure buffers (pointer array, arguments and result) taken from a
+#small pool, which keeps it thread and reentrancy safe (about 0.7us). The ABI
+#and sbldpy.hh would not change.
 def _make_caller( lib, fid, convs, ret ):
     """Returns function call(values,owner=None) calling function fid in the
     library with the given values (converted with convs), returning the
