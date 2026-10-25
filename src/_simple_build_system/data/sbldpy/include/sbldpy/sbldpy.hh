@@ -54,6 +54,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <exception>
+#include <memory>
 #include <new>
 #include <stdexcept>
 #include <string>
@@ -958,7 +959,8 @@ namespace sbldpy {
     //Entries in the table of functions called by sbldpy_call:
     struct Entry {
       void (*invoke)( const void * callable, void ** args, void * result, RuntimeCtx& ctx );
-      const void * callable;//never deleted (lives as long as the module)
+      const void * callable;
+      void (*destroy)( const void * callable ) = nullptr;//deletes the callable
     };
 
     struct FuncDef {
@@ -985,9 +987,24 @@ namespace sbldpy {
       std::string doc;
       std::vector<Entry> table;
       std::vector<FuncDef> functions;
-      std::vector<ClassDef*> classes;//never deleted (lives as long as the module)
+      std::vector<std::unique_ptr<ClassDef>> classes;
       RuntimeCtx runtime;
+      ModuleData() = default;
+      ModuleData( const ModuleData& ) = delete;
+      ModuleData& operator=( const ModuleData& ) = delete;
+      ~ModuleData()
+      {
+        for ( auto entry = table.rbegin(); entry != table.rend(); ++entry )
+          if ( entry->destroy )
+            entry->destroy( entry->callable );
+      }
     };
+
+    template<class FD>
+    void destroy_callable( const void * callable )
+    {
+      delete static_cast<const FD*>( callable );
+    }
 
     template<class F, class Self, class... A>
     decltype(auto) call_member( F fct, Self& self, A&&... fargs )
@@ -1074,8 +1091,10 @@ namespace sbldpy {
       fdef.name = name;
       apply_extras( fdef, Tr::nargs - ( is_method ? 1 : 0 ), extra1, extra2 );
       fdef.describe = &describe_fct<is_method,Tr>;
+      auto callable = std::make_unique<FD>( std::forward<F>(fct) );
       mdata.table.push_back( Entry{ &EntryMaker<FD,typename Tr::ret,typename Tr::args>::invoke,
-                                new FD( std::forward<F>(fct) ) } );
+                                    callable.get(), &destroy_callable<FD> } );
+      callable.release();//now owned by the table
       fdef.func_id = static_cast<int>( mdata.table.size() - 1 );
       return fdef;
     }
@@ -1178,8 +1197,8 @@ namespace sbldpy {
     if ( detail::class_name<T>() )
       throw std::logic_error( std::string("class added twice: ") + name );
     detail::class_name<T>() = name;
-    auto cdef = new detail::ClassDef;
-    m_d.classes.push_back( cdef );
+    m_d.classes.push_back( std::make_unique<detail::ClassDef>() );
+    detail::ClassDef * cdef = m_d.classes.back().get();
     cdef->name = name;
     cdef->doc = doc ? doc : "";
     m_d.table.push_back( detail::Entry{ &detail::destroy_object<T>, nullptr } );

@@ -55,13 +55,14 @@ jobs:
            exec > >(tee -a "${GITHUB_WORKSPACE}/ci-logs/01_install.log") 2>&1
            python3 -m pip install pybind11 cmake
            python3 -m pip install "./src[test]"
+           if [ "${RUNNER_OS}" == "Linux" ]; then sudo apt-get install -y valgrind; fi
            python3 --version
            cmake --version
            sb --version
 
     - name: Run test suite
       env:
-        SBTEST_REQUIRE: shell:bash
+        SBTEST_REQUIRE: ${{ matrix.os == 'macos-latest' && 'shell:bash' || 'shell:bash valgrind' }}
       run: |
            mkdir -p "${GITHUB_WORKSPACE}/ci-logs"
            exec > >(tee -a "${GITHUB_WORKSPACE}/ci-logs/02_run_test_suite.log") 2>&1
