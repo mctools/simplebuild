@@ -1,6 +1,7 @@
 # Tests of sbldpy modules (pymod_* subdirs), which provide Python bindings via
 # ctypes, without compiling against Python headers or linking with libpython.
 
+import os
 import platform
 import shutil
 import sys
@@ -153,6 +154,21 @@ def test_no_python_dependency( proj ):
             #modules (the standard library might have some, which is fine):
             assert not [ line for line in run( args, proj ).stdout.splitlines()
                          if ' u ' in line and 'sbldpy' in line ]
+
+def test_valgrind( proj, tmp_path ):
+    #Load the module and call a few functions (without Python), checking with
+    #valgrind that all memory is freed and that there are no other errors:
+    cc = os.environ.get( 'CC' ) or 'cc'
+    require_feature( 'valgrind', shutil.which( 'valgrind' ) and shutil.which( cc ) )
+    exe = tmp_path / 'vgdriver'
+    run( [ cc, _datadir / 'vgdriver.c', '-o', exe, '-ldl' ], tmp_path )
+    lib = inst( proj ) / 'python' / 'PkgA' / '_sbldpy_feat.so'
+    res = run( [ 'sbenv', 'valgrind', '--leak-check=full', '--show-leak-kinds=definite',
+                 '--errors-for-leak-kinds=definite', '--error-exitcode=99', exe, lib ],
+               proj, expect_ec = None )
+    assert res.ec == 0, res.out
+    assert 'vgdriver done' in res.stdout
+    assert 'ERROR SUMMARY: 0 errors' in res.stderr
 
 def test_abi_mismatch( proj ):
     code = ( 'import sbldpy\nsbldpy.abi_version = 999\n'
