@@ -139,8 +139,10 @@ def test_no_python_dependency( proj ):
         assert set( [ 'sbldpy_abi_version', 'sbldpy_module_info',
                       'sbldpy_call', 'sbldpy_last_error' ] ).issubset( syms )
         if platform.system() != 'Darwin':
-            #No "GNU unique" symbols, which would be shared with other modules:
-            assert not [ line for line in run( args, proj ).stdout.splitlines() if ' u ' in line ]
+            #No "GNU unique" symbols of sbldpy, which would be shared with other
+            #modules (the standard library might have some, which is fine):
+            assert not [ line for line in run( args, proj ).stdout.splitlines()
+                         if ' u ' in line and 'sbldpy' in line ]
 
 def test_abi_mismatch( proj ):
     code = ( 'import sbldpy\nsbldpy.abi_version = 999\n'
