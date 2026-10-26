@@ -124,11 +124,9 @@ types:
        characters)
    * - ``tuple`` (or list) of the above
      - ``std::tuple``, ``std::pair`` or ``std::array``
-   * - Array: numpy array, other objects with the buffer protocol, or a list
-     - ``sbldpy::NumpyView<const double>``, ``sbldpy::NumpyView<const
-       std::int64_t>`` or ``sbldpy::NumpyView<const std::uint8_t>`` (raw
-       bytes, also accepting ``bytes``, ``bytearray`` and ``memoryview``). The
-       data is only valid during the call, and is not copied unless needed.
+   * - Numpy array (see below)
+     - ``sbldpy::NumpyView<const T>`` (read-only) or ``sbldpy::NumpyView<T>``
+       (writable)
    * - Callable
      - ``sbldpy::Callback<R(Args...)>`` (see below)
    * - Object of class defined in the module
@@ -137,6 +135,20 @@ types:
 A ``TypeError`` is raised for values of the wrong type (for instance, a
 ``float`` is not accepted for an integer, and a ``bool`` is not accepted for
 an integer or a ``float``).
+
+Arrays are passed to C++ as views of numpy arrays, and are never converted or
+copied. The element type ``T`` can be any fixed width integer type, ``float``
+or ``double``, and the numpy array must be one-dimensional, C-contiguous and
+have exactly that element type (e.g. ``numpy.int32`` for ``std::int32_t``).
+Anything else, including Python lists and ``bytes`` objects, results in a
+``TypeError`` with a hint about how the calling code can convert the argument
+(e.g. with ``numpy.asarray(x, dtype=numpy.float64)``). With a non-const ``T``,
+the C++ code can write into the array, which must then be writable. The data
+is guaranteed to be valid during the call. The C++ code can keep the pointer
+and use it after the call only if the Python code keeps the array alive and
+does not resize it in the meantime. For instance, a Python wrapper can
+allocate an array once, hand it to a C++ object, and let the C++ object fill
+it in subsequent calls.
 
 Return values (C++ to Python) can be:
 
@@ -170,9 +182,7 @@ Return values (C++ to Python) can be:
 References and pointers can not be returned, and a ``std::vector`` must be
 returned as a ``sbldpy::NumpyCopy`` or ``sbldpy::NumpyView``. The element type
 of numpy arrays can be any fixed width integer type, ``float`` or ``double``
-(multi-dimensional arrays can be reshaped in Python). Returning
-numpy arrays requires numpy, while numpy is not needed for passing arrays to
-C++ functions.
+(multi-dimensional arrays can be reshaped in Python).
 
 A numpy array returned as a ``sbldpy::NumpyView`` from a method keeps the
 Python object alive. The data must be owned by the C++ object, and the array

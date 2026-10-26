@@ -151,7 +151,59 @@ def _arr_elem_conv( dt ):
         return v
     return to_u8
 
-def _make_conv_arr( dt ):
+def _is_numpy_array( v ):
+    #Without importing numpy:
+    return any( c.__name__ == 'ndarray' and c.__module__ == 'numpy' for c in type( v ).__mro__ )
+
+def _make_conv_arr( dt, readonly ):
+    #Array parameters: Only numpy arrays which can be used directly (without
+    #any conversion or copying) are accepted:
+    ctype, npname, _ = _dtypes[dt]
+    itemsize = _ct.sizeof( ctype )
+    kind = 'f' if dt[0] == 'f' else dt[0]
+    typestrs = ( '|%s1'%kind, ) if itemsize == 1 else ( '%s%s%i'%( bo, kind, itemsize )
+                                                        for bo in _native_byteorder_chars
+                                                        if bo in '<>' )
+    typestrs = frozenset( typestrs )
+    if readonly:
+        def fail( problem, hint ):
+            raise TypeError( '%s (convert the argument with e.g. %s)'%( problem, hint ) )
+    else:
+        def fail( problem, hint ):
+            raise TypeError( '%s (this argument is filled by the C++ code, so allocate a'
+                             ' writable, C-contiguous and one-dimensional numpy.%s array,'
+                             ' e.g. with numpy.zeros(n, dtype=numpy.%s), keep a reference'
+                             ' to it, and pass that)'%( problem, npname, npname ) )
+    def conv( v ):
+        if not _is_numpy_array( v ):
+            if dt == 'u8' and isinstance( v, ( bytes, bytearray ) ):
+                fail( 'expected numpy.uint8 array, got %s'%_typename( v ),
+                      'numpy.frombuffer(x, dtype=numpy.uint8)' )
+            fail( 'expected numpy.%s array, got %s'%( npname, _typename( v ) ),
+                  'numpy.asarray(x, dtype=numpy.%s)'%npname )
+        ai = v.__array_interface__
+        if ai['typestr'] not in typestrs:
+            fail( 'array has wrong element type (expected numpy.%s, got %s)'%( npname, v.dtype ),
+                  'x.astype(numpy.%s)'%npname )
+        shape = ai['shape']
+        if len( shape ) != 1:
+            fail( 'expected one-dimensional array (got %i dimensions)'%len( shape ), 'x.ravel()' )
+        strides = ai['strides']
+        if strides is not None and shape[0] > 1 and strides[0] != itemsize:
+            fail( 'array is not C-contiguous', 'numpy.ascontiguousarray(x)' )
+        data, ro = ai['data']
+        if ro and not readonly:
+            fail( 'array is read-only', 'x.copy()' )
+        res = _ArrArg()
+        res.data = data if shape[0] else None
+        res.size = shape[0]
+        res._keep = v
+        return res
+    return conv
+
+def _make_conv_vec( dt ):
+    #Values returned from Python callbacks, to be copied into std::vector
+    #objects:
     formats = _arr_formats[dt]
     itemsize = 1 if dt == 'u8' else 8
     ctype = _dtypes[dt][0]
@@ -308,7 +360,7 @@ def _cbret_writer( d, info ):
                 b = _to_str( v ).encode( 'utf-8' )
                 return b, len( b ), b
         else:
-            arrconv = _make_conv_arr( d['dt'] )
+            arrconv = _make_conv_vec( d['dt'] )
             def getdata( v ):
                 a = arrconv( v )
                 return a.data, a.size, a
@@ -423,9 +475,9 @@ def _make_conv( d, classes ):
     if simple:
         return simple
     if k == 'arr':
-        if d['dt'] not in _arr_formats:
+        if d['dt'] not in _dtypes:
             raise ImportError( 'unsupported array type: %r'%( d, ) )
-        return _make_conv_arr( d['dt'] )
+        return _make_conv_arr( d['dt'], d.get( 'ro', True ) )
     if k == 'tuple':
         return _make_conv_tuple( [ _make_conv( e, classes ) for e in d['items'] ] )
     if k == 'obj':
@@ -583,10 +635,10 @@ def _typestr( d, mode ):
         return 'str'
     if k == 'none':
         return 'object' if mode == 'cbret' else 'None'
-    if k in ( 'arr', 'vec' ):
+    if k == 'vec':
         return ( 'bytes | bytearray | memoryview | numpy.typing.ArrayLike'
                  if d['dt'] == 'u8' else 'numpy.typing.ArrayLike' )
-    if k in ( 'copy', 'view' ):
+    if k in ( 'arr', 'copy', 'view' ):
         return _annot_dtypes[d['dt']]
     if k == 'tuple':
         return 'tuple[%s]'%', '.join( _typestr( e, mode ) for e in d['items'] )

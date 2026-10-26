@@ -6,6 +6,7 @@
 #include <cstring>
 #include <limits>
 #include <numeric>
+#include <stdexcept>
 
 namespace {
   double add( double a, double b ) { return a + b; }
@@ -34,6 +35,40 @@ namespace {
       s += c;
     return s;
   }
+  //Sum of array of any element type (as double):
+  template<class T>
+  double tsum( sbldpy::NumpyView<const T> v )
+  {
+    double s = 0.0;
+    for ( auto x : v )
+      s += static_cast<double>( x );
+    return s;
+  }
+  //Writable arrays (filled with 0, 1, 2, ...):
+  template<class T>
+  void tfill( sbldpy::NumpyView<T> v )
+  {
+    for ( std::size_t i = 0; i < v.size(); ++i )
+      v[i] = static_cast<T>( i );
+  }
+  //Writable array handed over once, and filled in subsequent calls (the Python
+  //code keeps the array alive):
+  class Filler {
+  public:
+    void attach( sbldpy::NumpyView<std::int32_t> buf ) { m_buf = buf; }
+    std::int64_t fill( std::int64_t n )
+    {
+      if ( static_cast<std::size_t>( n + 1 ) > m_buf.size() )
+        throw std::length_error( "buffer too small" );
+      m_buf[0] = static_cast<std::int32_t>( n );
+      for ( std::int64_t i = 0; i < n; ++i )
+        m_buf[i+1] = static_cast<std::int32_t>( ++m_count );
+      return n;
+    }
+  private:
+    sbldpy::NumpyView<std::int32_t> m_buf{ nullptr, 0 };
+    std::int32_t m_count = 0;
+  };
   sbldpy::NumpyCopy<float> linspace( double a, double b, std::int64_t n )
   {
     std::vector<float> v;
@@ -169,6 +204,24 @@ SBLDPY_MODULE( feat )
   m.def( "sum", &sum );
   m.def( "isum", &isum );
   m.def( "bsum", &bsum );
+  m.def( "sum_f32", &tsum<float> );
+  m.def( "sum_i8", &tsum<std::int8_t> );
+  m.def( "sum_i16", &tsum<std::int16_t> );
+  m.def( "sum_i32", &tsum<std::int32_t> );
+  m.def( "sum_u16", &tsum<std::uint16_t> );
+  m.def( "sum_u32", &tsum<std::uint32_t> );
+  m.def( "sum_u64", &tsum<std::uint64_t> );
+  m.def( "fill_f64", &tfill<double> );
+  m.def( "fill_f32", &tfill<float> );
+  m.def( "fill_i8", &tfill<std::int8_t> );
+  m.def( "fill_i32", &tfill<std::int32_t> );
+  m.def( "fill_i64", &tfill<std::int64_t> );
+  m.def( "fill_u8", &tfill<std::uint8_t> );
+  m.def( "fill_u64", &tfill<std::uint64_t> );
+  m.add_class<Filler>( "Filler" )
+    .def_init<>()
+    .def( "attach", &Filler::attach, { "buf" } )
+    .def( "fill", &Filler::fill, { "n" } );
   m.def( "linspace", &linspace );
   m.def( "ints", &ints );
   m.def( "rawbytes", &rawbytes );

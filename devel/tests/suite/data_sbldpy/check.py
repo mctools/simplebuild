@@ -81,43 +81,88 @@ def check_basic():
     assert 'Callable[[float], float]' in str( inspect.signature( feat.integrate ) )
 
 def check_arrays():
-    #Input arrays (does not need numpy):
-    assert feat.sum( [ 1, 2, 3.5 ] ) == 6.5 and feat.sum( ( 1.0, ) ) == 1.0 and feat.sum( [] ) == 0.0
-    assert feat.sum( array.array( 'd', [ 1, 2 ] ) ) == 3.0
-    assert feat.sum( memoryview( array.array( 'd', [ 1, 2, 3, 4 ] ) )[::2] ) == 4.0
-    assert feat.sum( ( x * 0.5 for x in range( 4 ) ) ) == 3.0
-    expect( TypeError, feat.sum, array.array( 'f', [ 1, 2 ] ), match = 'got format "f"' )
-    expect( TypeError, feat.sum, 'abc' )
-    expect( TypeError, feat.sum, [ 1, 'a' ] )
-    expect( TypeError, feat.sum, 5 )
-    assert feat.isum( [ 1, 2, 3 ] ) == 6 and feat.isum( array.array( 'q', [ 2**62, 2**62 - 1 ] ) ) == 2**63 - 1
-    expect( TypeError, feat.isum, [ 1.5 ] )
-    expect( TypeError, feat.isum, [ True ] )
-    expect( TypeError, feat.isum, array.array( 'i', [ 1 ] ) )
-    assert feat.bsum( b'\x01\x02' ) == 3 and feat.bsum( bytearray( b'\x05' ) ) == 5
-    assert feat.bsum( memoryview( b'\x07\x01' ) ) == 8 and feat.bsum( [ 255, 1 ] ) == 256
-    assert feat.bsum( b'' ) == 0
-    expect( ValueError, feat.bsum, [ 256 ] )
-    expect( TypeError, feat.bsum, array.array( 'd', [ 1 ] ) )
+    #Only numpy arrays are accepted, and errors for anything else do not need
+    #numpy (and give hints about how to convert):
+    hint = 'numpy.asarray(x, dtype=numpy.float64)'
+    expect( TypeError, feat.sum, [ 1, 2, 3.5 ], match = 'expected numpy.float64 array, got list' )
+    expect( TypeError, feat.sum, [ 1, 2, 3.5 ], match = hint )
+    expect( TypeError, feat.sum, ( 1.0, ), match = 'got tuple' )
+    expect( TypeError, feat.sum, array.array( 'd', [ 1, 2 ] ), match = hint )
+    expect( TypeError, feat.sum, memoryview( array.array( 'd', [ 1, 2 ] ) ), match = hint )
+    expect( TypeError, feat.sum, 'abc', match = hint )
+    expect( TypeError, feat.sum, 5, match = hint )
+    expect( TypeError, feat.isum, [ 1 ], match = 'numpy.asarray(x, dtype=numpy.int64)' )
+    for b in ( b'\x01', bytearray( b'\x01' ) ):
+        expect( TypeError, feat.bsum, b, match = 'numpy.frombuffer(x, dtype=numpy.uint8)' )
+    expect( TypeError, feat.sum_i32, [ 1 ], match = 'numpy.asarray(x, dtype=numpy.int32)' )
+    expect( TypeError, feat.fill_i32, [ 0, 0 ], match = 'numpy.zeros(n, dtype=numpy.int32)' )
 
 def check_numpy():
     import numpy as np
-    assert feat.sum( np.arange( 4.0 ) ) == 6.0 and feat.sum( np.arange( 10.0 )[::2] ) == 20.0
+    assert feat.sum( np.arange( 4.0 ) ) == 6.0 and feat.sum( np.zeros( 0 ) ) == 0.0
     ro = np.arange( 3.0 )
     ro.flags.writeable = False
-    assert feat.sum( ro ) == 3.0 and feat.sum( np.zeros( 0 ) ) == 0.0
-    expect( TypeError, feat.sum, np.arange( 3, dtype = np.float32 ), match = 'expected float64, got float32' )
+    assert feat.sum( ro ) == 3.0
+    #Numpy scalars and subclasses of numpy arrays:
+    expect( TypeError, feat.sum, np.float64( 1.0 ), match = 'expected numpy.float64 array, got float64' )
+    class Sub( np.ndarray ):
+        pass
+    assert feat.sum( np.arange( 3.0 ).view( Sub ) ) == 3.0
+    #Wrong element types, dimensions or memory layout (never converted):
+    expect( TypeError, feat.sum, np.arange( 3, dtype = np.float32 ),
+            match = 'wrong element type (expected numpy.float64, got float32)' )
+    expect( TypeError, feat.sum, np.arange( 3, dtype = np.float32 ), match = 'x.astype(numpy.float64)' )
+    expect( TypeError, feat.sum, np.zeros( ( 2, 2 ) ), match = 'one-dimensional array (got 2 dimensions)' )
+    expect( TypeError, feat.sum, np.zeros( ( 2, 2 ) ), match = 'x.ravel()' )
+    expect( TypeError, feat.sum, np.arange( 10.0 )[::2], match = 'not C-contiguous' )
+    expect( TypeError, feat.sum, np.arange( 10.0 )[::-1], match = 'numpy.ascontiguousarray(x)' )
+    assert feat.sum( np.arange( 10.0 )[3:5] ) == 7.0 and feat.sum( np.arange( 10.0 )[::20] ) == 0.0
     #Explicit byte order (as e.g. used by NCrystal) works when it is the native one:
     native, other = ( '<', '>' ) if sys.byteorder == 'little' else ( '>', '<' )
     assert feat.sum( np.arange( 4.0, dtype = native+'f8' ) ) == 6.0
     assert feat.isum( np.arange( 5, dtype = native+'i8' ) ) == 10
     expect( TypeError, feat.sum, np.arange( 4.0, dtype = other+'f8' ), match = 'wrong element type' )
-    expect( TypeError, feat.sum, np.zeros( ( 2, 2 ) ), match = 'one-dimensional' )
-    assert feat.isum( np.arange( 5 ) ) == 10
+    assert feat.isum( np.arange( 5, dtype = np.int64 ) ) == 10
     expect( TypeError, feat.isum, np.arange( 5, dtype = np.int32 ) )
     expect( TypeError, feat.isum, np.arange( 5, dtype = np.uint64 ) )
-    assert feat.bsum( np.array( [ 1, 2 ], dtype = np.uint8 ) ) == 3
+    assert feat.bsum( np.array( [ 1, 255 ], dtype = np.uint8 ) ) == 256
+    assert feat.bsum( np.frombuffer( b'\x01\x02', dtype = np.uint8 ) ) == 3
     expect( TypeError, feat.bsum, np.array( [ 1, 2 ], dtype = np.int8 ) )
+    expect( TypeError, feat.sum_i8, np.array( [ True ] ) )
+    #All element types:
+    for fct, dt in ( ( feat.sum_f32, np.float32 ), ( feat.sum_i8, np.int8 ), ( feat.sum_i16, np.int16 ),
+                     ( feat.sum_i32, np.int32 ), ( feat.sum_u16, np.uint16 ), ( feat.sum_u32, np.uint32 ),
+                     ( feat.sum_u64, np.uint64 ) ):
+        assert fct( np.arange( 1, 5, dtype = dt ) ) == 10.0
+        expect( TypeError, fct, np.arange( 4.0 ), match = 'x.astype(numpy.%s)'%np.dtype( dt ).name )
+    assert feat.sum_i8( np.array( [ -128, 127 ], dtype = np.int8 ) ) == -1.0
+    assert feat.sum_u64( np.array( [ 2**64 - 1 ], dtype = np.uint64 ) ) == float( 2**64 - 1 )
+    #Writable arrays:
+    for fct, dt in ( ( feat.fill_f64, np.float64 ), ( feat.fill_f32, np.float32 ), ( feat.fill_i8, np.int8 ),
+                     ( feat.fill_i32, np.int32 ), ( feat.fill_i64, np.int64 ), ( feat.fill_u8, np.uint8 ),
+                     ( feat.fill_u64, np.uint64 ) ):
+        a = np.full( 4, 7, dtype = dt )
+        assert fct( a ) is None and a.tolist() == [ 0, 1, 2, 3 ]
+        fct( np.zeros( 0, dtype = dt ) )
+        part = np.full( 6, 7, dtype = dt )
+        fct( part[1:4] )
+        assert part.tolist() == [ 7, 0, 1, 2, 7, 7 ]
+        e = expect( TypeError, fct, np.arange( 4.0 ) if dt != np.float64 else np.arange( 4 ),
+                    match = 'wrong element type' )
+        assert 'numpy.zeros(n, dtype=numpy.%s)'%np.dtype( dt ).name in str( e )
+        assert 'astype' not in str( e )
+    ro = np.zeros( 3, dtype = np.int32 )
+    ro.flags.writeable = False
+    expect( TypeError, feat.fill_i32, ro, match = 'array is read-only' )
+    expect( TypeError, feat.fill_i32, np.zeros( 6, dtype = np.int32 )[::2], match = 'not C-contiguous' )
+    expect( TypeError, feat.fill_i32, np.zeros( ( 2, 2 ), dtype = np.int32 ), match = 'one-dimensional' )
+    #Array allocated in Python, handed to C++ once, and filled by subsequent calls:
+    f = feat.Filler()
+    buf = np.zeros( 5, dtype = np.int32 )
+    f.attach( buf )
+    assert f.fill( 2 ) == 2 and buf[:3].tolist() == [ 2, 1, 2 ]
+    assert f.fill( 4 ) == 4 and buf.tolist() == [ 4, 3, 4, 5, 6 ]
+    expect( ValueError, f.fill, 5, match = 'buffer too small' )
     assert feat.iadd( np.int32( 5 ), np.int64( 6 ) ) == 11 and feat.add( np.float32( 0.5 ), np.int64( 1 ) ) == 1.5
     expect( TypeError, feat.negate, np.bool_( False ) )
     expect( TypeError, feat.iadd, np.bool_( True ), 1 )
