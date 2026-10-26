@@ -52,7 +52,7 @@ def proj( tmp_path_factory ):
         #sbldpy.hh, so all internal names there must be long enough):
         'PkgG/pymod_globnames/mod.cc' : ( '#define SBLDPY_TEST_NO_PRAGMAS\n'
                                         'namespace Units {\n'
-                                        + ''.join( '  constexpr double %s = 1.0;\n'%n for n in _shortnames )
+                                        + ''.join( '  inline constexpr double %s = 1.0;\n'%n for n in _shortnames )
                                         + '}\n'
                                         + ''.join( 'using Units::%s;\n'%n for n in _shortnames )
                                         + '#include "sbldpy/sbldpy.hh"\n'
