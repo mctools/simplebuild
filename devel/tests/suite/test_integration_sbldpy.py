@@ -25,10 +25,13 @@ _files = {
                                   'SBLDPY_MODULE( small ) { m.def( "value", []() { return 1; } ); }\n' ),
 }
 
-#All one and two letter names, which might be global variables in user code:
+#All one and two letter names, which might be global variables in user code
+#(except keywords, and functions in the global namespace of the C library):
 _letters = [ chr( i ) for i in range( ord( 'a' ), ord( 'z' ) + 1 ) ]
 _shortnames = _letters + [ a + b for a in _letters for b in _letters
-                           if a + b not in ( 'do', 'if', 'or' ) ]
+                           if a + b not in ( 'do', 'if', 'or', 'jn', 'yn' ) ]
+_stdheaders = [ 'array', 'atomic', 'cstdint', 'cstdio', 'exception', 'memory', 'new',
+                'stdexcept', 'string', 'tuple', 'type_traits', 'utility', 'vector' ]
 
 def _have_numpy():
     try:
@@ -49,8 +52,11 @@ def proj( tmp_path_factory ):
         'PkgG/pkg.info' : 'package()\n',
         #Global variables named like the module object or other short names
         #must not trigger -Wshadow errors (also without the pragmas in
-        #sbldpy.hh, so all internal names there must be long enough):
+        #sbldpy.hh, so all internal names there must be long enough). The
+        #standard headers are included first, since some of the names clash
+        #with names in the C library (e.g. tm or jn):
         'PkgG/pymod_globnames/mod.cc' : ( '#define SBLDPY_TEST_NO_PRAGMAS\n'
+                                        + ''.join( '#include <%s>\n'%h for h in _stdheaders ) +
                                         'namespace Units {\n'
                                         + ''.join( '  inline constexpr double %s = 1.0;\n'%n for n in _shortnames )
                                         + '}\n'
