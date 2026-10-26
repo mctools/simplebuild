@@ -139,10 +139,6 @@ namespace sbldpy {
     template<class T>
     constexpr bool is_dtype_v = ( std::is_same_v<T,double> || std::is_same_v<T,float>
                                   || is_ret_int_v<T> );
-    //Element types of std::vector objects returned from Python callbacks:
-    template<class T>
-    constexpr bool is_cbvec_dtype_v = ( std::is_same_v<T,double> || is_param_int_v<T>
-                                        || std::is_same_v<T,std::uint8_t> );
 
     template<class T>
     void append_dtype( std::string& out )
@@ -254,9 +250,10 @@ namespace sbldpy {
   //the Python object is kept alive until the last copy dies. Only plain data
   //is passed (copied): Parameters can be integers, floating point numbers,
   //bools, strings, tuples and NumpyCopy objects. Return values can be void,
-  //std::int64_t, double, bool, std::string, tuples, std::vector<double>,
-  //std::vector<std::int64_t> and std::vector<std::uint8_t>. If the Python
-  //callable raises an exception, a sbldpy::CallbackError is thrown.
+  //std::int64_t, double, bool, std::string, tuples and std::vector<T> (where
+  //the Python callable must return a numpy array, with the same requirements
+  //as for NumpyView<const T> parameters). If the Python callable raises an
+  //exception, a sbldpy::CallbackError is thrown.
   template<class Signature> class Callback;
 
   template<class R, class... Args>
@@ -445,9 +442,9 @@ namespace sbldpy {
         static_assert( !std::is_integral_v<T> || std::is_same_v<T,bool> || is_param_int_v<T>,
                        "sbldpy: integers can only be returned from callbacks as std::int64_t" );
         if constexpr ( is_vector<T>::value )
-          static_assert( is_cbvec_dtype_v<typename T::value_type>,
-                         "sbldpy: only std::vector<double>, std::vector<std::int64_t> and"
-                         " std::vector<std::uint8_t> can be returned from callbacks" );
+          static_assert( is_dtype_v<typename T::value_type>,
+                         "sbldpy: std::vector<T> can only be returned from callbacks if T is a"
+                         " fixed width integer type, float or double" );
         if constexpr ( is_tuple_like_v<T> ) {
           static_assert( std::tuple_size_v<T> > 0, "sbldpy: empty tuples are not supported" );
           for_each_type<T>( []( auto * ptr ) { check_cbret<std::remove_pointer_t<decltype(ptr)>>(); } );
@@ -455,8 +452,7 @@ namespace sbldpy {
         static_assert( std::is_same_v<T,double> || std::is_same_v<T,bool> || is_param_int_v<T>
                        || std::is_same_v<T,std::string> || is_vector<T>::value || is_tuple_like_v<T>,
                        "sbldpy: unsupported callback return type (only std::int64_t, double, bool,"
-                       " std::string, tuples and std::vector<double|std::int64_t|std::uint8_t>"
-                       " are supported)" );
+                       " std::string, tuples and std::vector are supported)" );
       }
       return true;
     }

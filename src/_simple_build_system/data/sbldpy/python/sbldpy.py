@@ -133,41 +133,22 @@ def _conv_cstr( v ):
         raise ValueError( 'string can not contain null characters' )
     return _conv_str( v )
 
-#Byte order characters of struct format strings (as used by memoryview.format),
-#which are compatible with the native byte order:
-_native_byteorder_chars = ( '@', '=', '<' ) if _sys.byteorder == 'little' else ( '@', '=', '>', '!' )
-_arr_formats = { 'f64' : ( 'd', ), 'i64' : ( 'q', 'l' ), 'u8' : ( 'B', 'c' ) }
-_arr_descr = { 'f64' : 'float64', 'i64' : 'int64', 'u8' : 'uint8' }
-
-def _arr_elem_conv( dt ):
-    if dt == 'f64':
-        return _to_f64
-    if dt == 'i64':
-        return _to_i64
-    def to_u8( v ):
-        v = _to_i64( v )
-        if not ( 0 <= v <= 255 ):
-            raise ValueError( 'byte values must be in range 0..255' )
-        return v
-    return to_u8
-
 def _is_numpy_array( v ):
     #Without importing numpy:
     return any( c.__name__ == 'ndarray' and c.__module__ == 'numpy' for c in type( v ).__mro__ )
 
 def _make_conv_arr( dt, readonly ):
-    #Array parameters: Only numpy arrays which can be used directly (without
-    #any conversion or copying) are accepted:
+    #Arrays passed to C++ (as parameters or callback return values): Only numpy
+    #arrays which can be used directly (without any conversion or copying) are
+    #accepted:
     ctype, npname, _ = _dtypes[dt]
     itemsize = _ct.sizeof( ctype )
-    kind = 'f' if dt[0] == 'f' else dt[0]
-    typestrs = ( '|%s1'%kind, ) if itemsize == 1 else ( '%s%s%i'%( bo, kind, itemsize )
-                                                        for bo in _native_byteorder_chars
-                                                        if bo in '<>' )
-    typestrs = frozenset( typestrs )
+    #Expected __array_interface__ typestr (e.g. '<f8' or '|u1'):
+    typestr = '%s%s%i'%( '|' if itemsize == 1 else ( '<' if _sys.byteorder == 'little' else '>' ),
+                         dt[0], itemsize )
     if readonly:
         def fail( problem, hint ):
-            raise TypeError( '%s (convert the argument with e.g. %s)'%( problem, hint ) )
+            raise TypeError( '%s (convert with e.g. %s)'%( problem, hint ) )
     else:
         def fail( problem, hint ):
             raise TypeError( '%s (this argument is filled by the C++ code, so allocate a'
@@ -182,7 +163,7 @@ def _make_conv_arr( dt, readonly ):
             fail( 'expected numpy.%s array, got %s'%( npname, _typename( v ) ),
                   'numpy.asarray(x, dtype=numpy.%s)'%npname )
         ai = v.__array_interface__
-        if ai['typestr'] not in typestrs:
+        if ai['typestr'] != typestr:
             fail( 'array has wrong element type (expected numpy.%s, got %s)'%( npname, v.dtype ),
                   'x.astype(numpy.%s)'%npname )
         shape = ai['shape']
@@ -198,72 +179,6 @@ def _make_conv_arr( dt, readonly ):
         res.data = data if shape[0] else None
         res.size = shape[0]
         res._keep = v
-        return res
-    return conv
-
-def _make_conv_vec( dt ):
-    #Values returned from Python callbacks, to be copied into std::vector
-    #objects:
-    formats = _arr_formats[dt]
-    itemsize = 1 if dt == 'u8' else 8
-    ctype = _dtypes[dt][0]
-    elemconv = _arr_elem_conv( dt )
-    def conv( v ):
-        if isinstance( v, str ):
-            raise TypeError( 'expected array, got str' )
-        res = _ArrArg()
-        if dt == 'u8' and isinstance( v, bytes ):
-            #No copy (the bytes object is kept alive by the c_char_p):
-            p = _ct.c_char_p( v )
-            res.data = _ct.cast( p, _ct.c_void_p )
-            res.size = len( v )
-            res._keep = p
-            return res
-        try:
-            mv = memoryview( v )
-        except TypeError:
-            mv = None
-        if mv is not None:
-            fmt = mv.format
-            if fmt[:1] in _native_byteorder_chars or mv.itemsize == 1:
-                fmt = fmt.lstrip( '@=<>!' )
-            if fmt not in formats or mv.itemsize != itemsize:
-                got = getattr( v, 'dtype', None )
-                got = str( got ) if got is not None else 'format "%s"'%mv.format
-                raise TypeError( 'array has wrong element type (expected %s, got %s)'%( _arr_descr[dt], got ) )
-            if mv.ndim != 1:
-                raise TypeError( 'expected one-dimensional array (got %i dimensions)'%mv.ndim )
-            n = mv.shape[0]
-            if n == 0:
-                res.data, res.size = None, 0
-                return res
-            if not mv.c_contiguous:
-                mv = memoryview( bytearray( mv.tobytes() ) ).cast( 'B' ).cast( mv.format )
-            ai = getattr( v, '__array_interface__', None ) if mv.obj is v else None
-            if ai is not None and mv.c_contiguous:
-                #numpy arrays (also read-only ones), without copying:
-                res.data = ai['data'][0]
-                res._keep = v
-            elif not mv.readonly:
-                buf = ( _ct.c_char * mv.nbytes ).from_buffer( mv )
-                res.data = _ct.addressof( buf )
-                res._keep = buf
-            else:
-                buf = ( _ct.c_char * mv.nbytes ).from_buffer_copy( mv )
-                res.data = _ct.addressof( buf )
-                res._keep = buf
-            res.size = n
-            return res
-        try:
-            elems = [ elemconv( e ) for e in v ]
-        except TypeError as e:
-            if not hasattr( v, '__iter__' ):
-                raise TypeError( 'expected array, got %s'%_typename( v ) )
-            raise TypeError( 'invalid array element: %s'%e )
-        buf = ( ctype * len( elems ) )( *elems )
-        res.data = _ct.addressof( buf ) if elems else None
-        res.size = len( elems )
-        res._keep = buf
         return res
     return conv
 
@@ -360,7 +275,7 @@ def _cbret_writer( d, info ):
                 b = _to_str( v ).encode( 'utf-8' )
                 return b, len( b ), b
         else:
-            arrconv = _make_conv_vec( d['dt'] )
+            arrconv = _make_conv_arr( d['dt'], True )
             def getdata( v ):
                 a = arrconv( v )
                 return a.data, a.size, a
@@ -635,10 +550,7 @@ def _typestr( d, mode ):
         return 'str'
     if k == 'none':
         return 'object' if mode == 'cbret' else 'None'
-    if k == 'vec':
-        return ( 'bytes | bytearray | memoryview | numpy.typing.ArrayLike'
-                 if d['dt'] == 'u8' else 'numpy.typing.ArrayLike' )
-    if k in ( 'arr', 'copy', 'view' ):
+    if k in ( 'arr', 'vec', 'copy', 'view' ):
         return _annot_dtypes[d['dt']]
     if k == 'tuple':
         return 'tuple[%s]'%', '.join( _typestr( e, mode ) for e in d['items'] )

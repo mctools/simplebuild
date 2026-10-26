@@ -219,8 +219,9 @@ destroyed. Only plain data is passed (and copied): The parameters can be
 integers (of any type up to 64 bits), ``float``, ``double``, ``bool``,
 ``std::string``, ``const char*``, tuples of those, and ``sbldpy::NumpyCopy`` objects. The return type
 can be ``void``, ``std::int64_t``, ``double``, ``bool``, ``std::string``,
-tuples of those, or ``std::vector`` of ``double``, ``std::int64_t`` or
-``std::uint8_t``.
+tuples of those, or ``std::vector<T>``. For the latter, the Python callable
+must return a numpy array with the same requirements as for array parameters
+(the data is copied into the ``std::vector``).
 
 .. code-block:: C++
 

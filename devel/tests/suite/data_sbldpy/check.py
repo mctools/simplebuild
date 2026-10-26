@@ -192,9 +192,17 @@ def check_numpy():
     del c, hw
     gc.collect()
     assert list( h ) == [ 42.0, 4.0 ]
-    assert feat.cbvec( lambda a : list( a ) + [ a.sum() ] ) == 4
-    assert feat.cbvec( lambda a : np.zeros( 10 ) ) == 10
+    #Callbacks returning std::vector (same requirements as array parameters):
+    assert feat.cbvec( lambda a : np.append( a, a.sum() ) ) == 4
+    assert feat.cbvec( lambda a : np.zeros( 10 ) ) == 10 and feat.cbvec( lambda a : np.zeros( 0 ) ) == 0
     assert feat.cbbytes( lambda : np.array( [ 1, 2 ], dtype = np.uint8 ) ) == 3
+    assert feat.cbbytes( lambda : np.frombuffer( b'\x01\x02\x03', dtype = np.uint8 ) ) == 6
+    expect( TypeError, feat.cbvec, lambda a : np.zeros( 3, dtype = np.float32 ), match = 'x.astype(numpy.float64)' )
+    expect( TypeError, feat.cbvec, lambda a : np.zeros( 6 )[::2], match = 'not C-contiguous' )
+    #Returned data must be kept alive until it has been copied (with arrays of
+    #various sizes, freed memory would likely be reused):
+    for n in range( 1, 300 ):
+        assert feat.cbbytes( lambda : np.ones( n, dtype = np.uint8 ) ) == n
 
 def check_classes():
     c = feat.Counter( 5 )
@@ -257,11 +265,11 @@ def check_callbacks():
     assert feat.cbtup( lambda t : ( t[0] * 2, str( t[1] ) ) ) == ( 14, '0.5' )
     expect( TypeError, feat.cbtup, lambda t : ( 1, 2 ) )
     expect( TypeError, feat.cbtup, lambda t : ( 1, ) )
-    assert feat.cbbytes( lambda : b'\x01\x02\x03' ) == 6 and feat.cbbytes( lambda : [ 1 ] ) == 1
-    #Returned data must be kept alive until it has been copied (with lists of
-    #various sizes, freed memory would likely be reused):
-    for n in range( 1, 300 ):
-        assert feat.cbbytes( lambda : [ 1 ] * n ) == n
+    #Only numpy arrays can be returned for std::vector (tested further in
+    #check_numpy):
+    expect( TypeError, feat.cbbytes, lambda : b'\x01', match = 'numpy.frombuffer(x, dtype=numpy.uint8)' )
+    expect( TypeError, feat.cbbytes, lambda : [ 1 ], match = 'numpy.asarray(x, dtype=numpy.uint8)' )
+    expect( TypeError, feat.cbvec, lambda a : list( a ), match = 'numpy.asarray(x, dtype=numpy.float64)' )
     assert feat.cbbool( lambda i : i == 1 ) is True
     expect( TypeError, feat.cbbool, lambda i : 1 )
     #Exceptions swallowed by the C++ code are discarded:
