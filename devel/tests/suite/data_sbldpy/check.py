@@ -199,6 +199,7 @@ def check_numpy():
     assert feat.cbbytes( lambda : np.frombuffer( b'\x01\x02\x03', dtype = np.uint8 ) ) == 6
     expect( TypeError, feat.cbvec, lambda a : np.zeros( 3, dtype = np.float32 ), match = 'x.astype(numpy.float64)' )
     expect( TypeError, feat.cbvec, lambda a : np.zeros( 6 )[::2], match = 'not C-contiguous' )
+    expect( TypeError, feat.cbvec, lambda a : list( a ), match = 'numpy.asarray(x, dtype=numpy.float64)' )
     #Returned data must be kept alive until it has been copied (with arrays of
     #various sizes, freed memory would likely be reused):
     for n in range( 1, 300 ):
@@ -266,10 +267,10 @@ def check_callbacks():
     expect( TypeError, feat.cbtup, lambda t : ( 1, 2 ) )
     expect( TypeError, feat.cbtup, lambda t : ( 1, ) )
     #Only numpy arrays can be returned for std::vector (tested further in
-    #check_numpy):
+    #check_numpy, also with std::vector arguments which are passed as numpy
+    #arrays):
     expect( TypeError, feat.cbbytes, lambda : b'\x01', match = 'numpy.frombuffer(x, dtype=numpy.uint8)' )
     expect( TypeError, feat.cbbytes, lambda : [ 1 ], match = 'numpy.asarray(x, dtype=numpy.uint8)' )
-    expect( TypeError, feat.cbvec, lambda a : list( a ), match = 'numpy.asarray(x, dtype=numpy.float64)' )
     assert feat.cbbool( lambda i : i == 1 ) is True
     expect( TypeError, feat.cbbool, lambda i : 1 )
     #Exceptions swallowed by the C++ code are discarded:
