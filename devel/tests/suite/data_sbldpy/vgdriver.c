@@ -9,6 +9,7 @@
 typedef const char * (*InfoFct)( void );
 typedef int (*CallFct)( int, void **, void * );
 typedef struct { const char * data; int64_t size; } StrData;
+typedef struct { const void * data; int64_t size; } ArrData;
 
 static int func_id( const char * info, const char * name )
 {
@@ -38,12 +39,14 @@ int main( int argc, char ** argv )
   int id_strvalue = func_id( info, "strvalue" );
   int id_fail = func_id( info, "fail" );
   int id_make_counter = func_id( info, "make_counter" );
+  int id_fill_i32 = func_id( info, "fill_i32" );
   const char * counter_info = strstr( info, "{\"name\":\"Counter\"" );
   const char * dtor_pos = counter_info ? strstr( counter_info, "\"dtor\":" ) : NULL;
   int id_counter_dtor = -1;
   if ( dtor_pos && sscanf( dtor_pos + 7, "%d", &id_counter_dtor ) != 1 )
     id_counter_dtor = -1;
-  if ( id_strvalue < 0 || id_fail < 0 || id_make_counter < 0 || id_counter_dtor < 0 )
+  if ( id_strvalue < 0 || id_fail < 0 || id_make_counter < 0 || id_counter_dtor < 0
+       || id_fill_i32 < 0 )
     return 1;
   /* String argument and result (kept alive in the result slot): */
   const char * text = "a string which is long enough to be heap allocated";
@@ -51,6 +54,12 @@ int main( int argc, char ** argv )
   StrData res = { NULL, 0 };
   void * args[1] = { &arg };
   if ( call_fct( id_strvalue, args, &res ) != 0 || res.size != arg.size )
+    return 1;
+  /* Writable array filled by C++: */
+  int32_t buf[4] = { 7, 7, 7, 7 };
+  ArrData abuf = { buf, 4 };
+  void * aargs[1] = { &abuf };
+  if ( call_fct( id_fill_i32, aargs, NULL ) != 0 || buf[0] != 0 || buf[3] != 3 )
     return 1;
   /* Object created by C++ and deleted (as done when the Python object dies): */
   int64_t start = 5;

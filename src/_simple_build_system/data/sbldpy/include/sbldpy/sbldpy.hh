@@ -135,13 +135,13 @@ namespace sbldpy {
     template<class T>
     constexpr bool is_param_int_v = is_ret_int_v<T> && std::is_signed_v<T> && sizeof(T) == 8;
 
-    //Element types of numpy arrays:
+    //Element types of numpy arrays (passed in either direction):
     template<class T>
     constexpr bool is_dtype_v = ( std::is_same_v<T,double> || std::is_same_v<T,float>
                                   || is_ret_int_v<T> );
-    //Element types of arrays received from Python:
+    //Element types of std::vector objects returned from Python callbacks:
     template<class T>
-    constexpr bool is_input_dtype_v = ( std::is_same_v<T,double> || is_param_int_v<T>
+    constexpr bool is_cbvec_dtype_v = ( std::is_same_v<T,double> || is_param_int_v<T>
                                         || std::is_same_v<T,std::uint8_t> );
 
     template<class T>
@@ -211,11 +211,14 @@ namespace sbldpy {
 
   //One-dimensional view of array data, without copying.
   //
-  //As a parameter (only as NumpyView<const double>, NumpyView<const
-  //std::int64_t> or NumpyView<const std::uint8_t>), it provides access to
-  //data passed from Python (numpy arrays, other objects with the buffer
-  //protocol of the correct type, or lists). The data is only valid during
-  //the call.
+  //As a parameter, it provides access to the data of a numpy array passed from
+  //Python, which must be one-dimensional, C-contiguous and have exactly the
+  //element type T (nothing is ever converted or copied). With a non-const T
+  //(e.g. NumpyView<std::int32_t>), the C++ code can write into the array, which
+  //must then be writable. The data is guaranteed to be valid during the call.
+  //The pointer can be kept and used after the call only if the Python code
+  //keeps the array alive and does not resize it in the meantime (e.g. for a
+  //buffer allocated once by a Python wrapper and filled by repeated calls).
   //
   //As a return value (only from methods of classes), it becomes a numpy
   //array referring directly to the data (read-only if T is const), which
@@ -358,12 +361,8 @@ namespace sbldpy {
                        "sbldpy: std::vector is not supported as parameter type (use sbldpy::NumpyView<const T>)" );
         static_assert( !is_numpy_copy<U>::value,
                        "sbldpy: NumpyCopy is not supported as parameter type (use sbldpy::NumpyView<const T>)" );
-        if constexpr ( is_numpy_view<U>::value ) {
+        if constexpr ( is_numpy_view<U>::value )
           static_assert( !in_tuple, "sbldpy: tuples can not contain NumpyView objects" );
-          static_assert( U::is_readonly && is_input_dtype_v<typename U::value_type>,
-                         "sbldpy: arrays can only be received as NumpyView<const double>,"
-                         " NumpyView<const std::int64_t> or NumpyView<const std::uint8_t>" );
-        }
         if constexpr ( is_callback<U>::value )
           static_assert( !in_tuple, "sbldpy: tuples can not contain callbacks" );
         if constexpr ( is_tuple_like_v<U> ) {
@@ -446,7 +445,7 @@ namespace sbldpy {
         static_assert( !std::is_integral_v<T> || std::is_same_v<T,bool> || is_param_int_v<T>,
                        "sbldpy: integers can only be returned from callbacks as std::int64_t" );
         if constexpr ( is_vector<T>::value )
-          static_assert( is_input_dtype_v<typename T::value_type>,
+          static_assert( is_cbvec_dtype_v<typename T::value_type>,
                          "sbldpy: only std::vector<double>, std::vector<std::int64_t> and"
                          " std::vector<std::uint8_t> can be returned from callbacks" );
         if constexpr ( is_tuple_like_v<T> ) {
@@ -518,7 +517,7 @@ namespace sbldpy {
       } else if constexpr ( is_numpy_view<U>::value ) {
         out += "{\"k\":\"arr\",\"dt\":\"";
         append_dtype<typename U::value_type>( out );
-        out += "\"}";
+        out += U::is_readonly ? "\",\"ro\":true}" : "\",\"ro\":false}";
       } else if constexpr ( is_tuple_like_v<U> ) {
         append_tuple<U>( out, []( std::string& ostr, auto * ptr ) { desc_param<std::remove_pointer_t<decltype(ptr)>>( ostr ); } );
       } else if constexpr ( is_callback<U>::value ) {
@@ -625,7 +624,9 @@ namespace sbldpy {
         return std::string( sdata->data, static_cast<std::size_t>(sdata->size) );
       } else if constexpr ( is_numpy_view<U>::value ) {
         auto adata = static_cast<const ArrData*>(ptr);
-        return U( static_cast<const typename U::value_type*>(adata->data), static_cast<std::size_t>(adata->size) );
+        //NB: The Python runtime only passes writable arrays for non-const views:
+        return U( static_cast<typename U::value_type*>( const_cast<void*>( adata->data ) ),
+                  static_cast<std::size_t>(adata->size) );
       } else if constexpr ( is_tuple_like_v<U> ) {
         return get_tuple<U>( static_cast<void**>(ptr), ctx, std::make_index_sequence<std::tuple_size_v<U>>{} );
       } else if constexpr ( is_callback<U>::value ) {
