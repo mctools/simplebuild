@@ -12,7 +12,7 @@ dependencies:
   - numpy
   - zlib
   - sphinx>=7.2.6
-  - sphinx_rtd_theme>=1.3.0
+  - sphinx-book-theme>=1.1.0
   - sphinx-argparse
   - sphinx-toolbox>=3.7.0
 #  - myst-parser>=2.0.0
