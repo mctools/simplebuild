@@ -49,4 +49,5 @@ relevant parts of the documentation.
    Conda <https://anaconda.org/conda-forge/simple-build-system>
    Issue tracker <https://github.com/mctools/simplebuild/issues>
    license.rst
+   Logo <https://github.com/mctools/simplebuild-logo>
    dgcode <https://mctools.github.io/simplebuild-dgcode>
