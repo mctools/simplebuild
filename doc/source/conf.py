@@ -46,35 +46,22 @@ linkcheck_ignore = ['./cmdline.html#new-bundle-initialisation-options']
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output #noqa E501
 
-html_theme = 'sphinx_rtd_theme'
+html_theme = 'sphinx_book_theme'
 html_static_path = ['_static']
-#html_logo = 'icon/favicon-32x32.png'
-html_favicon = 'icon/favicon-32x32.png'
-#html_sidebars = { '**': ['globaltoc.html', 'searchbox.html'] }
-
+html_title = 'simplebuild'
+#The logo and favicon (see _static/README.md):
+html_favicon = '_static/favicon.svg'
 html_theme_options = {
-    'logo_only': False,
-#    'collapse_navigation' : False,
-    'sticky_navigation': True, #sidebar stays in place while contents scrolls
+    'repository_url' : 'https://github.com/mctools/simplebuild',
+    'use_repository_button' : True,
     'navigation_with_keys': True, #navigate with left/right arrow keys
-    #'github_url' : 'https://github.com/mctools/simplebuild',
+    #(The search field is in the sidebar, so the header should not have
+    #another one, which it otherwise has by default:)
+    'navbar_persistent' : [],
+    'logo' : { 'image_light' : '_static/simplebuild-logo.svg',
+               'image_dark' : '_static/simplebuild-logo-dark.svg',
+               'alt_text' : 'simplebuild' },
 }
-
-#html_theme_options = {
-#    'logo': 'icon/android-chrome-192x192.png',
-#    # etc.
-#}
-#
-
-#html_sidebars = { '**': ['globaltoc.html', 'relations.html',
-#                         'sourcelink.html', 'searchbox.html'] }
-
-#html_theme_options = {
-#    ...
-#    "home_page_in_toc": True
-#    ...
-#}
-#
 
 #Fix env:
 os.environ['PYTHONUNBUFFERED'] = '1'
