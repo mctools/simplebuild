@@ -224,7 +224,7 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
               f' (build.max_cachedirs={envcfg.var.build_max_cachedirs}):'
               f' {cd.name()}')
 
-    if envcfg.var.extra_cflags or envcfg.var.extra_ldflags:
+    if ( envcfg.var.extra_cflags or envcfg.var.extra_ldflags ) and not envcfg.var.flagset:
         if not opt.query_mode:
             _ = envcfg.var.extra_flags_summary_string
             error.warn(f'The simplebuild cfg file specifies extra flags ({_}).'
@@ -682,9 +682,7 @@ def _rerun_and_rebuild_fcts( lockfile_content ):
         #Rebuild in a child process (with the same build variant), letting it
         #use the lock we are holding:
         from . import variant
-        vf = variant.selected()
-        args = ( [ vf.mode_flag() ] if vf.mode else [] ) + (
-            [ '-x' ] if vf.ignore_extra_flags else [] )
+        args = variant.selected().as_args()
         code = ( 'import sys; sys.argv[0] = "sb"; from'
                  ' _simple_build_system._cli import main; main()' )
         env = dict( os.environ )

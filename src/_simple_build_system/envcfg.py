@@ -74,6 +74,14 @@ def _build_cfg():
     build_mode = vflags.mode or main_cfg.build_mode
     if vflags.ignore_extra_flags:
         extra_cflags, extra_ldflags = tuple(), tuple()
+    elif vflags.flagset:
+        _fs = main_cfg.build_flagsets.get( vflags.flagset )
+        if _fs is None:
+            from . import error
+            _avail = ', '.join( sorted( main_cfg.build_flagsets ) ) or '<none>'
+            error.error(f'Unknown flag set "{vflags.flagset}" requested with -X (the'
+                        f' build.flagsets table in {main_cfg_file} defines: {_avail})')
+        extra_cflags, extra_ldflags = _fs
     else:
         extra_cflags = main_cfg.build_extra_cflags
         extra_ldflags = main_cfg.build_extra_ldflags
@@ -121,7 +129,11 @@ def _build_cfg():
                                                    extra_ldflags )
 
     #For the summary and warnings (None means no line in the summary):
-    if extra_cflags or extra_ldflags:
+    if vflags.flagset:
+        _ = variant.extra_flags_description( extra_cflags, extra_ldflags )
+        _extra_flags_summary_string = ( f'flag set "{vflags.flagset}" (-X)'
+                                        + ( f'  {_}' if _ else '' ) )
+    elif extra_cflags or extra_ldflags:
         _extra_flags_summary_string = variant.extra_flags_description(
             extra_cflags, extra_ldflags )
     elif vflags.ignore_extra_flags:
@@ -174,6 +186,8 @@ def _build_cfg():
         extra_cflags = _extra_cflags
         extra_ldflags = _extra_ldflags
         extra_flags_summary_string = _extra_flags_summary_string
+        #Name of the flag set selected with -X (or None):
+        flagset = vflags.flagset
 
     return EnvCfg()
 

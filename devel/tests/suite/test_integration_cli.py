@@ -12,8 +12,8 @@ def test_version( tmp_path ):
 @pytest.mark.parametrize( 'cmd, expected', [
     ( 'sb --help', 'Selecting the build variant:' ),
     ( 'sb --init --help', 'New bundle initialisation mode' ),
-    ( 'sbenv --help', 'usage: sbenv [-h] [-d|-r|-g] [-x] <program> [args]' ),
-    ( 'sbrun --help', 'usage: sbrun [-h] [-d|-r|-g] [-x] <program> [args]' ),
+    ( 'sbenv --help', 'usage: sbenv [-h] [-d|-r|-g] [-x|-X NAME] <program> [args]' ),
+    ( 'sbrun --help', 'usage: sbrun [-h] [-d|-r|-g] [-x|-X NAME] <program> [args]' ),
 ] )
 def test_help( tmp_path, cmd, expected ):
     assert expected in run( cmd, tmp_path ).stdout

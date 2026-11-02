@@ -87,6 +87,13 @@
   #   extra_cflags = '-ffp-contract=off'
   #   extra_ldflags = ['-Wl,--as-needed']
   #
+  # Named sets of extra flags can be selected with the -X flag (e.g. "sb -X
+  # fma" or "sbrun -X fma mycmd") instead of extra_cflags and extra_ldflags,
+  # for instance to compare results from several sets of flags:
+  #
+  #   flagsets.fma.extra_cflags = '-mfma'
+  #   flagsets.nocontract.extra_cflags = '-ffp-contract=off'
+  #
   # At most 5 combinations of mode and extra flags are kept in the cache
   # directory (removing the least recently used ones when needed). To keep a
   # different number of them (from 1 to 20) use:

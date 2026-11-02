@@ -47,6 +47,9 @@ class TestBuildVariants:
     def test_env_setup( self, bvmod ):
         bvmod.test_env_setup()
 
+    def test_flagsets( self, bvmod ):
+        bvmod.test_flagsets()
+
     def test_max_cachedirs( self, bvmod ):
         bvmod.test_max_cachedirs()
 
