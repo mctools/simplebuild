@@ -19,7 +19,7 @@ def _handle_env_setup( args ):
             variant.select( res[0] )
         else:
             raise SystemExit('Error: Do not use --env-setup with other'
-                             ' arguments than -d, -r, -g, or -x!')
+                             ' arguments than -d, -r, -g, -x, or -X NAME!')
         from . import io as _io
         _io.make_quiet()
         from .envsetup import emit_envsetup
@@ -120,8 +120,8 @@ Runs <program> within the simplebuild runtime environment. Note that if you wish
 to make sure the codebase has been built first (with simplebuild) you should use
 sbrun rather than sbenv.
 
-The flags -d, -r, -g, and -x can be used to select the build variant, exactly as
-for the sb command (see "sb --help"). They must be placed before <program>,
+The flags -d, -r, -g, -x, and -X NAME can be used to select the build variant,
+exactly as for the sb command (see "sb --help"). They must be placed before <program>,
 since all arguments after it are passed on to <program>.
 """
 
@@ -129,15 +129,15 @@ _sbrun_descr = """
 Runs the simplebuild 'sb' command (quietly) and if it finishes successfully,
 then proceeds to launch <program> within the simplebuild runtime environment.
 
-The flags -d, -r, -g, and -x can be used to select the build variant, exactly as
-for the sb command (see "sb --help"). They must be placed before <program>,
+The flags -d, -r, -g, -x, and -X NAME can be used to select the build variant,
+exactly as for the sb command (see "sb --help"). They must be placed before <program>,
 since all arguments after it are passed on to <program>.
 """
 
 def _parse_launcher_args( progname, args, descr ):
     if not args:
         #Backwards compatible special case:
-        print(f'Usage:\n\n{progname} [-d|-r|-g] [-x] <program> [args]\n'
+        print(f'Usage:\n\n{progname} [-d|-r|-g] [-x|-X NAME] <program> [args]\n'
               + descr)
         raise SystemExit(111)
     from .variant import parse_launcher_args
@@ -178,11 +178,7 @@ def sbrun_main():
                                                      _sbrun_descr )
     from . import io as _io
     _io.make_quiet()
-    sbargs = ['sb','--quiet']
-    if vflags.mode:
-        sbargs.append( vflags.mode_flag() )
-    if vflags.ignore_extra_flags:
-        sbargs.append( '-x' )
+    sbargs = ['sb','--quiet'] + vflags.as_args()
     from . import frontend
     try:
         frontend.simplebuild_main( argv = sbargs, prevent_env_setup_msg = True )

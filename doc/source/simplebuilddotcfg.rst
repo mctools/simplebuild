@@ -183,8 +183,31 @@ bundle which is simply being used by another bundle, will be completely ignored.
 * ``extra_ldflags`` (string or array of string): Like ``extra_cflags``, but for
   flags which should be used when linking libraries and executables.
 
+* ``flagsets`` (table): Named sets of extra flags, any of which can be selected
+  with the ``-X NAME`` flag of ``sb``, ``sbrun``, and ``sbenv`` (see
+  :ref:`build variants <sbbuildvariants>`). The selected set is then used
+  *instead of* ``extra_cflags`` and ``extra_ldflags``. Each set can have the
+  keys ``extra_cflags`` and ``extra_ldflags``, with values as described above.
+  This makes it easy to compare results from several sets of flags, for
+  instance to check that results do not depend on the contraction of floating
+  point operations:
+
+  .. code-block:: toml
+
+    [build]
+      mode = 'reldbg'
+      flagsets.fma.extra_cflags = '-mfma'
+      flagsets.nocontract.extra_cflags = '-ffp-contract=off'
+      flagsets.ubsan.extra_cflags = '-fsanitize=undefined'
+      flagsets.ubsan.extra_ldflags = '-fsanitize=undefined'
+
+  Here, ``sb -X fma`` and ``sb -X nocontract`` build the two variants in
+  separate cache directories, and for instance ``sbrun -X fma mycmd`` runs a
+  command with one of them. The names of the sets can only contain letters,
+  digits, underscores and dashes (and can not start with a dash).
+
 * ``max_cachedirs`` (integer): The maximum number of build variants (i.e. a
-  given build mode, with or without extra flags) for which build output is
+  given build mode, with or without extra flags or a flag set) for which build output is
   kept in the cache directory. When more are needed, the least recently used
   ones are removed. The value must be from 1 to 20, and the default is 5.
 

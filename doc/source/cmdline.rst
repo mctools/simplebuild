@@ -23,9 +23,13 @@ following flags for selecting a different build variant:
 * ``-g``: Use build mode ``reldbg``.
 * ``-d``: Use build mode ``debug``.
 * ``-x``: Ignore any ``extra_cflags`` and ``extra_ldflags`` from the cfg file.
+* ``-X NAME``: Use the extra flags of the flag set ``NAME`` from the
+  ``flagsets`` table of the ``[build]`` section of the cfg file, instead of
+  ``extra_cflags`` and ``extra_ldflags``.
 
 At most one of ``-r``, ``-g``, and ``-d`` can be used, but they can be combined
-with ``-x``, e.g. ``sb -dx`` or ``sb -d -x``. For ``sbrun`` and ``sbenv``, the
+with ``-x`` or ``-X NAME``, e.g. ``sb -dx``, ``sb -d -x``, ``sb -dX fma``, or
+``sb -d -X fma``. The ``-x`` and ``-X`` flags can not be used together. For ``sbrun`` and ``sbenv``, the
 flags must be placed before the command to run, since all arguments after it
 are passed on to that command. For instance, in ``sbrun -d mycmd -x`` the
 ``-d`` selects the debug build variant, while ``-x`` is passed on to ``mycmd``.

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 
-# Test of build variants: the build.extra_cflags, build.extra_ldflags, and
-# build.max_cachedirs cfg options, the -d/-r/-g/-x flags of sb, sbrun, and
-# sbenv, and the management of cache directories for the various variants.
+# Test of build variants: the build.extra_cflags, build.extra_ldflags,
+# build.flagsets, and build.max_cachedirs cfg options, the -d/-r/-g/-x/-X flags
+# of sb, sbrun, and sbenv, and the management of cache directories for the
+# various variants.
 #
 # Run from an empty directory, with simplebuild installed (it uses the sb,
 # sbrun, sbenv, and unwrapped_simplebuild commands from PATH).
@@ -317,7 +318,7 @@ def test_launchers():
     require_in( 'Usage:', out )
     for cmd in ( 'sbenv -h', 'sbrun --help' ):
         out = run( cmd )
-        require_in( '[-d|-r|-g] [-x] <program> [args]', out )
+        require_in( '[-d|-r|-g] [-x|-X NAME] <program> [args]', out )
 
 def test_determinism():
     print('\n========== Testing determinism ==========')
@@ -360,6 +361,70 @@ def test_env_setup():
     require( not out, 'Old shell snippet error emitted output on stdout' )
     require_in( 'outdated version of the "sb" shell function', err )
     require_in( 'unwrapped_simplebuild --env-setup-after-build', err )
+
+def test_flagsets():
+    print('\n========== Testing build.flagsets and -X ==========')
+    for bad, errmsg in [ ( "flagsets = 17", 'expected a table of named flag sets' ),
+                         ( "flagsets = { a = 1 }", 'expected a table with the keys' ),
+                         ( "flagsets = { a = { cflags = '-O2' } }", 'Invalid key "cflags"' ),
+                         ( "flagsets = { 'a b' = {} }", 'Invalid flag set name "a b"' ),
+                         ( "flagsets = { a = { extra_cflags = '$(X)' } }", 'Unsupported flag' ) ]:
+        write_cfg( [ bad ] )
+        out = run( 'sb --env-setup', expect_ec = 1 )
+        require_in( errmsg, out )
+    write_cfg( [ "extra_cflags = '-DVARIANTSTEST_CFLAG=7'",
+                 "flagsets.fma.extra_cflags = '-ffp-contract=fast -DVARIANTSTEST_CFLAG=8'",
+                 "flagsets.same.extra_cflags = '-DVARIANTSTEST_CFLAG=7'",
+                 'flagsets.empty = {}',
+                 "flagsets.nocontract.extra_cflags = ['-ffp-contract=off','-DVARIANTSTEST_CFLAG=9']",
+                 "flagsets.nocontract.extra_ldflags = '-Wl,-rpath,/variantstest/dummy'" ] )
+    for cmd, expected in [
+            ( 'sbrun sb_mypkg_test', 'cflag=7 debug=0 args:' ),
+            ( 'sbrun -X fma sb_mypkg_test', 'cflag=8 debug=0 args:' ),
+            ( 'sbrun -Xnocontract sb_mypkg_test -X a', 'cflag=9 debug=0 args: -X a' ),
+            ( 'sbrun -dXfma sb_mypkg_test', 'cflag=8 debug=1 args:' ),
+            ( 'sbenv -X fma -d sb_mypkg_test', 'cflag=8 debug=1 args:' ),
+            ( 'sbrun -X empty sb_mypkg_test', 'cflag=0 debug=0 args:' ) ]:
+        out = run( cmd )
+        require( app_output( out ) == f'VARIANTSTEST {expected}',
+                 f'Wrong app output from "{cmd}"' )
+    #Summary and cache dirs:
+    out = run( 'sb -X nocontract' )
+    require( summary_line( out, 'Extra flags' ) == ( 'flag set "nocontract" (-X)  extra_cflags:'
+                                                     ' -ffp-contract=off -DVARIANTSTEST_CFLAG=9'
+                                                     '  extra_ldflags: -Wl,-rpath,/variantstest/dummy' ),
+             'Wrong extra flags in summary' )
+    require_not_in( 'Use "sb -x" to build without them', out )
+    require_in( '-ffp-contract=off', makefile_content( summary_line( out, 'Build directory' ).split('/')[-1] ) )
+    out = run( 'sb -X empty' )
+    require( summary_line( out, 'Extra flags' ) == 'flag set "empty" (-X)',
+             'Wrong extra flags in summary for empty flag set' )
+    #A flag set with the same flags as build.extra_cflags is the same variant:
+    def prefix( flags ):
+        m = re.search( r'SBLD_INSTALL_PREFIX=(\S+)', run( f'sb {flags} --env-setup' ) )
+        require( m, 'No SBLD_INSTALL_PREFIX in --env-setup output' )
+        return pathlib.Path(m.group(1).strip('\'"')).name
+    require( prefix( '-X same' ) == prefix( '' ), 'Flag set with same flags gave different variant' )
+    require( prefix( '-X empty' ) == prefix( '-x' ) == 'install', 'Empty flag set not like -x' )
+    require( prefix( '-X fma' ) != prefix( '' ), 'Flag set used the same variant as default' )
+    require( prefix( '-dX fma' ).startswith( 'install_debug_xf' ), 'Wrong variant for -dX fma' )
+    #The hidden flag used by the shell snippet after builds:
+    ec, out, err = run_split( 'unwrapped_simplebuild --env-setup-after-build -q -X fma -t' )
+    require( ec == 0 and not err and f'/{prefix("-X fma")}' in out, 'Wrong env setup after build with -X' )
+    #Errors:
+    out = run( 'sb -X nosuchset', expect_ec = 1 )
+    require_in( 'Unknown flag set "nosuchset"', out )
+    require_in( 'defines: empty, fma, nocontract, same', out )
+    out = run( 'sbenv -X nosuchset sb_mypkg_test', expect_ec = 1 )
+    require_in( 'Unknown flag set "nosuchset"', out )
+    out = run( 'sb -x -X fma', expect_ec = 2 )
+    require_in( 'not allowed with argument', out )
+    out = run( 'sbrun -X fma -x sb_mypkg_test', expect_ec = 2 )
+    require_in( 'not allowed with argument', out )
+    out = run( 'sb --env-setup -X', expect_ec = 1 )
+    require_in( 'Do not use --env-setup with other arguments', out )
+    out = run( 'sb -X a.b', expect_ec = 1 )
+    require_in( 'Invalid flag set name "a.b"', out )
 
 def test_max_cachedirs():
     print('\n========== Testing build.max_cachedirs ==========')
@@ -432,6 +497,7 @@ def main():
     test_launchers()
     test_determinism()
     test_env_setup()
+    test_flagsets()
     test_max_cachedirs()
     print('\nAll build variant tests completed successfully!')
 

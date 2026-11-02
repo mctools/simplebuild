@@ -294,6 +294,35 @@ def _generate_toml_schema():
                             ' https://github.com/mctools/simplebuild/issues')
         return tuple(res)
 
+    def decode_flagsets( ctx : TOMLSchemaDecodeContext, item ):
+        #Table of named sets of extra flags, which can be selected with the -X
+        #flag instead of build.extra_cflags and build.extra_ldflags. Each set is
+        #a table which can have the keys extra_cflags and extra_ldflags (with
+        #values as for build.extra_cflags and build.extra_ldflags):
+        from .variant import is_valid_flagset_name
+        if not isinstance( item, dict ):
+            error.error(f'Invalid value "{item}" for item {ctx.item_name} (expected a table of named flag sets) in {ctx.src_descr}')
+        res = {}
+        item_name = ctx.item_name
+        for name, fs in item.items():
+            if not is_valid_flagset_name( name ):
+                error.error(f'Invalid flag set name "{name}" in item {item_name} in {ctx.src_descr} (names can'
+                            ' only contain letters, digits, underscores and dashes, and can not start with a dash)')
+            if not isinstance( fs, dict ):
+                error.error(f'Invalid value "{fs}" for flag set "{name}" in item {item_name} (expected a table'
+                            f' with the keys extra_cflags and/or extra_ldflags) in {ctx.src_descr}')
+            unknown = set(fs.keys()) - set(['extra_cflags','extra_ldflags'])
+            if unknown:
+                error.error(f'Invalid key "{sorted(unknown)[0]}" for flag set "{name}" in item {item_name} (only'
+                            f' extra_cflags and extra_ldflags are allowed) in {ctx.src_descr}')
+            flags = {}
+            for k in ('extra_cflags','extra_ldflags'):
+                ctx.set_item_name(f'{item_name}.{name}.{k}')
+                flags[k] = decode_flags( ctx, fs.get(k,[]) )
+            res[name] = ( flags['extra_cflags'], flags['extra_ldflags'] )
+        ctx.set_item_name( item_name )
+        return res
+
     def decode_max_cachedirs( ctx : TOMLSchemaDecodeContext, item ):
         if isinstance(item,bool) or not isinstance(item,int) or not ( 1 <= item <= 20 ):
             error.error(f'Invalid value "{item}" for item {ctx.item_name} (must be an integer from 1 to 20) in {ctx.src_descr}')
@@ -356,6 +385,7 @@ def _generate_toml_schema():
                                    #cmake_flags = (decode_is_list_of_nonempty_str,[]),
                                    extra_cflags = (decode_flags,[]),
                                    extra_ldflags = (decode_flags,[]),
+                                   flagsets = (decode_flagsets,{}),
                                    max_cachedirs = (decode_max_cachedirs,5),
                                    #relaxed_compilation = (decode_is_bool,False),
                                   ),
