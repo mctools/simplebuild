@@ -87,9 +87,19 @@ def print_report( blddir, nshow ):
     for s in steps:
         pkgtimes[s.pkgname] = pkgtimes.get( s.pkgname, 0.0 ) + s.seconds
     slowest_pkgs = sorted( pkgtimes.items(), key = lambda e : ( -e[1], e[0] ) )[:5]
-    print( 'Slowest packages: ' + ', '.join( '%s (%s)'%( n, _fmt(t) )
-                                              for n, t in slowest_pkgs ) )
-    print( 'Total time of all steps: %s (the actual time of a build is shorter when'
-           ' several steps run in parallel, while timings might be inflated when'
-           ' the parallel steps compete for resources).'%_fmt( total ) )
+    #Wrap the text, so the lines (including the "sbld: " prefix and the space
+    #added after it) fit in 80 characters:
+    import textwrap
+    from .io import print_prefix
+    def print_wrapped( text ):
+        for line in textwrap.wrap( text, width = 80 - len(print_prefix) - 1,
+                                   break_long_words = False,
+                                   break_on_hyphens = False ):
+            print( line )
+    print_wrapped( 'Slowest packages: ' + ', '.join( '%s (%s)'%( n, _fmt(t) )
+                                                     for n, t in slowest_pkgs ) )
+    print_wrapped( 'Total time of all steps: %s (the actual time of a build is'
+                   ' shorter when several steps run in parallel, while timings'
+                   ' might be inflated when the parallel steps compete for'
+                   ' resources).'%_fmt( total ) )
     print()
