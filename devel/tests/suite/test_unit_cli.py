@@ -44,10 +44,26 @@ def test_help_has_variant_group( capsys ):
         assert f'\n  {flag}  ' in out
 
 @pytest.mark.parametrize( 'args', [ ['-c','-t'], ['--grep','foo','-c'],
-                                    ['--version','-s'] ] )
+                                    ['--version','-s'],
+                                    ['--grepi','foo','--find','bar'],
+                                    ['--findi','foo','-t'] ] )
 def test_exclusive_options( args ):
     with pytest.raises( SystemExit ):
         sbargs( *args )
+
+def test_query_variants():
+    o = sbargs( '--grep', 'Foo' )
+    assert ( o.grep, o.grepc, o.query_ignorecase ) == ( 'Foo', False, False )
+    o = sbargs( '--grepi', 'Foo' )
+    assert ( o.grep, o.grepc, o.query_ignorecase ) == ( 'Foo', False, True )
+    o = sbargs( '--grepc', 'Foo' )
+    assert ( o.grep, o.grepc, o.query_ignorecase ) == ( 'Foo', True, False )
+    o = sbargs( '--grepci', 'Foo' )
+    assert ( o.grep, o.grepc, o.query_ignorecase ) == ( 'Foo', True, True )
+    o = sbargs( '--find', 'Foo' )
+    assert ( o.find, o.query_ignorecase ) == ( 'Foo', False )
+    o = sbargs( '--findi', 'Foo' )
+    assert ( o.find, o.query_ignorecase ) == ( 'Foo', True )
 
 def test_init_args():
     o = sbargs( '--init', 'core_val', 'DEBUG', 'COMPACT', 'CACHEDIR::/a/b',
