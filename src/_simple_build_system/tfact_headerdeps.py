@@ -21,6 +21,8 @@ class TargetIncDep(target_base.Target):
         #deal with the private dependencies as well as public deps to same pkg
         #here, postpone the other public ones until setup() when other packages are available.
         self.__pklfile=dirs.pkg_cache_dir(pkg,('%s__group%i'%(subdir,igroup) if isgroup else '%s__%s'%(subdir,fn)))
+        self._srcfiles = [ ( dirs.pkg_dir(pkg,subdir,f), f'{pkg.name}/{subdir}/{f}' )
+                           for f in (sorted(fn) if isgroup else [fn]) ]
         self.deps=[dirs.makefile_blddir(self.__pklfile)]
         for f in (fn if isgroup else [fn]):
             self.deps += [dirs.makefile_pkg_dir(pkg,subdir,f)]#only actual file dependencies
@@ -34,6 +36,8 @@ class TargetIncDep(target_base.Target):
             incs=db.db['pkg2inc'][pkg.name]
             self.deps += ['%s__libinc__%s'%(p,f) for (p,f) in pub if (p==self.pkgname and f in incs)]
             self._pub = [(p,f) for (p,f) in pub if p!=self.pkgname]
+            includes.check_mapped_includes( pkg, self._srcfiles,
+                                            [(p,f) for (p,f) in pub if (p==self.pkgname and f not in incs)] )
         else:
             self._pub=None
 
@@ -43,6 +47,8 @@ class TargetIncDep(target_base.Target):
             p2i=db.db['pkg2inc']
             d=pkg.deps_names()
             self.deps+=['%s__libinc__%s'%(p,f) for (p,f) in self._pub if (p in d and f in p2i.get(p,[]))]
+            includes.check_mapped_includes( pkg, self._srcfiles,
+                                            [(p,f) for (p,f) in self._pub if not (p in d and f in p2i.get(p,[]))] )
         pklcont=set(self.deps[self._pkloffset:])
         utils.mkdir_p(os.path.dirname(self.__pklfile))
         utils.update_pkl_if_changed(pklcont,self.__pklfile)

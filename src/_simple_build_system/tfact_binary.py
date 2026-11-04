@@ -98,7 +98,8 @@ class TargetBinaryObject(target_base.Target):
                    'touch %s.tstart'%self.name,
                    obj_create_cmd]
 
-        priv,pub = includes.find_includes(dirs.pkg_dir(pkg,subdir,fn),pkg)
+        self._srcfile = ( dirs.pkg_dir(pkg,subdir,fn), f'{pkg.name}/{subdir}/{fn}' )
+        priv,pub = includes.find_includes(self._srcfile[0],pkg)
 
         # NOTE THAT FOLLOWING LINES OF CODE ARE SIMILAR TO ONES IN tfact_headerdeps.py !!!
 
@@ -114,6 +115,8 @@ class TargetBinaryObject(target_base.Target):
             incs=db.db['pkg2inc'][pkg.name]
             self.deps += [dirs.makefile_named_target('%s__libinc__%s'%(p,f)) for (p,f) in pub if (p==self.pkgname and f in incs)]
             self._pub = [(p,f) for (p,f) in pub if p!=self.pkgname]
+            includes.check_mapped_includes( pkg, [self._srcfile],
+                                            [(p,f) for (p,f) in pub if (p==self.pkgname and f not in incs)] )
         else:
             self._pub=None
 
@@ -126,6 +129,8 @@ class TargetBinaryObject(target_base.Target):
             p2i=db.db['pkg2inc']
             d=pkg.deps_names()
             self.deps+=[dirs.makefile_named_target('%s__libinc__%s'%(p,f)) for (p,f) in self._pub if (p in d and f in p2i.get(p,[]))]
+            includes.check_mapped_includes( pkg, [self._srcfile],
+                                            [(p,f) for (p,f) in self._pub if not (p in d and f in p2i.get(p,[]))] )
         pklcont=set(self.deps[self._pkloffset:])
         utils.mkdir_p(os.path.dirname(self.__pklfile))
         utils.update_pkl_if_changed(pklcont,self.__pklfile)

@@ -12,21 +12,27 @@ def _get_raw_includes( path ):
 
 def read_text_mapped_include_statements( path, includemap_list ):
     #Finds raw include statements in the input file, maps them according to the
-    #include map, and produces fake output with the resulting mapped output in
-    #fake '#include "..."' lines.
+    #include maps (a list of (extdepname,includemap) pairs), and produces fake
+    #output with the resulting mapped output in fake '#include "..."' lines.
+    #Also returns a dictionary with the origin, (rawinclude,extdepname), of each
+    #mapped include. Lines with the sbld::nodep marker are ignored.
     raw_includes = []
     for line in utils.include_candidate_lines( path ):
+        if b'sbld::nodep' in line:
+            continue
         v = _include_extractor(line)
         if v:
             raw_includes.append(v.groups()[1].decode('utf8'))
 
     final = set()
+    origins = {}
     for r in sorted(set(raw_includes)):
-        for m in includemap_list:
+        for extdepname, m in includemap_list:
             mapped = m.get(r)
             if mapped:
                 #Just take the first one:
+                origins.setdefault( mapped, ( r, extdepname ) )
                 r = mapped
                 break
         final.add(r)
-    return ''.join('#include "%s"\n'%e for e in final)
+    return ''.join('#include "%s"\n'%e for e in final), origins

@@ -107,7 +107,9 @@ Information about the associated package bundle.
   (e.g. when ``sbenv`` is invoked in several terminals at the same time).
 
 * ``extdep_root`` (string): Path to a directory containing additional CMake
-  files for defining external dependencies (expert-only).
+  files for defining external dependencies (expert-only). An external
+  dependency defined like this can also provide an include map (see
+  :ref:`header files <sbpkgheaderfiles>`).
 
 The ``[depend]`` section
 ------------------------

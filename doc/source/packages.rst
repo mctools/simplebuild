@@ -143,6 +143,8 @@ and C99, respectively. Also note that in order to benefit maximally from the
 capabilities of modern compilers to detect problematic code, simplebuild
 enforces rather strict compilation flags, allows no warnings, etc.
 
+.. _sbpkgheaderfiles:
+
 Header files (C++/C)
 --------------------
 
@@ -154,6 +156,29 @@ other packages depending on your package by:
 .. code-block:: c++
 
   #include "PkgName/MyHeaderFile.hh"
+
+To know which files must be recompiled when a header file changes, simplebuild
+scans the source and header files for such ``#include "..."`` statements. The
+scan does not evaluate preprocessor conditions, so includes inside ``#if``
+blocks (or even in ``/* ... */`` comments) are always considered. If needed,
+an include statement can be excluded from this dependency tracking by putting
+the marker ``sbld::nodep`` on the same line, typically in a comment:
+
+.. code-block:: c++
+
+  #ifdef MYPKG_HAS_OPTIONAL_FEATURE
+  #  include "OtherPkg/Feature.hh" // sbld::nodep
+  #endif
+
+External dependencies can provide include maps (``ExtDep_<name>_INCLUDEMAPFILE``
+in the files below ``extdep_root``, see :ref:`here <sbdotcfg>`), which
+translate includes like ``#include "myproject/bar.hh"`` to package headers like
+``PkgB/bar.hh``, which are then dependency-tracked as usual. Since such headers
+are also found through the include directories of the external dependency, it
+is an error if a translated include is not to a header of the package itself or
+of one of the packages it depends on, as it would otherwise silently not be
+dependency-tracked. The error can be resolved by adding the missing dependency,
+by removing the include, or with the ``sbld::nodep`` marker.
 
 Shared libraries (C++/C)
 ------------------------
