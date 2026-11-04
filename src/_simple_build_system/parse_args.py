@@ -185,17 +185,37 @@ $> {_p} --init dgcode PKGFILTER::SomeFilter
 
     group_query.add_argument("--grep",action="store", dest="grep",
                              default='',metavar='PATTERN',
-                             help="Grep files in packages for PATTERN.")
+                             help=("Search the files in packages for lines"
+                                   " containing\nPATTERN. In PATTERN, '*'"
+                                   " matches any characters\nand '?' any"
+                                   " single character (or use a regular\n"
+                                   "expression after the prefix 'RE::')."
+                                   " Patterns without\nupper case letters"
+                                   " ignore case, other patterns are\ncase"
+                                   " sensitive."))
     exclusive.add('grep')
+    group_query.add_argument("--grepi",action="store", dest="grepi",
+                             default='',metavar='PATTERN',
+                             help="Like --grep but always ignore case.")
+    exclusive.add('grepi')
     group_query.add_argument("--grepc",action="store", dest="grepc",
                              default='',metavar='PATTERN',
                              help="Like --grep but show only count per package.")
     exclusive.add('grepc')
+    group_query.add_argument("--grepci",action="store", dest="grepci",
+                             default='',metavar='PATTERN',
+                             help="Like --grepc but always ignore case.")
+    exclusive.add('grepci')
     group_query.add_argument("--find",action="store", dest="find",
                              default=None, metavar='PATTERN',
-                             help=("Search for file and path names"
-                                   " matching PATTERN."))
+                             help=("Search for files and directories in"
+                                   " packages\nwith paths matching PATTERN"
+                                   " (with the same\nsyntax as for --grep)."))
     exclusive.add('find')
+    group_query.add_argument("--findi",action="store", dest="findi",
+                             default=None, metavar='PATTERN',
+                             help="Like --find but always ignore case.")
+    exclusive.add('findi')
 
     #NB: Do not change the title in title in the next line without updating its
     #usage as anchor name in the sphinx documentation:
@@ -347,9 +367,17 @@ $> {_p} --init dgcode PKGFILTER::SomeFilter
         f2=list(present_exclusive)[1]
         parser.error(f'arguments {f1} and {f2} are mutually exclusive')
 
+    #The variants of --grep and --find:
+    args.query_ignorecase = bool( args.grepi or args.grepci or args.findi )
+    if args.grepi:
+        args.grep = args.grepi
+    if args.grepci:
+        args.grepc = args.grepci
     if args.grepc:
         args.grep=args.grepc
-        args.grepc=bool(args.grepc)
+    args.grepc=bool(args.grepc)
+    if args.findi:
+        args.find = args.findi
 
     if args.pkggraph_activeonly:
         args.pkggraph=True

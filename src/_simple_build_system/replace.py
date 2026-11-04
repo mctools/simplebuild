@@ -31,13 +31,12 @@ def replacefile(filename,printname,search_pattern,replace_pattern):
     return n
 
 def replace(pkg,search_pattern,replace_pattern,filenames):
-    from .grep import pkgfiles
+    from .grep import pkgfiles, is_selected
     import os
-    import pathlib
     pjoin=os.path.join
     n=0
     for f in pkgfiles(pkg):
-        if filenames and pathlib.Path(f) not in filenames:
+        if not is_selected( f, filenames ):
             continue
         n+=replacefile(pjoin(pkg.dirname,f),pjoin(pkg.name,f),search_pattern,replace_pattern)
     return n

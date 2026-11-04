@@ -86,6 +86,19 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
         print("FIXME: summary mode is not yet implemented!")
         raise SystemExit
 
+    if opt.grep or opt.find or opt.replace:
+        #Queries which only need to locate the packages, and therefore do not
+        #need the configuration step below:
+        from .query import run_query
+        try:
+            run_query( opt, parser )
+        except BrokenPipeError:
+            #Output piped to a command which exited early (e.g. "head"). Avoid
+            #further errors when Python flushes stdout at exit:
+            devnull = os.open( os.devnull, os.O_WRONLY )
+            os.dup2( devnull, sys.stdout.fileno() )
+        raise SystemExit
+
     _interactive_report = bool( opt.testreport and opt.testreport['interactive'] )
     if ( ( opt.reflogupdate or _interactive_report )
          and not ( sys.stdin.isatty() and sys.stdout.isatty() ) ):
@@ -372,80 +385,6 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
                         f'{"s" if nmissing!=1 else ""} were not '
                         f'present and enabled: {missinglist}')
 
-
-    def query_pkgs():
-        #returns list of (pkg,filenames) where filenames is None, or a list of
-        #the files in the pkg to search (e.g. ['pkg.info','pycpp_bla/mod.cc']
-        all_pkgs = list(sorted(pkgloader.pkgs))
-        if not opt.querypaths:
-            return [(p,None) for p in all_pkgs]
-        res=[]
-        for p in all_pkgs:
-            search_entire_package = False
-            filenames=[]
-            for qp in opt.querypaths:
-                assert isinstance(p.dirname,str)#fixme: to pathlib.Path
-                pdir = pathlib.Path(p.dirname)
-                if pdir == qp or utils.path_is_relative_to( pdir, qp ):
-                    search_entire_package = True
-                    break
-                if utils.path_is_relative_to( qp, pdir ):
-                    filenames.append( qp.relative_to(pdir) )
-            if search_entire_package:
-                res.append( (p, None) )
-            elif filenames:
-                res.append( (p, filenames) )
-        return res
-
-    if opt.grep:
-        qp = query_pkgs()
-        print("Grepping %i packages for pattern \"%s\""%(len(qp),opt.grep))
-        print()
-        n=0
-        from . import grep
-        for pkg,filenames in qp:
-            n += grep.grep( pkg,
-                            opt.grep,
-                            filenames = filenames,
-                            countonly = opt.grepc )
-        print()
-        print("Found %i matches"%n)
-        raise SystemExit
-
-    if opt.replace:
-        qp = query_pkgs()
-        pattern = opt.replace
-        from . import replace
-        search_pat, replace_pat = replace.decode_pattern(pattern)
-        if not search_pat:
-            parser.error("Bad syntax in replacement pattern: %s"%pattern)
-        print()
-        print("Replacing all \"%s\" with \"%s\""%(search_pat,replace_pat))
-        n = 0
-        for pkg,filenames in qp:
-            n += replace.replace( pkg,
-                                  search_pat,
-                                  replace_pat,
-                                  filenames = filenames )
-        print()
-        print("Performed %i replacements"%n)
-        raise SystemExit
-
-    if opt.find:
-        qp = query_pkgs()
-        pattern = opt.find
-        from . import find
-        print()
-        print("Finding files and paths matching \"%s\""%(opt.find))
-        print()
-        n = 0
-        for pkg,filenames in qp:
-            n += find.find( pkg,
-                            pattern = opt.find,
-                            filenames = filenames )
-        print()
-        print("Found %i matches"%n)
-        raise SystemExit
 
     if opt.includecosts is not None:
         from .includecosts import print_report as print_includecosts
