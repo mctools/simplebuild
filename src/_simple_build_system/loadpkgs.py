@@ -263,15 +263,23 @@ class Package:
             if not ll:
                 return col.darkgrey+'<none>'+col.end
             from . import formatlist
+            #(b is None for external dependencies which were not inspected):
             return '\n'.join(
                 formatlist.formatlist(
-                    [(n,col.ok if b else col.bad) for n,b in sorted(ll)],
+                    [(n,'' if b is None else (col.ok if b else col.bad))
+                     for n,b in sorted(ll)],
                     width-40,
                     indent_first='',
                     indent_others=print_prefix+' '*27)
             )
-        extdeps_direct = [(e,env.env['extdeps'][e]['present']) for e in self.direct_deps_extnames]
-        extdeps_indirect = [(e,env.env['extdeps'][e]['present']) for e in self.extdeps() if e not in self.direct_deps_extnames]
+        def _present( e ):
+            #(None if not known, since the environment was not inspected):
+            if env.env is None:
+                return None
+            _ = env.env['extdeps'].get(e)
+            return _['present'] if _ else False
+        extdeps_direct = [(e,_present(e)) for e in self.direct_deps_extnames]
+        extdeps_indirect = [(e,_present(e)) for e in self.extdeps() if e not in self.direct_deps_extnames]
         def nameformat(n):
             return n+'*' if n in autodeps else n
         clients_direct=[(nameformat(p.name),p.enabled) for p in self.direct_clients]
@@ -294,6 +302,9 @@ class Package:
         print('  Dependencies          : %s'%(_format(deps_indirect)))
         print('  Clients               : %s'%(_format(clients_indirect)))
         print('  External dependencies : %s'%(_format(extdeps_indirect)))
+        if env.env is None and ( extdeps_direct or extdeps_indirect ):
+            print('The presence of the external dependencies is not yet known.')
+            print('Run "sb -s -e" to inspect them.')
         print('='*len(l1))
 
 class PackageLoader:

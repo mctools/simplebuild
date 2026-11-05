@@ -205,7 +205,9 @@ $> {_p} --init dgcode PKGFILTER::SomeFilter
                                    "expression after the prefix 'RE::')."
                                    " Patterns without\nupper case letters"
                                    " ignore case, other patterns are\ncase"
-                                   " sensitive."))
+                                   " sensitive. For patterns starting with a"
+                                   "\ndash, use the form --grep=PATTERN (e.g."
+                                   "\n--grep=--force)."))
     exclusive.add('grep')
     group_query.add_argument("--grepi",action="store", dest="grepi",
                              default='',metavar='PATTERN',
@@ -281,6 +283,10 @@ $> {_p} --init dgcode PKGFILTER::SomeFilter
                                   ' timings in\nprevious runs), by skipping'
                                   ' the slowest tests.\nTests without previous'
                                   ' timings are always run.'))
+    group_test.add_argument("--failearly", action='store_true', dest="failearly",
+                            help=('Stop running tests as soon as one fails'
+                                  ' (tests\nwhich did not complete are'
+                                  ' reported as aborted).'))
     group_test.add_argument("--testexcerpts", type=int, dest="nexcerpts",
                             default=0,metavar="N",
                             help=("Print N first+last lines of failed test log"
@@ -342,6 +348,16 @@ $> {_p} --init dgcode PKGFILTER::SomeFilter
 
     if sphinx_mode:
         return parser
+    #Options with a value which might start with a dash (argparse only
+    #accepts such values in the --opt=VALUE form, so give a helpful error
+    #instead of its "expected one argument"):
+    _pattern_opts = ( '--grep', '--grepi', '--grepc', '--grepci',
+                      '--find', '--findi', '--replace' )
+    for _i, _a in enumerate( argv[1:-1], start = 1 ):
+        _next = argv[_i+1]
+        if _a in _pattern_opts and _next.startswith('-') and len(_next) > 1:
+            parser.error(f'Use the form {_a}={_next} for values starting'
+                         f' with a dash (got "{_a} {_next}")')
     args, args_unused = parser.parse_known_args(argv[1:])
     bad_unused=list(a for a in args_unused if a.startswith('-'))
     if bad_unused:
@@ -383,6 +399,8 @@ $> {_p} --init dgcode PKGFILTER::SomeFilter
         parser.error('--buildtimes requires a positive number')
     if args.includecosts is not None and args.includecosts < 1:
         parser.error('--includecosts requires a positive number')
+    if args.failearly and not args.runtests:
+        parser.error('--failearly can only be used when running tests (-t)')
     if args.testtime is not None:
         if not args.runtests:
             parser.error('--testtime can only be used when running tests (-t)')

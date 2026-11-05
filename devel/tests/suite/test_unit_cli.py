@@ -105,3 +105,14 @@ def test_clean_args():
     assert not sbargs().clean_present
     with pytest.raises( SystemExit ):
         sbargs( '-c', '-t' )
+
+def test_patterns_with_leading_dash( capsys ):
+    #Issue #74: argparse only accepts values starting with a dash in the
+    #--opt=VALUE form:
+    assert sbargs( '--grep=--force' ).grep == '--force'
+    assert sbargs( '--findi=-foo' ).find == '-foo'
+    for opt in ( '--grep', '--grepci', '--find', '--replace' ):
+        with pytest.raises( SystemExit ):
+            sbargs( opt, '--force' )
+        assert ( f'Use the form {opt}=--force for values starting with a dash'
+                 in capsys.readouterr().err )

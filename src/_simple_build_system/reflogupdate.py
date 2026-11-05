@@ -80,6 +80,8 @@ class Session:
         for r in results:
             if not r.has_reflog or not filter_fct( r.name ):
                 continue
+            if r.aborted:
+                continue
             if r.ec != 0:
                 self.nfailed_jobs += 1
                 continue
