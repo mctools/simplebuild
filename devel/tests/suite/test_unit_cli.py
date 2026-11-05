@@ -74,3 +74,34 @@ def test_init_args():
         sbargs( '--init', 'DEBUG', 'RELEASE' )
     with pytest.raises( SystemExit ):
         sbargs( '--init', 'Invalid-Name' )
+
+def test_summary_formats( capsys ):
+    for args, fmt in ( ( ['-s'], 'text' ), ( ['--summary'], 'text' ),
+                       ( ['-s','json'], 'json' ), ( ['-sjson'], 'json' ),
+                       ( ['-s=json'], 'json' ), ( ['--summary=json'], 'json' ),
+                       ( ['-s=text'], 'text' ) ):
+        assert sbargs( *args ).summary == fmt
+    assert sbargs().summary is None
+    with pytest.raises( SystemExit ):
+        sbargs( '-s=xml' )
+    assert 'Invalid format "xml" for --summary (valid formats are: text, json)' in capsys.readouterr().err
+
+def test_showcfg_args():
+    o = sbargs( '--showcfg' )
+    assert o.showcfg == '' and o.showcfg_present and o.query_mode
+    assert sbargs( '--showcfg', 'build.mode' ).showcfg == 'build.mode'
+    o = sbargs( '--showcfg', '-d', 'build.mode' )
+    assert o.showcfg == 'build.mode' and o.variant_mode == 'debug'
+    assert not sbargs().showcfg_present
+    with pytest.raises( SystemExit ):
+        sbargs( '--showcfg', '-s' )
+
+def test_clean_args():
+    o = sbargs( '-c' )
+    assert o.clean == '' and o.clean_present
+    o = sbargs( '-c', 'debug' )
+    assert o.clean == 'debug' and o.clean_present
+    assert sbargs( '--clean=ubsan' ).clean == 'ubsan'
+    assert not sbargs().clean_present
+    with pytest.raises( SystemExit ):
+        sbargs( '-c', '-t' )

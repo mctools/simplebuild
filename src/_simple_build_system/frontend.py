@@ -38,7 +38,9 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
         sys.stdout.write(_determine_version.determine_version()+'\n')
         raise SystemExit
 
-    if opt.quiet:
+    if opt.quiet or opt.summary or opt.showcfg_present:
+        #(the output of -s and --showcfg must not be mixed with other
+        #messages, e.g. from the inspection of the environment with -e):
         _io.make_quiet()
     if opt.verbose:
         _io.make_verbose()
@@ -82,22 +84,28 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
         from . import target_base
         target_base.need_commands_json_export = True
 
-    if opt.summary:
-        print("FIXME: summary mode is not yet implemented!")
-        raise SystemExit
-
-    if opt.grep or opt.find or opt.replace:
-        #Queries which only need to locate the packages, and therefore do not
-        #need the configuration step below:
-        from .query import run_query
+    def _handle_broken_pipe( fct ):
         try:
-            run_query( opt, parser )
+            fct()
         except BrokenPipeError:
             #Output piped to a command which exited early (e.g. "head"). Avoid
             #further errors when Python flushes stdout at exit:
             devnull = os.open( os.devnull, os.O_WRONLY )
             os.dup2( devnull, sys.stdout.fileno() )
         raise SystemExit
+
+    cfginfo_mode = bool( opt.summary or opt.showcfg_present )
+    if cfginfo_mode and not opt.examine:
+        #Inspection of the configuration, which does not need the
+        #configuration step below (the external dependencies are only shown
+        #if the environment was already inspected, or with -e):
+        _handle_broken_pipe( lambda : _show_cfginfo( opt, parser ) )
+
+    if opt.grep or opt.find or opt.replace:
+        #Queries which only need to locate the packages, and therefore do not
+        #need the configuration step below:
+        from .query import run_query
+        _handle_broken_pipe( lambda : run_query( opt, parser ) )
 
     _interactive_report = bool( opt.testreport and opt.testreport['interactive'] )
     if ( ( opt.reflogupdate or _interactive_report )
@@ -194,15 +202,35 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
         unlock()
         sys.exit(ec)
 
-    if opt.clean:
+    if opt.clean_present:
         #Remove the cache dirs of all build variants (not just the selected
-        #one):
+        #one), or with "-c NAME" those of the variants with the build mode or
+        #flag set NAME:
         dcache = envcfg.var.build_cachedir
-        removed, skipped = cachedirs.remove_all( dcache, dirs.blddir )
+        select = None
+        if opt.clean:
+            from . import variant
+            from .cfginfo import flagset_names
+            _modes = variant.reserved_flagset_names
+            _fsnames = sorted( envcfg.var.cfg_build_flagsets )
+            if opt.clean not in _modes and opt.clean not in _fsnames:
+                _ = ', '.join( list(_modes) + _fsnames )
+                parser.error(f'Invalid name "{opt.clean}" given to --clean (must be'
+                             f' a build mode or the name of a flag set: {_})')
+            def select( cd ):
+                #(the build dir of the selected variant must also be removed if
+                #it was only created for the lock file just now):
+                return ( cd.mode() == opt.clean or opt.clean in flagset_names( cd )
+                         or ( fresh_cachedir and cd.blddir == dirs.blddir ) )
+        removed, skipped = cachedirs.remove_all( dcache, dirs.blddir, select )
+        removed_existing = [ cd for cd in removed
+                             if not ( fresh_cachedir and cd.blddir == dirs.blddir ) ]
         if not opt.quiet:
-            if removed and not ( fresh_cachedir and len(removed)==1
-                                 and removed[0].blddir == dirs.blddir ):
+            if removed_existing and not opt.clean:
                 print("Removing temporary cache directories.")
+            elif removed_existing:
+                for cd in removed_existing:
+                    print(f"Removed cache directories: {cd.name()}")
             elif not skipped:
                 print("Nothing to clean. Exiting.")
         for cd in skipped:
@@ -333,11 +361,13 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
     error.default_error_type = error.Error
     try:
         pkgloader = backend.perform_cfg(select_filter=select_filter,
-                                        force_reconf=opt.examine,
+                                        force_reconf=( opt.examine
+                                                       and not cfginfo_mode ),
                                         load_all_pkgs = opt.query_mode,
                                         quiet=opt.quiet,
                                         verbose=opt.verbose,
-                                        export_jsoncmds = opt.export_jsoncmds)
+                                        export_jsoncmds = opt.export_jsoncmds,
+                                        env_only = cfginfo_mode )
     except error.CleanExit as ce:
         #errors already handled, exit directly:
         sys.exit(ce._the_ec)
@@ -366,6 +396,12 @@ def simplebuild_main( argv = None, prevent_env_setup_msg = False ):
         if unclean_exception:
             error.print_traceback(unclean_exception)
         sys.exit(1)
+
+    if cfginfo_mode:
+        #The environment was inspected (if needed), so the summary can include
+        #the external dependencies:
+        unlock()
+        _handle_broken_pipe( lambda : _show_cfginfo( opt, parser ) )
 
     assert dirs.makefiledir.is_dir()
 
@@ -733,3 +769,24 @@ def _reflogupdate( opt, lockfile_content ):
     finally:
         _print_updated_reflogs( session.updated_files )
     return 0
+
+def _show_cfginfo( opt, parser ):
+    #Implementation of -s/--summary and --showcfg:
+    import sys
+    from . import cfginfo
+    d = cfginfo.collect()
+    if opt.showcfg:
+        out = cfginfo.lookup( d, opt.showcfg )
+        if out is None:
+            _ = '\n  '.join( cfginfo.valid_keys( d ) )
+            parser.error( f'Unknown key "{opt.showcfg}" for --showcfg. Valid'
+                          f' keys are:\n  {_}' )
+    elif opt.summary == 'json':
+        out = cfginfo.format_json( d )
+    else:
+        out = cfginfo.format_text( d )
+        _ = cfginfo.format_cachedirs()
+        if _:
+            out += '\n' + _
+    sys.stdout.write( out )
+    sys.stdout.flush()

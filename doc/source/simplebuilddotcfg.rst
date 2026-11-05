@@ -70,6 +70,8 @@ Information about the associated package bundle.
   packages, you must give it a name (so they can specify it as a dependency (see
   below for the ``bundles`` key in the ``[depend]`` section). Valid names are
   lowercase and alphanumeric (underscores allowed, must start with a letter).
+  The name ``main`` is reserved, and is used to refer to the main bundle when
+  it is unnamed (for instance in the output of ``sb -s``).
 
 * ``pkg_root`` (string): Path to the top-level directory of the package
   bundle. Defaults to ``"."``, i.e. the same directory as the one containing the
@@ -190,6 +192,8 @@ bundle which is simply being used by another bundle, will be completely ignored.
   :ref:`build variants <sbbuildvariants>`). The selected set is then used
   *instead of* ``extra_cflags`` and ``extra_ldflags``. Each set can have the
   keys ``extra_cflags`` and ``extra_ldflags``, with values as described above.
+  The names of the build modes (``release``, ``reldbg``, and ``debug``) can not
+  be used as names of flag sets.
   This makes it easy to compare results from several sets of flags, for
   instance to check that results do not depend on the contraction of floating
   point operations:

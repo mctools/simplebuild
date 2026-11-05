@@ -34,6 +34,28 @@ class CacheDir:
     def name( self ):
         return f'bld{self.suffix}+install{self.suffix}'
 
+    def mode( self ):
+        """The build mode."""
+        m = _reobj_cachedir_name.match( f'bld{self.suffix}' )
+        return ( m.group(3) or '_release' )[1:]
+
+    def extra_flags( self ):
+        """The extra flags (cflags, ldflags) used, or None if not known."""
+        if '_xf' not in self.suffix:
+            return ( (), () )
+        try:
+            lines = ( self.blddir / extra_flags_filename ).read_text().splitlines()
+        except (OSError,UnicodeDecodeError):
+            return None
+        res = {}
+        for line in lines:
+            for k in ( 'extra_cflags', 'extra_ldflags' ):
+                if line.startswith( f'{k}:' ):
+                    res[k] = tuple( line[len(k)+1:].split() )
+        if len( res ) != 2:
+            return None
+        return res['extra_cflags'], res['extra_ldflags']
+
     def last_used( self ):
         for f in ( self.blddir / last_used_filename,
                    self.blddir, self.installdir ):
@@ -98,12 +120,14 @@ def remove_least_recently_used( cachedir, current_blddir, max_cachedirs ):
         removed.append( cd )
     return removed
 
-def remove_all( cachedir, current_blddir ):
-    """Remove all cache dirs, except those locked by another running sb process
-    or which can not be safely removed. Returns (removed, skipped) lists of
-    CacheDir objects."""
+def remove_all( cachedir, current_blddir, select = None ):
+    """Remove all cache dirs (or those for which select(cd) is true), except
+    those locked by another running sb process or which can not be safely
+    removed. Returns (removed, skipped) lists of CacheDir objects."""
     removed, skipped = [], []
     for cd in find_cachedirs( cachedir ):
+        if select is not None and not select( cd ):
+            continue
         if ( ( cd.blddir != current_blddir and cd.is_locked() )
              or not cd.can_remove() ):
             skipped.append( cd )

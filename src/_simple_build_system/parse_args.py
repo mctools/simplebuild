@@ -144,10 +144,23 @@ $> {_p} --init dgcode PKGFILTER::SomeFilter
                              help="Show simplebuild version.")
     exclusive.add(('--version','show_version'))
 
-    group_query.add_argument('-s','--summary',
-                             action='store_true', dest='summary',
-                             help='Print a summary of the configuration.')
+    group_query.add_argument('-s','--summary', nargs='?', const='text',
+                             default=None, dest='summary', metavar='FORMAT',
+                             help=('Print a summary of the configuration of the'
+                                   ' selected\nbuild variant, without building'
+                                   ' anything. FORMAT can be\n"text" (default)'
+                                   ' or "json" (e.g. -s=json). Add -e to\nalso'
+                                   ' inspect the external dependencies if not'
+                                   ' already\ndone.'))
     exclusive.add('summary')
+    group_query.add_argument('--showcfg', nargs='?', const='',
+                             default=None, dest='showcfg', metavar='KEY',
+                             help=('Print the value of KEY in the configuration'
+                                   ' of the\nselected build variant (e.g.'
+                                   ' build.mode or\nextdeps.Geant4.version). The'
+                                   ' keys are those shown\nby -s, or any key'
+                                   ' path in the output of -s=json.'))
+    exclusive.add(('--showcfg','showcfg_present'))
 
     group_query.add_argument("--pkginfo",
                              action="store", dest="pkginfo", default='',metavar='PKG',
@@ -283,11 +296,14 @@ $> {_p} --init dgcode PKGFILTER::SomeFilter
     group_other = parser.add_argument_group('Other options')
 
 
-    group_other.add_argument("-c", "--clean",
-                             action='store_true', dest="clean",
-                             help=("Completely remove cache directories and"
-                                   " exit."))
-    exclusive.add('clean')
+    group_other.add_argument("-c", "--clean", nargs='?', const='',
+                             default=None, dest="clean", metavar='NAME',
+                             help=("Remove the cache directories of all build"
+                                   " variants and exit.\nWith NAME, only remove"
+                                   " those of the variants with\nthe build mode"
+                                   " NAME or the flag set NAME\n(e.g. -c debug or"
+                                   " -c ubsan)."))
+    exclusive.add(('--clean','clean_present'))
 
     group_other.add_argument("--replace", action="store", dest="replace",
                              default=None, metavar='PATTERN',
@@ -330,6 +346,16 @@ $> {_p} --init dgcode PKGFILTER::SomeFilter
     bad_unused=list(a for a in args_unused if a.startswith('-'))
     if bad_unused:
         parser.error('unknown argument: %s'%bad_unused[0])
+
+    args.showcfg_present = args.showcfg is not None
+    args.clean_present = args.clean is not None
+    if args.showcfg == '' and len(args_unused) == 1:
+        #Allow other flags between --showcfg and KEY (e.g. "sb --showcfg -d
+        #build.mode"):
+        args.showcfg = args_unused.pop()
+    if args.summary is not None:
+        from .cfginfo import decode_summary_format
+        args.summary = decode_summary_format( args.summary, parser )
 
     present_exclusive = set()
     for a in exclusive:
@@ -402,8 +428,9 @@ $> {_p} --init dgcode PKGFILTER::SomeFilter
                                                     args.pkginfo,args.
                                                     incinfo,
                                                     args.summary,
+                                                    args.showcfg_present,
                                                     args.export_jsoncmds])
-    if int(args.clean)+ query_mode_n > 1:
+    if int(args.clean_present)+ query_mode_n > 1:
         parser.error("Conflicting options (+internal inconsistency:"
                      " this conflict should have been caught earlier)")
     args.query_mode = query_mode_n > 0

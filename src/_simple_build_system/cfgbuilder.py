@@ -103,6 +103,7 @@ class CfgBuilder:
         self.__cfg_names_used = set()
         self.__cfg_names_missing = set([ main_cfg.bundle_name ])
         self.__dyngenscripts = []
+        self.__bundles = []
         self.__use_cfg( main_cfg, is_top_level = True )
 
         for cfg_file, cfg in load_builtin_cfgs():
@@ -186,6 +187,12 @@ class CfgBuilder:
         return self.__pkg_path
 
     @property
+    def bundles(self):
+        """The bundles used, in the order in which they were added, as a list
+        of (name, cfg_file, pkg_root, is_main) tuples."""
+        return self.__bundles
+
+    @property
     def env_paths(self):
         return self.__env_paths
 
@@ -199,6 +206,8 @@ class CfgBuilder:
         self.__print_verbose(f'Using {_cfgname}cfg from {cfg._cfg_file}')
         self.__cfg_names_missing.remove( cfg.bundle_name )
         self.__cfg_names_used.add( cfg.bundle_name )
+        self.__bundles.append( ( cfg.bundle_name, cfg._cfg_file,
+                                 cfg.bundle_pkg_root, is_top_level ) )
         if cfg.bundle_dynamic_generator:
             dyngenscript = cfg.bundle_dynamic_generator
             if not any(dyngenscript.samefile(s) for nm,s in self.__dyngenscripts):

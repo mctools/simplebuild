@@ -89,11 +89,13 @@ class TargetGlobalSysModules(target_base.Target):
         ]
         self.deps += [
             '${BLD}/cfg.py',
-            '${BLD}/_cfg_data.pkl'
+            '${BLD}/_cfg_data.pkl',
+            '${BLD}/cfginfo.json'
         ]
         self.code += [
             'cp -f ${BLD}/cfg.py ${INST}/python/simplebuild/cfg.py',
-            'cp -f ${BLD}/_cfg_data.pkl ${INST}/python/simplebuild/_cfg_data.pkl'
+            'cp -f ${BLD}/_cfg_data.pkl ${INST}/python/simplebuild/_cfg_data.pkl',
+            'cp -f ${BLD}/cfginfo.json ${INST}/cfginfo.json'
         ]
 
 

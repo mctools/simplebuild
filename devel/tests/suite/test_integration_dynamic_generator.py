@@ -245,7 +245,7 @@ with ( d.parent / 'genlog.txt' ).open('a') as fh:
     fh.write( f'{d.name}/{pathlib.Path(__file__).name}\\n' )
 '''
     write_files( root, {
-        'simplebuild.cfg' : ( "[bundle]\n  name = 'main'\n[depend]\n"
+        'simplebuild.cfg' : ( "[bundle]\n  name = 'top'\n[depend]\n"
                               "  bundles = [ 'b1', 'b2', 'b3' ]\n"
                               "  search_path = [ './b1', './b2', './b3' ]\n" ),
         'b1/simplebuild.cfg' : "[bundle]\n  name = 'b1'\n  dynamic_generator = './gen.py'\n",

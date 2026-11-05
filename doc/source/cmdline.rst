@@ -39,7 +39,11 @@ cache directory, so switching between them (e.g. between ``sb`` and ``sb -d``)
 does not throw away any previous build output. To limit disk usage, at most
 ``max_cachedirs`` (default 5) build variants are kept in the cache directory,
 and the least recently used ones are automatically removed when needed. The
-``sb -c`` command removes the build output of all build variants.
+``sb -c`` command removes the build output of all build variants, while for
+instance ``sb -c debug`` only removes that of the variants with the build mode
+``debug``, and ``sb -c ubsan`` that of the variants with the extra flags of the
+flag set ``ubsan``. Use ``sb -s`` to see which build variants are in the cache
+directory (see :ref:`below <sbinspectcfg>`).
 
 Note that the outcome of any of these commands only depends on the code, the
 simplebuild cfg file, and the command line arguments. In particular, it never
@@ -49,6 +53,81 @@ mycmd`` or ``sbrun -d mycmd`` to use the resulting debug build. Likewise, ``eval
 "$(sb -d --env-setup)"`` sets up the environment for the debug build. If you
 use the ``sb`` shell function (see :ref:`here <sbmanualenvsetup>`), it sets up
 the environment after each build, for the build variant used in that build.
+
+.. _sbinspectcfg:
+
+Inspecting the configuration
+============================
+
+The ``sb -s`` command (or ``sb --summary``) prints a summary of the
+configuration of the selected build variant: the cfg files and bundles used,
+the package search path, the number of packages, the build mode and extra
+flags (and where they come from), the cache directories, and the external
+dependencies. Nothing is built, and the cache directories are not modified. As
+for a build, the build variant flags can be used (e.g. ``sb -s -d``). The output
+consists of ``KEY : VALUE`` lines, with the values of lists continuing on the
+following lines:
+
+.. code-block:: text
+
+  main_cfg_file          : /path/to/myproject/simplebuild.cfg
+  bundles                : myproject
+                           dgcode
+                           core
+  ...
+  build.mode             : debug
+  build.mode_from        : -d
+  build.extra_cflags     : -mfma
+  ...
+  extdeps.present        : Geant4 11.4.3
+                           NCrystal 4.4.6
+  extdeps.missing        : ROOT
+  extdeps.unused         : HDF5
+
+The text output ends with an overview of the cache directories of all build
+variants currently in the cache directory, with their sizes on disk. Each
+variant is shown with its build mode and extra flags, preceded by the name of
+the flag set if it matches one that can be selected with ``-X NAME``.
+
+The external dependencies are only known after the environment has been
+inspected (which happens at the first build of the build variant). Use ``sb -s
+-e`` to inspect it if needed, without building anything. External dependencies
+which are not used by any packages are not inspected, and are listed as
+``extdeps.unused``.
+
+All the information is also available in JSON format with ``sb -s=json`` (or
+``sb -s json``), and single values can be printed with ``sb --showcfg KEY``,
+where ``KEY`` is one of the keys shown by ``sb -s``, or a key path in the JSON
+output, for instance:
+
+.. code-block:: sh
+
+  sb --showcfg build.mode
+  sb --showcfg -d variant.installdir
+  sb --showcfg extdeps.Geant4.version
+
+Values which are lists are printed one per line, and tables as ``KEY : VALUE``
+lines.
+
+The same information is installed by each build, and is available from Python
+code in the packages via the ``simplebuild.cfg`` module, as the dictionary
+``simplebuild.cfg.info`` (the same as the output of ``sb -s=json`` for the build
+variant). For convenience, the module also provides some of the values directly:
+``build_mode``, ``extra_cflags``, ``extra_ldflags``, ``flagset``, ``bundles``,
+``main_cfg_file``, and ``extdeps``. For instance:
+
+.. code-block:: python
+
+  import simplebuild.cfg
+  if simplebuild.cfg.build_mode == 'debug':
+      print('This is a debug build')
+  geant4 = simplebuild.cfg.extdeps['Geant4']
+  if geant4['present']:
+      print('Geant4 version:', geant4['version'])
+
+The module also provides information about all packages in
+``simplebuild.cfg.pkgs`` (including the name of the bundle providing each
+package), and the installation directories in ``simplebuild.cfg.dirs``.
 
 The ``sb`` command
 ==================
