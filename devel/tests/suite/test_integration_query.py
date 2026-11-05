@@ -62,6 +62,10 @@ def test_grep_smartcase_and_wildcards( proj ):
     assert 'Found 1 match\n' in res.out
     res = run( "sb --grep 'RE::('", d, expect_ec = 1 )
     assert 'Invalid regular expression in pattern "RE::("' in res.out
+    #Patterns starting with a dash (issue #74):
+    ( d / 'PkgB' / 'data' / 'opts.txt' ).write_text( 'use --force here\n' )
+    res = run( 'sb --grep=--force', d )
+    assert 'Found 1 match\n' in res.out
     #No matches is not an error:
     res = run( 'sb --grep nosuchtext', d )
     assert 'Found 0 matches' in res.out

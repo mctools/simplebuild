@@ -290,7 +290,9 @@ def perform_cfg( *,
     any_enabled=False
     for p in pl.enabled_pkgs_iter():
         any_enabled=True
-        if p.files_in_pkg_changed():
+        #(when exporting the compilation commands, the targets of all packages
+        #are needed):
+        if p.files_in_pkg_changed() or export_jsoncmds:
             #recreate pkg targets from scratch
             old_parts = db.db['pkg2parts'].get(p.name,set())
             db.clear_pkg(p.name)

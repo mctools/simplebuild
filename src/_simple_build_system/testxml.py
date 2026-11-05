@@ -12,12 +12,19 @@ class Test:
         self.__pkgname = pkgname
         self.__time_elapsed_seconds = time_elapsed_seconds
         self.__failure = None
+        self.__skipped = None
 
     def time_elapsed_seconds( self ):
         return self.__time_elapsed_seconds
 
     def is_failure( self ):
         return self.__failure is not None
+
+    def is_skipped( self ):
+        return self.__skipped is not None
+
+    def set_skipped( self, message ):
+        self.__skipped = message
 
     def set_run_failure( self, logfile ):
         self.__failure = ( 'runfail', logfile )
@@ -35,7 +42,11 @@ class Test:
 
     def _generate_xml(self):
         metadata = f'name={xml_escape_attribute_data(self.__cmdname)} {_fmt_time_attribute(self.__time_elapsed_seconds)} classname={xml_escape_attribute_data(self.__pkgname)}'
-        if self.__failure is None:
+        if self.__skipped is not None:
+            yield f'    <testcase {metadata}>'
+            yield f'      <skipped message={xml_escape_attribute_data(self.__skipped)} />'
+            yield '    </testcase>'
+        elif self.__failure is None:
             yield f'    <testcase {metadata} />'
         else:
             s = self.__readsafe(self.__failure[1])
@@ -62,10 +73,11 @@ class TestXMLWriter:
     def generate_xml(self):
         ntests = len(self.__tests)
         nfailures = sum(1 for t in self.__tests if t.is_failure())
+        nskipped = sum(1 for t in self.__tests if t.is_skipped())
         time_sum = float(sum(t.time_elapsed_seconds() for t in self.__tests))
 
         yield f'<testsuites failures="{nfailures}" errors="0" tests="{ntests}" disabled="0" {_fmt_time_attribute(time_sum)}>'
-        yield f'  <testsuite name="simplebuild-tests" disabled="0" failures="{nfailures}" errors="0" skipped="0" time="{time_sum}" tests="{ntests}">'
+        yield f'  <testsuite name="simplebuild-tests" disabled="0" failures="{nfailures}" errors="0" skipped="{nskipped}" time="{time_sum}" tests="{ntests}">'
         for t in self.__tests:
             for line in t._generate_xml():
                 yield line

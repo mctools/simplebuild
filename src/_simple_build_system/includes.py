@@ -46,7 +46,10 @@ def _load_includemap_from_file( path_str ):
 
 def _raw_construct_includemap_list( extdeps ):
     from . import env
-    assert env.env is not None
+    if env.env is None:
+        #The environment was not inspected (only happens for queries like sb
+        #--incinfo), so the include maps are not known:
+        return []
     ei = env.env['extdeps']
     res = []
     for extdep in extdeps:

@@ -240,7 +240,10 @@ started first, to get results as quickly as possible). To only run the tests
 which can complete within a given time, use e.g. ``sb -t --testtime=10``, which
 skips the slowest tests (based on previous runs) as needed to finish within
 approximately 10 seconds (tests without timings from previous runs are always
-run). When running tests in a
+run). To stop as soon as a test fails (for instance in CI), use ``sb -t
+--failearly``: tests which are still running or not yet started are then
+aborted, and reported as such (and as skipped in the JUnit XML file). When
+running tests in a
 terminal, the progress is shown while they run, including an estimate of the
 remaining time (based on previous runs), and pressing ``i`` opens the
 interactive view, in which results appear as tests finish (finished tests can

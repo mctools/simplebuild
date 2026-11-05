@@ -3,13 +3,14 @@ def perform_tests(testdir,
                   installdir, njobs, nexcerpts, filters,
                   do_pycoverage, pkgloader=None, report_spec=None,
                   interactive_ui=None, start_interactive=False,
-                  test_order='slowest', test_time=None):
+                  test_order='slowest', test_time=None, fail_early=False):
     #When running in a terminal, the tests are run in the background, while
     #showing their progress. If interactive_ui is given, the user can press a
     #key to call interactive_ui(run,stop_on_quit=False), where run is the
     #BackgroundTestRun object (to browse results as they become available). If
     #start_interactive is True, interactive_ui(run,stop_on_quit=True) is called
-    #directly, and the report is then not printed.
+    #directly, and the report is then not printed. With fail_early, the tests
+    #are stopped as soon as one of them fails.
     import os
     import sys
     import shlex
@@ -78,6 +79,7 @@ def perform_tests(testdir,
         ntimeskipped = len( _skipped )
 
     mkdir_p(testdir)
+    aborted = [False]#whether tests were aborted due to fail_early
     def save_runinfo():
         #Information needed for reporting the results later:
         from . import db
@@ -91,6 +93,7 @@ def perform_tests(testdir,
             time_all_s = time_all_s,
             time_all_nunknown = nunknown,
             njobs = njobs,
+            failearly_aborted = aborted[0],
             tests = dict( ( t, dict( pkgname = testinfo[t]['pkgname'],
                                      has_reflog = t+'.log' in logfiles ) )
                           for t in sorted(tests) ),
@@ -160,19 +163,23 @@ def perform_tests(testdir,
 
     show_progress = ( not start_interactive and sys.stdout.isatty()
                       and sys.stdin.isatty() and not _io.is_quiet() )
-    if start_interactive or show_progress:
+    if start_interactive or show_progress or fail_early:
         save_runinfo()#so the results can be shown while the tests run
         run = BackgroundTestRun( testdir, installdir, dirs.blddir, alltests,
-                                 njobs, is_rerun = False, order = test_order )
+                                 njobs, is_rerun = False, order = test_order,
+                                 fail_early = fail_early )
         run.start()
         try:
             if start_interactive:
                 interactive_ui( run, stop_on_quit = True )
-            else:
+            elif show_progress:
                 _show_progress( run, interactive_ui )
+            else:
+                run.wait()
         finally:
             run.stop()
-        ec_make = 1 if run.stopped else 0
+        aborted[0] = run.failed_early
+        ec_make = 1 if ( run.stopped and not run.failed_early ) else 0
     else:
         ec_make=system('make -j%i -k -f %s/Makefile all'%(njobs,testdir),
                        env = test_environment() )
@@ -352,7 +359,9 @@ def _write_junit_xml( testdir ):
     testxmlwriter = testxml.TestXMLWriter()
     for r in ( results or [] ):
         test = testxml.Test(r.name,r.pkgname,r.time_ms*0.001)
-        if r.ec != 0:
+        if r.aborted:
+            test.set_skipped('Aborted due to --failearly')
+        elif r.ec != 0:
             test.set_run_failure(os.path.join(testdir,r.name,'output.log'))
         elif r.logdiff_failed:
             test.set_reflog_failure(os.path.join(testdir,r.name,'refdiff.log'))
@@ -450,7 +459,7 @@ class BackgroundTestRun:
     finish."""
 
     def __init__( self, testdir, installdir, blddir, names, njobs,
-                  is_rerun = True, order = 'slowest' ):
+                  is_rerun = True, order = 'slowest', fail_early = False ):
         import pathlib
         self.testdir = pathlib.Path(testdir)
         self.installdir = installdir
@@ -463,6 +472,9 @@ class BackgroundTestRun:
         self._compared = set()
         self._finished = False
         self.stopped = False
+        #With fail_early, the run is stopped as soon as a test fails:
+        self.fail_early = fail_early
+        self.failed_early = False
 
     def start( self ):
         import subprocess
@@ -501,9 +513,19 @@ class BackgroundTestRun:
                 if ( self.testdir / name / 'timing_ms' ).exists() or not running:
                     _compare_with_reflog( self.testdir, self.installdir, name )
                     self._compared.add( name )
+        if ( self.fail_early and running and not self.stopped
+             and any( self._has_failed( n ) for n in self._compared ) ):
+            self.failed_early = True
+            self.stop()
+            return False
         if not running:
             self._finish()
         return running
+
+    def _has_failed( self, name ):
+        td = self.testdir / name
+        return ( _read_number( td / 'ec.txt', int ) != 0
+                 or bool( _read_number( td / 'ecdiff.txt', int ) ) )
 
     def counts( self ):
         """Returns (ndone,nrunning,ntotal)."""
@@ -679,10 +701,14 @@ def packages_changed_since( runinfo ):
 
 class TestResult:
 
-    def __init__( self, name, pkgname, has_reflog, ec, ecdiff, time_ms ):
+    def __init__( self, name, pkgname, has_reflog, ec, ecdiff, time_ms,
+                  failearly_aborted = False ):
         self.name = name
         self.pkgname = pkgname
         self.has_reflog = has_reflog
+        #Tests which did not complete since the run was stopped due to
+        #--failearly are not considered failed, but aborted:
+        self.aborted = ec is None and failearly_aborted
         self.ec = 1 if ec is None else ec#None means that the test was killed
         self.ecdiff = ecdiff
         self.time_ms = time_ms or 0.0
@@ -693,7 +719,7 @@ class TestResult:
 
     @property
     def failed( self ):
-        return self.ec != 0 or self.logdiff_failed
+        return not self.aborted and ( self.ec != 0 or self.logdiff_failed )
 
 def load_results( testdir ):
     """Load information about the last test run, and the results of the
@@ -714,7 +740,8 @@ def load_results( testdir ):
                                     nfo.get('has_reflog'),
                                     _read_number( os.path.join(td,'ec.txt'), int ),
                                     _read_number( os.path.join(td,'ecdiff.txt'), int ),
-                                    _read_number( os.path.join(td,'timing_ms'), float ) ) )
+                                    _read_number( os.path.join(td,'timing_ms'), float ),
+                                    failearly_aborted = runinfo.get('failearly_aborted',False) ) )
     return runinfo, results
 
 _line_hr = " ---------------------------------------+-----------+--------+----------+------------------"
@@ -775,6 +802,11 @@ def print_report( testdir, logdir, nexcerpts, spec, *, filters = None,
     elif nfiltered:
         print(f'Note: {nfiltered} tests were blocked by specified filters.')
         print()
+    naborted = sum( 1 for r in results if r.aborted )
+    if naborted:
+        print(f'Note: {naborted} test{"s were" if naborted != 1 else " was"} aborted'
+              ' or not started, since another test failed (--failearly).')
+        print()
     nall = len(results)
     if filters:
         filter_fct = make_filter_fct( filters )
@@ -803,7 +835,10 @@ def print_report( testdir, logdir, nexcerpts, spec, *, filters = None,
         if r.ecdiff is not None:
             logdiffstr = 'FAIL' if r.ecdiff else ' OK '
         info = '--'
-        if r.failed:
+        if r.aborted:
+            ecstr = ' -- '
+            info = 'Aborted due to --failearly'
+        elif r.failed:
             info = os.path.realpath( os.path.join( testdir, r.name ) )
             any_failed = True
             if nexcerpts > 0:
