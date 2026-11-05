@@ -79,8 +79,12 @@ def _build_cfg():
         if _fs is None:
             from . import error
             _avail = ', '.join( sorted( main_cfg.build_flagsets ) ) or '<none>'
+            _hint = ''
+            if vflags.flagset in variant.reserved_flagset_names:
+                _ = f'-{vflags.flagset[0]}'
+                _hint = f'. To select the build mode {vflags.flagset}, use {_} instead'
             error.error(f'Unknown flag set "{vflags.flagset}" requested with -X (the'
-                        f' build.flagsets table in {main_cfg_file} defines: {_avail})')
+                        f' build.flagsets table in {main_cfg_file} defines: {_avail}){_hint}')
         extra_cflags, extra_ldflags = _fs
     else:
         extra_cflags = main_cfg.build_extra_cflags
@@ -188,6 +192,12 @@ def _build_cfg():
         extra_flags_summary_string = _extra_flags_summary_string
         #Name of the flag set selected with -X (or None):
         flagset = vflags.flagset
+        #For the cfg summary (see cfginfo.py):
+        variant_flags = vflags
+        cfg_build_mode = main_cfg.build_mode
+        cfg_build_flagsets = main_cfg.build_flagsets
+        bundles = tuple( cfg.bundles )
+        build_pkg_filter = tuple( main_cfg.build_pkg_filter )
 
     return EnvCfg()
 

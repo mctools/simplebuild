@@ -79,6 +79,7 @@ class Package:
     def __init__(self,basedir,reldirname,enabled):
         self.dirname = os.path.join(basedir,reldirname)
         self.dirpath = basedir.joinpath(reldirname)
+        self.basedir = basedir#the pkg_root of the bundle with the package
         self.__haslib=None
         self.reldirname = reldirname
         #self.reldirnamewithparent = os.path.relpath(dirname,basedir+'/..')
@@ -229,9 +230,11 @@ class Package:
         """Returns info as dictionary, containing not custom classes and suitable for
            pickling. Should be called after setup and after targets have been built, in
             order to guarantee complete info"""
+        from .cfginfo import bundle_of_pkg
         d = { 'name':self.name,
               'dirname':self.dirname,
               'reldirname':self.reldirname,
+              'bundle' : bundle_of_pkg( self ),
               'enabled' : self.enabled }
         if not self.enabled:
             return d

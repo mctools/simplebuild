@@ -134,6 +134,10 @@ def fast_parse_leading_flags( args ):
         return None
     return VariantFlags( mode, ignore_extra_flags, flagset ), args[i:]
 
+#Names of the build modes can not be used as names of flag sets (to avoid
+#confusion, since modes and flag sets can be combined):
+reserved_flagset_names = tuple( _mode_flags.values() )
+
 def is_valid_flagset_name( name ):
     """Names of flag sets must be non-empty and contain only letters, digits,
     underscores and dashes (not starting with a dash)."""

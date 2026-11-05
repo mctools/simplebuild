@@ -103,3 +103,22 @@ def test_unknown_keys_give_warnings( tmp_path ):
 def test_syntax_error( tmp_path ):
     with pytest.raises( SystemExit, match = 'Syntax error' ):
         load_cfg( tmp_path, '[bundle\n' )
+
+@pytest.mark.parametrize( 'name', [ 'release', 'reldbg', 'debug' ] )
+def test_reserved_flagset_names( tmp_path, name ):
+    with pytest.raises( SystemExit, match = f'Invalid flag set name "{name}".*names of the build modes' ):
+        load_build_section( tmp_path, f'flagsets.{name}.extra_cflags = "-O1"' )
+
+def test_flagset_names( tmp_path ):
+    c = load_build_section( tmp_path, 'flagsets.debug2.extra_cflags = "-O1"',
+                            'flagsets.Debug.extra_cflags = "-O2"' )
+    assert c.build_flagsets == { 'debug2' : ( ('-O1',), () ),
+                                 'Debug' : ( ('-O2',), () ) }
+
+def test_reserved_bundle_name( tmp_path ):
+    from _simple_build_system.singlecfg import is_valid_bundle_name
+    with pytest.raises( SystemExit, match = 'the name "main" is reserved' ):
+        load_cfg( tmp_path, '[bundle]\nname="main"\n' )
+    assert not is_valid_bundle_name( 'main' )
+    assert is_valid_bundle_name( 'main2' )
+    assert load_cfg( tmp_path, '[bundle]\nname="mainproj"\n' ).bundle_name == 'mainproj'

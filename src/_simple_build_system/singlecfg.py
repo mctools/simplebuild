@@ -163,7 +163,12 @@ _reobj_valid_lowercase_identifier = re.compile(_reexp_valid_identifier)
 def _is_valid_lowercase_identifier( s ):
     return s and isinstance(s,str) and _reobj_valid_lowercase_identifier.search(s) is not None
 
-is_valid_bundle_name = _is_valid_lowercase_identifier
+#The name "main" is reserved, since it is used to refer to the main bundle
+#when it is unnamed (see cfginfo.py):
+reserved_bundle_name = 'main'
+
+def is_valid_bundle_name( s ):
+    return bool( _is_valid_lowercase_identifier( s ) ) and s != reserved_bundle_name
 
 _valid_flag_special_chars = '_+-.,:=/@%'
 _reobj_valid_flag = re.compile( '^[A-Za-z0-9%s]+$'%re.escape(_valid_flag_special_chars) )
@@ -184,6 +189,13 @@ def _generate_toml_schema():
     def decode_valid_lowercase_identifier_string( ctx : TOMLSchemaDecodeContext, item ):
         if not _is_valid_lowercase_identifier(item):
             error.error(f'Invalid value "{item}" for item {ctx.item_name} (expected string matching {_reexp_valid_lowercase_identifier}) in {ctx.src_descr}')
+        return item
+
+    def decode_bundle_name( ctx : TOMLSchemaDecodeContext, item ):
+        item = decode_valid_lowercase_identifier_string( ctx, item )
+        if item == reserved_bundle_name:
+            error.error(f'Invalid value "{item}" for item {ctx.item_name} (the name "{item}" is'
+                        f' reserved, and can not be used as a bundle name) in {ctx.src_descr}')
         return item
 
     def decode_is_bool( ctx : TOMLSchemaDecodeContext, item ):
@@ -299,7 +311,7 @@ def _generate_toml_schema():
         #flag instead of build.extra_cflags and build.extra_ldflags. Each set is
         #a table which can have the keys extra_cflags and extra_ldflags (with
         #values as for build.extra_cflags and build.extra_ldflags):
-        from .variant import is_valid_flagset_name
+        from .variant import is_valid_flagset_name, reserved_flagset_names
         if not isinstance( item, dict ):
             error.error(f'Invalid value "{item}" for item {ctx.item_name} (expected a table of named flag sets) in {ctx.src_descr}')
         res = {}
@@ -308,6 +320,10 @@ def _generate_toml_schema():
             if not is_valid_flagset_name( name ):
                 error.error(f'Invalid flag set name "{name}" in item {item_name} in {ctx.src_descr} (names can'
                             ' only contain letters, digits, underscores and dashes, and can not start with a dash)')
+            if name in reserved_flagset_names:
+                _ = ', '.join( reserved_flagset_names )
+                error.error(f'Invalid flag set name "{name}" in item {item_name} in {ctx.src_descr} (the names'
+                            f' of the build modes can not be used as names of flag sets: {_})')
             if not isinstance( fs, dict ):
                 error.error(f'Invalid value "{fs}" for flag set "{name}" in item {item_name} (expected a table'
                             f' with the keys extra_cflags and/or extra_ldflags) in {ctx.src_descr}')
@@ -368,7 +384,7 @@ def _generate_toml_schema():
                         '(must refer to an existing file)')
         return p
 
-    return dict( bundle   = dict( name        = (decode_valid_lowercase_identifier_string,None),
+    return dict( bundle   = dict( name        = (decode_bundle_name,None),
                                   pkg_root      = (decode_dir, '.'),
                                   env_paths   = (decode_is_env_paths,[]),
                                   dynamic_generator = (decode_existing_file,None),
